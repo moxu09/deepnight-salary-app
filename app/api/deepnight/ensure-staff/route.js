@@ -14,10 +14,10 @@ export async function POST(req) {
       );
     }
 
-    const guildId = process.env.QIUNAI_GUILD_ID;
+    const guildId = process.env.DEEP_NIGHT_GUILD_ID;
     const botToken = process.env.DISCORD_BOT_TOKEN;
 
-    const allowedRoleIds = String(process.env.QIUNAI_STAFF_ROLE_IDS || "")
+    const allowedRoleIds = String(process.env.DEEP_NIGHT_STAFF_ROLE_IDS || "")
       .split(",")
       .map((id) => id.trim())
       .filter(Boolean);
@@ -27,7 +27,7 @@ export async function POST(req) {
         {
           ok: false,
           message:
-            "深夜不關燈身分組檢查環境變數尚未設定完整，請確認 DISCORD_BOT_TOKEN、QIUNAI_GUILD_ID、QIUNAI_STAFF_ROLE_IDS。",
+            "深夜不關燈身分組檢查環境變數尚未設定完整，請確認 DISCORD_BOT_TOKEN、DEEP_NIGHT_GUILD_ID、DEEP_NIGHT_STAFF_ROLE_IDS。",
         },
         { status: 500 }
       );
