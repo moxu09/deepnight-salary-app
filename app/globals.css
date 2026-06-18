@@ -1,266 +1,74 @@
 @import "tailwindcss";
 
 /* =========================================================
-   深夜不關燈薪資網｜全站風格
-   風格：奶白暖色底 + 藍紫粉點綴 + 內容縮小
+   深夜不關燈薪資網｜安全版全站風格
+   不改頁面結構、不把 section 變模塊
    ========================================================= */
 
 :root {
-  --dn-bg: #f8f5ff;
-  --dn-bg-warm: #fff9ef;
-  --dn-bg-soft: #f3eeff;
-
-  --dn-card: rgba(255, 255, 255, 0.82);
-  --dn-card-solid: #ffffff;
-  --dn-card-soft: rgba(255, 255, 255, 0.66);
-
+  --dn-bg-1: #f8f5ff;
+  --dn-bg-2: #fff8ef;
   --dn-text: #2f243f;
-  --dn-text-soft: #5f5472;
-  --dn-muted: #8a7c9e;
-
+  --dn-muted: #7c718f;
+  --dn-border: rgba(124, 92, 255, 0.16);
   --dn-primary: #7c5cff;
-  --dn-primary-dark: #5e42d8;
-  --dn-primary-soft: rgba(124, 92, 255, 0.12);
-
+  --dn-primary-dark: #5f45d8;
   --dn-pink: #d94f9d;
-  --dn-pink-soft: rgba(217, 79, 157, 0.12);
-
-  --dn-gold: #f3b35c;
-  --dn-gold-soft: rgba(243, 179, 92, 0.16);
-
-  --dn-green: #15a083;
-  --dn-green-soft: rgba(21, 160, 131, 0.12);
-
-  --dn-red: #d94b5f;
-  --dn-red-soft: rgba(217, 75, 95, 0.12);
-
-  --dn-border: rgba(116, 88, 180, 0.16);
-  --dn-border-strong: rgba(116, 88, 180, 0.28);
-
-  --dn-shadow: 0 14px 38px rgba(69, 47, 116, 0.09);
-  --dn-shadow-soft: 0 8px 24px rgba(69, 47, 116, 0.06);
+  --dn-gold: #f2b35d;
 }
 
-/* =========================================================
-   Base
-   ========================================================= */
-
-* {
-  box-sizing: border-box;
-}
-
-html {
+html,
+body {
   min-height: 100%;
-  background: var(--dn-bg);
 }
 
 body {
-  min-height: 100vh;
   margin: 0;
   background:
-    radial-gradient(circle at 12% 0%, rgba(181, 108, 255, 0.16), transparent 28%),
-    radial-gradient(circle at 88% 8%, rgba(243, 179, 92, 0.18), transparent 28%),
-    radial-gradient(circle at 50% 105%, rgba(124, 92, 255, 0.1), transparent 32%),
-    linear-gradient(135deg, var(--dn-bg), var(--dn-bg-warm)) !important;
-  color: var(--dn-text) !important;
-  font-size: 14px;
-  line-height: 1.55;
-  -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
-}
-
-/* 淡淡的背景裝飾 */
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: -1;
-  background-image:
-    linear-gradient(rgba(124, 92, 255, 0.045) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(124, 92, 255, 0.045) 1px, transparent 1px);
-  background-size: 34px 34px;
-  mask-image: linear-gradient(to bottom, black, transparent 80%);
-}
-
-/* =========================================================
-   Layout compact
-   ========================================================= */
-
-main,
-.qiunai-page,
-.deepnight-page {
+    radial-gradient(circle at 10% 0%, rgba(124, 92, 255, 0.13), transparent 30%),
+    radial-gradient(circle at 88% 5%, rgba(242, 179, 93, 0.15), transparent 28%),
+    linear-gradient(135deg, var(--dn-bg-1), var(--dn-bg-2)) !important;
   color: var(--dn-text) !important;
   font-size: 14px !important;
 }
 
+/* 只縮整體，不改成新模塊 */
 main {
-  padding: 1.25rem !important;
-}
-
-main > div,
-.qiunai-page > div,
-.deepnight-page > div {
-  max-width: 1040px !important;
-}
-
-/* 常見 Tailwind spacing 壓縮 */
-.p-10 {
-  padding: 1.5rem !important;
-}
-
-.p-9 {
-  padding: 1.4rem !important;
-}
-
-.p-8 {
-  padding: 1.25rem !important;
-}
-
-.p-7 {
-  padding: 1.15rem !important;
-}
-
-.p-6 {
+  font-size: 14px !important;
   padding: 1rem !important;
 }
 
-.p-5 {
-  padding: 0.9rem !important;
+/* 最大寬度稍微收窄 */
+.max-w-7xl {
+  max-width: 1080px !important;
 }
 
-.px-10 {
-  padding-left: 1.5rem !important;
-  padding-right: 1.5rem !important;
+.max-w-6xl {
+  max-width: 1000px !important;
 }
 
-.px-8 {
-  padding-left: 1.25rem !important;
-  padding-right: 1.25rem !important;
+.max-w-5xl {
+  max-width: 920px !important;
 }
 
-.px-6 {
-  padding-left: 1rem !important;
-  padding-right: 1rem !important;
-}
-
-.py-10 {
-  padding-top: 1.5rem !important;
-  padding-bottom: 1.5rem !important;
-}
-
-.py-8 {
-  padding-top: 1.25rem !important;
-  padding-bottom: 1.25rem !important;
-}
-
-.py-6 {
-  padding-top: 1rem !important;
-  padding-bottom: 1rem !important;
-}
-
-.gap-10 {
-  gap: 1.5rem !important;
-}
-
-.gap-8 {
-  gap: 1.25rem !important;
-}
-
-.gap-6 {
-  gap: 1rem !important;
-}
-
-.gap-5 {
-  gap: 0.85rem !important;
-}
-
-.space-y-8 > :not([hidden]) ~ :not([hidden]) {
-  margin-top: 1.25rem !important;
-}
-
-.space-y-6 > :not([hidden]) ~ :not([hidden]) {
-  margin-top: 1rem !important;
-}
-
-.space-y-5 > :not([hidden]) ~ :not([hidden]) {
-  margin-top: 0.85rem !important;
-}
-
-/* =========================================================
-   Cards
-   ========================================================= */
-
-section,
-.card,
-.qiunai-card,
-.deepnight-card,
-[class*="rounded-3xl"],
-[class*="rounded-2xl"] {
-  border-color: var(--dn-border) !important;
-}
-
-.qiunai-card,
-.deepnight-card,
-.card {
-  border: 1px solid var(--dn-border) !important;
-  border-radius: 22px !important;
-  background: var(--dn-card) !important;
-  box-shadow: var(--dn-shadow-soft) !important;
-  backdrop-filter: blur(18px);
-}
-
-.bg-white,
-.bg-zinc-50,
-.bg-slate-50 {
-  background-color: var(--dn-card) !important;
-}
-
-.bg-white\/80,
-.bg-white\/70,
-.bg-white\/60 {
-  background-color: var(--dn-card) !important;
-  backdrop-filter: blur(18px);
-}
-
-.rounded-3xl {
-  border-radius: 22px !important;
-}
-
-.rounded-2xl {
-  border-radius: 18px !important;
-}
-
-.rounded-xl {
-  border-radius: 15px !important;
-}
-
-/* =========================================================
-   Typography
-   ========================================================= */
-
-h1,
+/* 標題縮小 */
 .text-5xl,
-.text-4xl {
-  font-size: 1.85rem !important;
-  line-height: 1.18 !important;
-  letter-spacing: -0.03em;
-  color: var(--dn-text) !important;
+.text-4xl,
+h1 {
+  font-size: 1.75rem !important;
+  line-height: 1.2 !important;
 }
 
-h2,
-.text-3xl {
-  font-size: 1.35rem !important;
+.text-3xl,
+h2 {
+  font-size: 1.3rem !important;
   line-height: 1.25 !important;
-  letter-spacing: -0.02em;
-  color: var(--dn-text) !important;
 }
 
-h3,
-.text-2xl {
-  font-size: 1.12rem !important;
-  line-height: 1.32 !important;
-  color: var(--dn-text) !important;
+.text-2xl,
+h3 {
+  font-size: 1.08rem !important;
+  line-height: 1.3 !important;
 }
 
 .text-xl {
@@ -283,29 +91,74 @@ h3,
   font-size: 0.74rem !important;
 }
 
-.font-black,
-.font-extrabold,
-.font-bold {
-  letter-spacing: -0.015em;
+/* 間距縮小 */
+.p-10 {
+  padding: 1.5rem !important;
 }
 
-/* 文字顏色統一 */
-.text-zinc-950,
+.p-8 {
+  padding: 1.2rem !important;
+}
+
+.p-7 {
+  padding: 1.1rem !important;
+}
+
+.p-6 {
+  padding: 1rem !important;
+}
+
+.p-5 {
+  padding: 0.9rem !important;
+}
+
+.gap-10 {
+  gap: 1.5rem !important;
+}
+
+.gap-8 {
+  gap: 1.2rem !important;
+}
+
+.gap-6 {
+  gap: 1rem !important;
+}
+
+.gap-5 {
+  gap: 0.85rem !important;
+}
+
+/* 卡片只微調，不強制所有 section 變卡片 */
+.bg-white,
+.bg-white\/80,
+.bg-white\/70,
+.bg-white\/60 {
+  background-color: rgba(255, 255, 255, 0.78) !important;
+}
+
+.border,
+.border-zinc-200,
+.border-slate-200,
+.border-gray-200 {
+  border-color: var(--dn-border) !important;
+}
+
+.rounded-3xl {
+  border-radius: 22px !important;
+}
+
+.rounded-2xl {
+  border-radius: 18px !important;
+}
+
+/* 文字色 */
 .text-zinc-900,
 .text-zinc-800,
-.text-slate-950,
 .text-slate-900,
 .text-slate-800,
-.text-gray-950,
 .text-gray-900,
 .text-gray-800 {
   color: var(--dn-text) !important;
-}
-
-.text-zinc-700,
-.text-slate-700,
-.text-gray-700 {
-  color: var(--dn-text-soft) !important;
 }
 
 .text-zinc-600,
@@ -324,334 +177,62 @@ h3,
   color: var(--dn-pink) !important;
 }
 
-.text-purple-600,
-.text-violet-600 {
-  color: var(--dn-primary-dark) !important;
-}
-
-/* =========================================================
-   Buttons
-   ========================================================= */
-
-button,
-.qiunai-button,
-.deepnight-button,
-a[role="button"] {
-  min-height: 40px !important;
+/* 按鈕 */
+button {
+  min-height: 38px !important;
+  font-size: 13px !important;
   border-radius: 999px !important;
-  font-size: 13.5px !important;
-  font-weight: 800 !important;
-  transition:
-    transform 0.16s ease,
-    box-shadow 0.16s ease,
-    opacity 0.16s ease,
-    background 0.16s ease !important;
 }
 
-button:not(:disabled):hover,
-.qiunai-button:not(:disabled):hover,
-.deepnight-button:not(:disabled):hover,
-a[role="button"]:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 10px 22px rgba(124, 92, 255, 0.18) !important;
-}
-
-button:not(:disabled),
-.qiunai-button:not(:disabled),
-.deepnight-button:not(:disabled) {
-  border-color: transparent !important;
-}
-
-button:disabled {
-  opacity: 0.55 !important;
-  cursor: not-allowed !important;
-  box-shadow: none !important;
-}
-
-/* 主要按鈕 */
 .bg-purple-600,
 .bg-violet-600,
 .bg-fuchsia-600,
 .bg-pink-600,
 .bg-indigo-600 {
   background: linear-gradient(135deg, var(--dn-primary), var(--dn-pink)) !important;
-  color: #ffffff !important;
+  color: #fff !important;
 }
 
-/* 綠色按鈕 */
 .bg-emerald-600,
 .bg-green-600,
 .bg-teal-600 {
-  background: linear-gradient(135deg, #15a083, #4bbf9f) !important;
-  color: #ffffff !important;
+  background: linear-gradient(135deg, #16a083, #4dbb9f) !important;
+  color: #fff !important;
 }
 
-/* 紅色按鈕 */
-.bg-red-600,
-.bg-rose-600 {
-  background: linear-gradient(135deg, #d94b5f, #ef7a8b) !important;
-  color: #ffffff !important;
-}
-
-/* 灰色按鈕 */
-.bg-zinc-900,
-.bg-slate-900,
-.bg-gray-900 {
-  background: linear-gradient(135deg, #45385e, #6f5f8f) !important;
-  color: #ffffff !important;
-}
-
-/* 淺色按鈕 */
-.bg-white button,
-button.bg-white,
-button.bg-zinc-50,
-button.bg-slate-50 {
-  background: rgba(255, 255, 255, 0.85) !important;
-  color: var(--dn-text) !important;
-  border: 1px solid var(--dn-border) !important;
-}
-
-/* =========================================================
-   Forms
-   ========================================================= */
-
+/* 輸入框 */
 input,
 select,
 textarea {
-  min-height: 40px !important;
-  border-radius: 15px !important;
-  border: 1px solid var(--dn-border) !important;
-  background: rgba(255, 255, 255, 0.76) !important;
+  min-height: 38px !important;
+  font-size: 13px !important;
+  border-radius: 14px !important;
+  border-color: var(--dn-border) !important;
   color: var(--dn-text) !important;
-  font-size: 13.5px !important;
-  padding: 0.62rem 0.82rem !important;
-  outline: none !important;
-  box-shadow: none !important;
 }
 
 textarea {
-  min-height: 88px !important;
+  min-height: 82px !important;
 }
 
-input:focus,
-select:focus,
-textarea:focus {
-  border-color: rgba(124, 92, 255, 0.5) !important;
-  box-shadow: 0 0 0 4px rgba(124, 92, 255, 0.12) !important;
-}
-
-input::placeholder,
-textarea::placeholder {
-  color: rgba(95, 84, 114, 0.55) !important;
-}
-
-label {
-  color: var(--dn-text-soft) !important;
-  font-size: 0.82rem !important;
-  font-weight: 700 !important;
-}
-
-input[type="checkbox"] {
-  width: 18px !important;
-  height: 18px !important;
-  min-height: 18px !important;
-  padding: 0 !important;
-  accent-color: var(--dn-primary) !important;
-  border-radius: 6px !important;
-}
-
-input[type="date"],
-input[type="datetime-local"],
-input[type="time"] {
-  color-scheme: light;
-}
-
-/* =========================================================
-   Table
-   ========================================================= */
-
+/* 表格 */
 table {
-  width: 100%;
-  border-collapse: separate !important;
-  border-spacing: 0 !important;
   font-size: 13px !important;
-  overflow: hidden;
-}
-
-thead {
-  background: rgba(124, 92, 255, 0.08) !important;
-}
-
-th {
-  color: var(--dn-text-soft) !important;
-  font-size: 0.78rem !important;
-  font-weight: 800 !important;
-  white-space: nowrap;
 }
 
 th,
 td {
-  padding: 0.62rem 0.7rem !important;
-  border-color: rgba(116, 88, 180, 0.1) !important;
+  padding: 0.55rem 0.65rem !important;
 }
 
-tbody tr {
-  transition: background 0.14s ease;
-}
-
-tbody tr:hover {
-  background: rgba(124, 92, 255, 0.045) !important;
-}
-
-/* =========================================================
-   Badges / Pills
-   ========================================================= */
-
-.rounded-full {
-  font-size: 0.76rem;
-}
-
-.border {
-  border-color: var(--dn-border) !important;
-}
-
-.border-zinc-200,
-.border-zinc-300,
-.border-slate-200,
-.border-slate-300,
-.border-gray-200,
-.border-gray-300 {
-  border-color: var(--dn-border) !important;
-}
-
-.bg-purple-50,
-.bg-violet-50 {
-  background: var(--dn-primary-soft) !important;
-}
-
-.bg-pink-50,
-.bg-fuchsia-50 {
-  background: var(--dn-pink-soft) !important;
-}
-
-.bg-amber-50,
-.bg-yellow-50 {
-  background: var(--dn-gold-soft) !important;
-}
-
-.bg-emerald-50,
-.bg-green-50,
-.bg-teal-50 {
-  background: var(--dn-green-soft) !important;
-}
-
-.bg-red-50,
-.bg-rose-50 {
-  background: var(--dn-red-soft) !important;
-}
-
-/* =========================================================
-   Dashboard number cards
-   ========================================================= */
-
-[class*="from-purple"],
-[class*="from-violet"],
-[class*="from-fuchsia"],
-[class*="from-pink"] {
-  color: #ffffff !important;
-}
-
-/* 漸層文字維持漂亮 */
-.bg-clip-text.text-transparent {
-  background-image: linear-gradient(135deg, var(--dn-primary), var(--dn-pink), var(--dn-gold)) !important;
-}
-
-/* =========================================================
-   Scrollbar
-   ========================================================= */
-
-::-webkit-scrollbar {
-  width: 9px;
-  height: 9px;
-}
-
-::-webkit-scrollbar-track {
-  background: rgba(124, 92, 255, 0.06);
-}
-
-::-webkit-scrollbar-thumb {
-  background: rgba(124, 92, 255, 0.26);
-  border-radius: 999px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(124, 92, 255, 0.38);
-}
-
-/* =========================================================
-   Utility overrides
-   ========================================================= */
-
-.shadow,
-.shadow-md,
-.shadow-lg,
-.shadow-xl,
-.shadow-2xl {
-  box-shadow: var(--dn-shadow-soft) !important;
-}
-
-.backdrop-blur,
-.backdrop-blur-md,
-.backdrop-blur-xl,
-.backdrop-blur-2xl {
-  backdrop-filter: blur(18px) !important;
-}
-
-/* 減少超大區塊高度 */
-.min-h-screen {
-  min-height: 100vh !important;
-}
-
-.max-w-7xl {
-  max-width: 1080px !important;
-}
-
-.max-w-6xl {
-  max-width: 1000px !important;
-}
-
-.max-w-5xl {
-  max-width: 920px !important;
-}
-
-/* =========================================================
-   Mobile
-   ========================================================= */
-
+/* 手機 */
 @media (max-width: 768px) {
-  body {
-    font-size: 13px;
-  }
-
   main {
-    padding: 0.85rem !important;
-  }
-
-  main,
-  .qiunai-page,
-  .deepnight-page {
+    padding: 0.75rem !important;
     font-size: 13px !important;
   }
 
-  main > div,
-  .qiunai-page > div,
-  .deepnight-page > div {
-    width: 100% !important;
-    max-width: 100% !important;
-  }
-
   .p-10,
-  .p-9,
   .p-8,
   .p-7,
   .p-6,
@@ -659,45 +240,14 @@ tbody tr:hover {
     padding: 0.85rem !important;
   }
 
-  .px-10,
-  .px-8,
-  .px-6 {
-    padding-left: 0.85rem !important;
-    padding-right: 0.85rem !important;
-  }
-
-  .py-10,
-  .py-8,
-  .py-6 {
-    padding-top: 0.85rem !important;
-    padding-bottom: 0.85rem !important;
-  }
-
-  h1,
   .text-5xl,
-  .text-4xl {
-    font-size: 1.48rem !important;
+  .text-4xl,
+  h1 {
+    font-size: 1.45rem !important;
   }
 
-  h2,
-  .text-3xl {
-    font-size: 1.16rem !important;
-  }
-
-  h3,
-  .text-2xl {
-    font-size: 1rem !important;
-  }
-
-  input,
-  select,
-  textarea,
-  button {
-    font-size: 13px !important;
-  }
-
-  th,
-  td {
-    padding: 0.52rem 0.56rem !important;
+  .text-3xl,
+  h2 {
+    font-size: 1.15rem !important;
   }
 }
