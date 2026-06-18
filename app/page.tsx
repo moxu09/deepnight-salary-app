@@ -21,38 +21,34 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="deepnight-page flex items-center justify-center px-4 py-10">
-      <div className="deepnight-glow left-[-80px] top-[-80px] h-64 w-64 bg-pink-300" />
-      <div className="deepnight-glow right-[-70px] top-24 h-72 w-72 bg-purple-300" />
-      <div className="deepnight-glow bottom-[-90px] left-1/2 h-72 w-72 -translate-x-1/2 bg-rose-200" />
-
-      <div className="relative z-10 w-full max-w-md">
+    <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-sky-50 via-white to-blue-50 px-4 py-10 text-slate-900">
+      <div className="w-full max-w-md">
         <div className="mb-5 flex justify-center">
-          <div className="deepnight-card flex h-20 w-20 items-center justify-center rounded-[28px]">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-pink-300 via-fuchsia-300 to-violet-300 text-white shadow-lg">
+          <div className="flex h-20 w-20 items-center justify-center rounded-[28px] border border-sky-100 bg-white shadow-sm">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-300 via-blue-400 to-cyan-400 text-white shadow-md">
               <Gamepad2 size={30} />
             </div>
           </div>
         </div>
 
-        <div className="deepnight-card rounded-[34px] p-8">
+        <div className="rounded-[30px] border border-sky-100 bg-white/90 p-7 shadow-xl shadow-sky-100/60 backdrop-blur">
           <div className="flex items-center justify-center gap-2">
-            <span className="deepnight-badge px-3 py-1 text-xs font-semibold">
-              Qiunai Esports
+            <span className="rounded-full border border-sky-100 bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-700">
+              DeepNight Staff
             </span>
 
-            <span className="deepnight-badge flex items-center gap-1 px-3 py-1 text-xs font-semibold">
+            <span className="flex items-center gap-1 rounded-full border border-sky-100 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
               <Sparkles size={13} />
               Staff Only
             </span>
           </div>
 
           <div className="mt-6 text-center">
-            <h1 className="deepnight-title-gradient text-4xl font-black tracking-tight">
+            <h1 className="text-3xl font-black tracking-tight text-slate-900">
               深夜不關燈薪資網
             </h1>
 
-            <p className="mt-4 text-sm leading-7 text-[#6b4f71]">
+            <p className="mt-4 text-sm leading-7 text-slate-500">
               使用 Discord 登入後，系統會自動確認你的深夜不關燈員工身分組，
               符合資格後即可查看薪資、獎金、接單狀態與可接遊戲。
             </p>
@@ -60,23 +56,23 @@ export default function LoginPage() {
 
           <button
             onClick={loginWithDiscord}
-            className="deepnight-button mt-8 flex w-full items-center justify-center gap-2 px-5 py-4 text-base font-bold"
+            className="mt-8 flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-sky-400 to-blue-500 px-5 py-3.5 text-sm font-bold text-white shadow-lg shadow-sky-200 transition hover:-translate-y-0.5 hover:shadow-sky-300"
           >
             <Heart size={18} fill="currentColor" />
             使用 Discord 登入
           </button>
 
-          <div className="mt-6 rounded-3xl border border-pink-200/70 bg-white/50 p-4 text-center">
-            <p className="text-xs leading-6 text-[#8b5a8f]">
-              甜甜接單，安心發薪。
+          <div className="mt-6 rounded-2xl border border-sky-100 bg-sky-50/70 p-4 text-center">
+            <p className="text-xs leading-6 text-slate-500">
+              安心接單，清楚發薪。
               <br />
               深夜不關燈專用員工薪資系統
             </p>
           </div>
         </div>
 
-        <p className="mt-5 text-center text-xs text-[#a36b9e]">
-          © 深夜不關燈 Qiunai Esports
+        <p className="mt-5 text-center text-xs text-slate-400">
+          © 深夜不關燈 We Are Still Here
         </p>
       </div>
     </main>
