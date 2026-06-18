@@ -1,146 +1,703 @@
 @import "tailwindcss";
 
-:root {
-  --background: #fff7fb;
-  --foreground: #3f2947;
+/* =========================================================
+   深夜不關燈薪資網｜全站風格
+   風格：奶白暖色底 + 藍紫粉點綴 + 內容縮小
+   ========================================================= */
 
-  --deepnight-pink: #f9a8d4;
-  --deepnight-pink-soft: #ffe4f1;
-  --deepnight-purple: #c084fc;
-  --deepnight-purple-soft: #f3e8ff;
-  --deepnight-cream: #fffaf3;
-  --deepnight-card: rgba(255, 255, 255, 0.78);
-  --deepnight-border: rgba(244, 114, 182, 0.22);
+:root {
+  --dn-bg: #f8f5ff;
+  --dn-bg-warm: #fff9ef;
+  --dn-bg-soft: #f3eeff;
+
+  --dn-card: rgba(255, 255, 255, 0.82);
+  --dn-card-solid: #ffffff;
+  --dn-card-soft: rgba(255, 255, 255, 0.66);
+
+  --dn-text: #2f243f;
+  --dn-text-soft: #5f5472;
+  --dn-muted: #8a7c9e;
+
+  --dn-primary: #7c5cff;
+  --dn-primary-dark: #5e42d8;
+  --dn-primary-soft: rgba(124, 92, 255, 0.12);
+
+  --dn-pink: #d94f9d;
+  --dn-pink-soft: rgba(217, 79, 157, 0.12);
+
+  --dn-gold: #f3b35c;
+  --dn-gold-soft: rgba(243, 179, 92, 0.16);
+
+  --dn-green: #15a083;
+  --dn-green-soft: rgba(21, 160, 131, 0.12);
+
+  --dn-red: #d94b5f;
+  --dn-red-soft: rgba(217, 75, 95, 0.12);
+
+  --dn-border: rgba(116, 88, 180, 0.16);
+  --dn-border-strong: rgba(116, 88, 180, 0.28);
+
+  --dn-shadow: 0 14px 38px rgba(69, 47, 116, 0.09);
+  --dn-shadow-soft: 0 8px 24px rgba(69, 47, 116, 0.06);
 }
+
+/* =========================================================
+   Base
+   ========================================================= */
 
 * {
   box-sizing: border-box;
 }
 
 html {
-  scroll-behavior: smooth;
+  min-height: 100%;
+  background: var(--dn-bg);
 }
 
 body {
   min-height: 100vh;
+  margin: 0;
   background:
-    radial-gradient(circle at 12% 10%, rgba(249, 168, 212, 0.42), transparent 28%),
-    radial-gradient(circle at 85% 12%, rgba(192, 132, 252, 0.34), transparent 30%),
-    radial-gradient(circle at 50% 90%, rgba(251, 207, 232, 0.55), transparent 32%),
-    linear-gradient(135deg, #fff7fb 0%, #fffaf3 42%, #fdf2f8 100%);
-  color: var(--foreground);
+    radial-gradient(circle at 12% 0%, rgba(181, 108, 255, 0.16), transparent 28%),
+    radial-gradient(circle at 88% 8%, rgba(243, 179, 92, 0.18), transparent 28%),
+    radial-gradient(circle at 50% 105%, rgba(124, 92, 255, 0.1), transparent 32%),
+    linear-gradient(135deg, var(--dn-bg), var(--dn-bg-warm)) !important;
+  color: var(--dn-text) !important;
+  font-size: 14px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
-button,
-input,
-select,
-textarea {
-  font-family: inherit;
-}
-
-::selection {
-  background: rgba(249, 168, 212, 0.45);
-  color: #3f2947;
-}
-
-.deepnight-page {
-  min-height: 100vh;
-  position: relative;
-  overflow: hidden;
-  color: #3f2947;
-}
-
-.deepnight-page::before {
+/* 淡淡的背景裝飾 */
+body::before {
   content: "";
   position: fixed;
   inset: 0;
   pointer-events: none;
+  z-index: -1;
   background-image:
-    radial-gradient(circle, rgba(244, 114, 182, 0.18) 1px, transparent 1px),
-    radial-gradient(circle, rgba(192, 132, 252, 0.14) 1px, transparent 1px);
-  background-size: 34px 34px, 58px 58px;
-  background-position: 0 0, 18px 22px;
-  opacity: 0.75;
+    linear-gradient(rgba(124, 92, 255, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(124, 92, 255, 0.045) 1px, transparent 1px);
+  background-size: 34px 34px;
+  mask-image: linear-gradient(to bottom, black, transparent 80%);
 }
 
-.deepnight-glow {
-  position: absolute;
-  border-radius: 9999px;
-  filter: blur(40px);
-  opacity: 0.55;
-  pointer-events: none;
+/* =========================================================
+   Layout compact
+   ========================================================= */
+
+main,
+.qiunai-page,
+.deepnight-page {
+  color: var(--dn-text) !important;
+  font-size: 14px !important;
 }
 
-.deepnight-card {
-  border: 1px solid var(--deepnight-border);
-  background: var(--deepnight-card);
-  box-shadow:
-    0 24px 80px rgba(244, 114, 182, 0.18),
-    inset 0 1px 0 rgba(255, 255, 255, 0.75);
+main {
+  padding: 1.25rem !important;
+}
+
+main > div,
+.qiunai-page > div,
+.deepnight-page > div {
+  max-width: 1040px !important;
+}
+
+/* 常見 Tailwind spacing 壓縮 */
+.p-10 {
+  padding: 1.5rem !important;
+}
+
+.p-9 {
+  padding: 1.4rem !important;
+}
+
+.p-8 {
+  padding: 1.25rem !important;
+}
+
+.p-7 {
+  padding: 1.15rem !important;
+}
+
+.p-6 {
+  padding: 1rem !important;
+}
+
+.p-5 {
+  padding: 0.9rem !important;
+}
+
+.px-10 {
+  padding-left: 1.5rem !important;
+  padding-right: 1.5rem !important;
+}
+
+.px-8 {
+  padding-left: 1.25rem !important;
+  padding-right: 1.25rem !important;
+}
+
+.px-6 {
+  padding-left: 1rem !important;
+  padding-right: 1rem !important;
+}
+
+.py-10 {
+  padding-top: 1.5rem !important;
+  padding-bottom: 1.5rem !important;
+}
+
+.py-8 {
+  padding-top: 1.25rem !important;
+  padding-bottom: 1.25rem !important;
+}
+
+.py-6 {
+  padding-top: 1rem !important;
+  padding-bottom: 1rem !important;
+}
+
+.gap-10 {
+  gap: 1.5rem !important;
+}
+
+.gap-8 {
+  gap: 1.25rem !important;
+}
+
+.gap-6 {
+  gap: 1rem !important;
+}
+
+.gap-5 {
+  gap: 0.85rem !important;
+}
+
+.space-y-8 > :not([hidden]) ~ :not([hidden]) {
+  margin-top: 1.25rem !important;
+}
+
+.space-y-6 > :not([hidden]) ~ :not([hidden]) {
+  margin-top: 1rem !important;
+}
+
+.space-y-5 > :not([hidden]) ~ :not([hidden]) {
+  margin-top: 0.85rem !important;
+}
+
+/* =========================================================
+   Cards
+   ========================================================= */
+
+section,
+.card,
+.qiunai-card,
+.deepnight-card,
+[class*="rounded-3xl"],
+[class*="rounded-2xl"] {
+  border-color: var(--dn-border) !important;
+}
+
+.qiunai-card,
+.deepnight-card,
+.card {
+  border: 1px solid var(--dn-border) !important;
+  border-radius: 22px !important;
+  background: var(--dn-card) !important;
+  box-shadow: var(--dn-shadow-soft) !important;
   backdrop-filter: blur(18px);
 }
 
-.deepnight-input {
-  width: 100%;
-  border-radius: 18px;
-  border: 1px solid rgba(244, 114, 182, 0.24);
-  background: rgba(255, 255, 255, 0.72);
-  padding: 12px 16px;
-  color: #3f2947;
-  outline: none;
-  transition: 0.18s ease;
+.bg-white,
+.bg-zinc-50,
+.bg-slate-50 {
+  background-color: var(--dn-card) !important;
 }
 
-.deepnight-input::placeholder {
-  color: rgba(107, 79, 113, 0.52);
+.bg-white\/80,
+.bg-white\/70,
+.bg-white\/60 {
+  background-color: var(--dn-card) !important;
+  backdrop-filter: blur(18px);
 }
 
-.deepnight-input:focus {
-  border-color: rgba(236, 72, 153, 0.55);
-  box-shadow: 0 0 0 4px rgba(249, 168, 212, 0.22);
+.rounded-3xl {
+  border-radius: 22px !important;
 }
 
-.deepnight-button {
-  border-radius: 20px;
-  background: linear-gradient(135deg, #fb7185 0%, #f472b6 45%, #c084fc 100%);
-  color: white;
-  box-shadow: 0 16px 34px rgba(236, 72, 153, 0.28);
-  transition: 0.18s ease;
+.rounded-2xl {
+  border-radius: 18px !important;
 }
 
-.deepnight-button:hover {
+.rounded-xl {
+  border-radius: 15px !important;
+}
+
+/* =========================================================
+   Typography
+   ========================================================= */
+
+h1,
+.text-5xl,
+.text-4xl {
+  font-size: 1.85rem !important;
+  line-height: 1.18 !important;
+  letter-spacing: -0.03em;
+  color: var(--dn-text) !important;
+}
+
+h2,
+.text-3xl {
+  font-size: 1.35rem !important;
+  line-height: 1.25 !important;
+  letter-spacing: -0.02em;
+  color: var(--dn-text) !important;
+}
+
+h3,
+.text-2xl {
+  font-size: 1.12rem !important;
+  line-height: 1.32 !important;
+  color: var(--dn-text) !important;
+}
+
+.text-xl {
+  font-size: 1rem !important;
+}
+
+.text-lg {
+  font-size: 0.95rem !important;
+}
+
+.text-base {
+  font-size: 0.9rem !important;
+}
+
+.text-sm {
+  font-size: 0.82rem !important;
+}
+
+.text-xs {
+  font-size: 0.74rem !important;
+}
+
+.font-black,
+.font-extrabold,
+.font-bold {
+  letter-spacing: -0.015em;
+}
+
+/* 文字顏色統一 */
+.text-zinc-950,
+.text-zinc-900,
+.text-zinc-800,
+.text-slate-950,
+.text-slate-900,
+.text-slate-800,
+.text-gray-950,
+.text-gray-900,
+.text-gray-800 {
+  color: var(--dn-text) !important;
+}
+
+.text-zinc-700,
+.text-slate-700,
+.text-gray-700 {
+  color: var(--dn-text-soft) !important;
+}
+
+.text-zinc-600,
+.text-zinc-500,
+.text-slate-600,
+.text-slate-500,
+.text-gray-600,
+.text-gray-500 {
+  color: var(--dn-muted) !important;
+}
+
+.text-purple-700,
+.text-violet-700,
+.text-fuchsia-600,
+.text-pink-600 {
+  color: var(--dn-pink) !important;
+}
+
+.text-purple-600,
+.text-violet-600 {
+  color: var(--dn-primary-dark) !important;
+}
+
+/* =========================================================
+   Buttons
+   ========================================================= */
+
+button,
+.qiunai-button,
+.deepnight-button,
+a[role="button"] {
+  min-height: 40px !important;
+  border-radius: 999px !important;
+  font-size: 13.5px !important;
+  font-weight: 800 !important;
+  transition:
+    transform 0.16s ease,
+    box-shadow 0.16s ease,
+    opacity 0.16s ease,
+    background 0.16s ease !important;
+}
+
+button:not(:disabled):hover,
+.qiunai-button:not(:disabled):hover,
+.deepnight-button:not(:disabled):hover,
+a[role="button"]:hover {
   transform: translateY(-1px);
-  box-shadow: 0 20px 42px rgba(236, 72, 153, 0.34);
+  box-shadow: 0 10px 22px rgba(124, 92, 255, 0.18) !important;
 }
 
-.deepnight-button:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-  transform: none;
+button:not(:disabled),
+.qiunai-button:not(:disabled),
+.deepnight-button:not(:disabled) {
+  border-color: transparent !important;
 }
 
-.deepnight-soft-button {
-  border-radius: 18px;
-  border: 1px solid rgba(244, 114, 182, 0.24);
-  background: rgba(255, 255, 255, 0.68);
-  color: #7c3aed;
-  transition: 0.18s ease;
+button:disabled {
+  opacity: 0.55 !important;
+  cursor: not-allowed !important;
+  box-shadow: none !important;
 }
 
-.deepnight-soft-button:hover {
-  background: rgba(253, 242, 248, 0.9);
+/* 主要按鈕 */
+.bg-purple-600,
+.bg-violet-600,
+.bg-fuchsia-600,
+.bg-pink-600,
+.bg-indigo-600 {
+  background: linear-gradient(135deg, var(--dn-primary), var(--dn-pink)) !important;
+  color: #ffffff !important;
 }
 
-.deepnight-badge {
+/* 綠色按鈕 */
+.bg-emerald-600,
+.bg-green-600,
+.bg-teal-600 {
+  background: linear-gradient(135deg, #15a083, #4bbf9f) !important;
+  color: #ffffff !important;
+}
+
+/* 紅色按鈕 */
+.bg-red-600,
+.bg-rose-600 {
+  background: linear-gradient(135deg, #d94b5f, #ef7a8b) !important;
+  color: #ffffff !important;
+}
+
+/* 灰色按鈕 */
+.bg-zinc-900,
+.bg-slate-900,
+.bg-gray-900 {
+  background: linear-gradient(135deg, #45385e, #6f5f8f) !important;
+  color: #ffffff !important;
+}
+
+/* 淺色按鈕 */
+.bg-white button,
+button.bg-white,
+button.bg-zinc-50,
+button.bg-slate-50 {
+  background: rgba(255, 255, 255, 0.85) !important;
+  color: var(--dn-text) !important;
+  border: 1px solid var(--dn-border) !important;
+}
+
+/* =========================================================
+   Forms
+   ========================================================= */
+
+input,
+select,
+textarea {
+  min-height: 40px !important;
+  border-radius: 15px !important;
+  border: 1px solid var(--dn-border) !important;
+  background: rgba(255, 255, 255, 0.76) !important;
+  color: var(--dn-text) !important;
+  font-size: 13.5px !important;
+  padding: 0.62rem 0.82rem !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+textarea {
+  min-height: 88px !important;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: rgba(124, 92, 255, 0.5) !important;
+  box-shadow: 0 0 0 4px rgba(124, 92, 255, 0.12) !important;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: rgba(95, 84, 114, 0.55) !important;
+}
+
+label {
+  color: var(--dn-text-soft) !important;
+  font-size: 0.82rem !important;
+  font-weight: 700 !important;
+}
+
+input[type="checkbox"] {
+  width: 18px !important;
+  height: 18px !important;
+  min-height: 18px !important;
+  padding: 0 !important;
+  accent-color: var(--dn-primary) !important;
+  border-radius: 6px !important;
+}
+
+input[type="date"],
+input[type="datetime-local"],
+input[type="time"] {
+  color-scheme: light;
+}
+
+/* =========================================================
+   Table
+   ========================================================= */
+
+table {
+  width: 100%;
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+  font-size: 13px !important;
+  overflow: hidden;
+}
+
+thead {
+  background: rgba(124, 92, 255, 0.08) !important;
+}
+
+th {
+  color: var(--dn-text-soft) !important;
+  font-size: 0.78rem !important;
+  font-weight: 800 !important;
+  white-space: nowrap;
+}
+
+th,
+td {
+  padding: 0.62rem 0.7rem !important;
+  border-color: rgba(116, 88, 180, 0.1) !important;
+}
+
+tbody tr {
+  transition: background 0.14s ease;
+}
+
+tbody tr:hover {
+  background: rgba(124, 92, 255, 0.045) !important;
+}
+
+/* =========================================================
+   Badges / Pills
+   ========================================================= */
+
+.rounded-full {
+  font-size: 0.76rem;
+}
+
+.border {
+  border-color: var(--dn-border) !important;
+}
+
+.border-zinc-200,
+.border-zinc-300,
+.border-slate-200,
+.border-slate-300,
+.border-gray-200,
+.border-gray-300 {
+  border-color: var(--dn-border) !important;
+}
+
+.bg-purple-50,
+.bg-violet-50 {
+  background: var(--dn-primary-soft) !important;
+}
+
+.bg-pink-50,
+.bg-fuchsia-50 {
+  background: var(--dn-pink-soft) !important;
+}
+
+.bg-amber-50,
+.bg-yellow-50 {
+  background: var(--dn-gold-soft) !important;
+}
+
+.bg-emerald-50,
+.bg-green-50,
+.bg-teal-50 {
+  background: var(--dn-green-soft) !important;
+}
+
+.bg-red-50,
+.bg-rose-50 {
+  background: var(--dn-red-soft) !important;
+}
+
+/* =========================================================
+   Dashboard number cards
+   ========================================================= */
+
+[class*="from-purple"],
+[class*="from-violet"],
+[class*="from-fuchsia"],
+[class*="from-pink"] {
+  color: #ffffff !important;
+}
+
+/* 漸層文字維持漂亮 */
+.bg-clip-text.text-transparent {
+  background-image: linear-gradient(135deg, var(--dn-primary), var(--dn-pink), var(--dn-gold)) !important;
+}
+
+/* =========================================================
+   Scrollbar
+   ========================================================= */
+
+::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(124, 92, 255, 0.06);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(124, 92, 255, 0.26);
   border-radius: 999px;
-  border: 1px solid rgba(244, 114, 182, 0.24);
-  background: rgba(253, 242, 248, 0.82);
-  color: #be185d;
 }
 
-.deepnight-title-gradient {
-  background: linear-gradient(135deg, #be185d 0%, #db2777 42%, #7c3aed 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(124, 92, 255, 0.38);
+}
+
+/* =========================================================
+   Utility overrides
+   ========================================================= */
+
+.shadow,
+.shadow-md,
+.shadow-lg,
+.shadow-xl,
+.shadow-2xl {
+  box-shadow: var(--dn-shadow-soft) !important;
+}
+
+.backdrop-blur,
+.backdrop-blur-md,
+.backdrop-blur-xl,
+.backdrop-blur-2xl {
+  backdrop-filter: blur(18px) !important;
+}
+
+/* 減少超大區塊高度 */
+.min-h-screen {
+  min-height: 100vh !important;
+}
+
+.max-w-7xl {
+  max-width: 1080px !important;
+}
+
+.max-w-6xl {
+  max-width: 1000px !important;
+}
+
+.max-w-5xl {
+  max-width: 920px !important;
+}
+
+/* =========================================================
+   Mobile
+   ========================================================= */
+
+@media (max-width: 768px) {
+  body {
+    font-size: 13px;
+  }
+
+  main {
+    padding: 0.85rem !important;
+  }
+
+  main,
+  .qiunai-page,
+  .deepnight-page {
+    font-size: 13px !important;
+  }
+
+  main > div,
+  .qiunai-page > div,
+  .deepnight-page > div {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .p-10,
+  .p-9,
+  .p-8,
+  .p-7,
+  .p-6,
+  .p-5 {
+    padding: 0.85rem !important;
+  }
+
+  .px-10,
+  .px-8,
+  .px-6 {
+    padding-left: 0.85rem !important;
+    padding-right: 0.85rem !important;
+  }
+
+  .py-10,
+  .py-8,
+  .py-6 {
+    padding-top: 0.85rem !important;
+    padding-bottom: 0.85rem !important;
+  }
+
+  h1,
+  .text-5xl,
+  .text-4xl {
+    font-size: 1.48rem !important;
+  }
+
+  h2,
+  .text-3xl {
+    font-size: 1.16rem !important;
+  }
+
+  h3,
+  .text-2xl {
+    font-size: 1rem !important;
+  }
+
+  input,
+  select,
+  textarea,
+  button {
+    font-size: 13px !important;
+  }
+
+  th,
+  td {
+    padding: 0.52rem 0.56rem !important;
+  }
 }
