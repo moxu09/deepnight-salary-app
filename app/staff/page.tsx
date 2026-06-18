@@ -397,7 +397,7 @@ export default function StaffPage() {
     const endIso = new Date().toISOString();
 
     const { data: orderData, error: orderError } = await supabase
-      .from("salary_orders")
+      .from("play_orders")
       .select("*")
       .eq("discord_id", discordId)
       .or("is_deleted.eq.false,is_deleted.is.null")
@@ -410,7 +410,7 @@ export default function StaffPage() {
     }
 
     const { data: allOrderData, error: allOrderError } = await supabase
-      .from("salary_orders")
+      .from("play_orders")
       .select("*")
       .eq("discord_id", discordId)
       .or("is_deleted.eq.false,is_deleted.is.null")

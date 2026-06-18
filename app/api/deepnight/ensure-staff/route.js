@@ -198,7 +198,15 @@ export async function POST(req) {
         .insert({
           discord_id,
           name: discord_name || discord_id,
-         status: "offline"
+          discord_name,
+          avatar_url,
+          display_name: discord_name || discord_id,
+          role_checked: true,
+          is_active: true,
+          is_online: false,
+          can_take_order: true,
+          allowed_services: [],
+          status: "offline"
         })
         .select("*")
         .single();

@@ -157,7 +157,7 @@ export default function AdminSalaryPage() {
     const endIso = toIso(filter.end);
 
     let orderQuery = supabase
-      .from("salary_orders")
+      .from("play_orders")
       .select("*")
       .or("is_deleted.eq.false,is_deleted.is.null")
       .order("order_finished_at", { ascending: false });
@@ -263,7 +263,7 @@ export default function AdminSalaryPage() {
 
     const staffName = getStaffNameByDiscordId(orderForm.discord_id);
 
-    const { error } = await supabase.from("salary_orders").insert({
+    const { error } = await supabase.from("play_orders").insert({
       order_id: `MANUAL-${Date.now()}`,
       discord_id: orderForm.discord_id,
       staff_name: staffName,
@@ -359,7 +359,7 @@ export default function AdminSalaryPage() {
     if (!ok) return;
 
     const { error } = await supabase
-      .from("salary_orders")
+      .from("play_orders")
       .update({
         status: "已發薪",
         paid_at: paidAt,
@@ -401,7 +401,7 @@ export default function AdminSalaryPage() {
     if (!ok) return;
 
     let query = supabase
-      .from("salary_orders")
+      .from("play_orders")
       .update({
         status: "已發薪",
         paid_at: paidAt,
@@ -459,7 +459,7 @@ export default function AdminSalaryPage() {
     }
 
     const { error } = await supabase
-      .from("salary_orders")
+      .from("play_orders")
       .update({
         service_name: payload.service_name || null,
         customer_name: payload.customer_name || null,
@@ -496,7 +496,7 @@ export default function AdminSalaryPage() {
     if (!ok) return false;
 
     const { error } = await supabase
-      .from("salary_orders")
+      .from("play_orders")
       .update({
         is_deleted: true,
         deleted_at: new Date().toISOString(),
