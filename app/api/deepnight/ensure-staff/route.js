@@ -186,37 +186,9 @@ export async function POST(req) {
     }
 
     if (existing) {
-      const { data: updated, error: updateError } =
-        await supabaseAdmin
-          .from(staffTable)
-          .update({
-            discord_name,
-            avatar_url,
-            role_checked: true,
-            is_active: true,
-            updated_at: new Date().toISOString()
-          })
-          .eq("discord_id", discord_id)
-          .select("*")
-          .single();
-
-      if (updateError) {
-        console.error("[DEEP_NIGHT_ENSURE_STAFF_UPDATE_ERROR]", updateError);
-
-        return NextResponse.json(
-          {
-            ok: false,
-            message: "更新員工資料失敗"
-          },
-          {
-            status: 500
-          }
-        );
-      }
-
       return NextResponse.json({
         ok: true,
-        staff: updated
+        staff: existing
       });
     }
 
@@ -225,13 +197,8 @@ export async function POST(req) {
         .from(staffTable)
         .insert({
           discord_id,
-          discord_name,
-          avatar_url,
-          display_name: discord_name,
-          role_checked: true,
-          is_active: true,
-          is_online: false,
-          can_take_order: true
+          name: discord_name || discord_id,
+         status: "offline"
         })
         .select("*")
         .single();
