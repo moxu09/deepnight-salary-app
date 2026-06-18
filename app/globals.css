@@ -1,37 +1,40 @@
 @import "tailwindcss";
 
 /* =========================================================
-   深夜不關燈薪資網｜乾淨柔和版 globals.css
+   深夜不關燈薪資網｜淡藍乾淨版 globals.css
    目標：
-   1. 換成乾淨溫暖的背景
-   2. 內容整體縮小
-   3. 輸入文字區保留方塊
-   4. 不生成奇怪大色塊
+   1. 淡藍色調
+   2. 不要粉紫色
+   3. 移除背景大色塊
+   4. 保留輸入框方塊感
+   5. 內容整體縮小一點
    ========================================================= */
 
 :root {
-  --dn-bg-main: #f8f3ff;
-  --dn-bg-warm: #fff8ef;
-  --dn-bg-card: rgba(255, 255, 255, 0.82);
+  --dn-bg-main: #eef8ff;
+  --dn-bg-soft: #f8fcff;
+  --dn-bg-card: rgba(255, 255, 255, 0.86);
 
-  --dn-text: #2a2038;
-  --dn-text-soft: #6f6380;
-  --dn-muted: #9689a6;
+  --dn-text: #1f2f3f;
+  --dn-text-soft: #52697d;
+  --dn-muted: #7b91a3;
 
-  --dn-border: rgba(126, 96, 180, 0.18);
-  --dn-border-strong: rgba(126, 96, 180, 0.3);
+  --dn-border: rgba(84, 154, 198, 0.22);
+  --dn-border-strong: rgba(84, 154, 198, 0.36);
 
-  --dn-primary: #7c5cff;
-  --dn-primary-dark: #5f43d8;
-  --dn-pink: #e85a9c;
-  --dn-pink-soft: rgba(232, 90, 156, 0.1);
-  --dn-purple-soft: rgba(124, 92, 255, 0.1);
+  --dn-primary: #4ba3d8;
+  --dn-primary-dark: #2679ac;
+  --dn-primary-soft: rgba(75, 163, 216, 0.12);
 
-  --dn-success: #14a67f;
-  --dn-warning: #f2ad4e;
-  --dn-danger: #d94b5f;
+  --dn-blue: #4ba3d8;
+  --dn-blue-2: #77c5ee;
+  --dn-sky: #dff4ff;
 
-  --dn-shadow: 0 8px 22px rgba(69, 48, 116, 0.08);
+  --dn-success: #16a085;
+  --dn-warning: #e6a93e;
+  --dn-danger: #d65361;
+
+  --dn-shadow: 0 8px 22px rgba(43, 102, 143, 0.08);
 }
 
 /* =========================================================
@@ -45,12 +48,14 @@ body {
   overflow-x: hidden;
 }
 
+html {
+  background: var(--dn-bg-main) !important;
+}
+
 body {
-  color: var(--dn-text);
+  color: var(--dn-text) !important;
   background:
-    radial-gradient(circle at 8% 0%, rgba(124, 92, 255, 0.11), transparent 30%),
-    radial-gradient(circle at 92% 4%, rgba(255, 188, 112, 0.14), transparent 28%),
-    linear-gradient(135deg, var(--dn-bg-main), var(--dn-bg-warm));
+    linear-gradient(135deg, #eef8ff 0%, #f8fcff 48%, #edf8ff 100%) !important;
   font-size: 14px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
@@ -78,15 +83,39 @@ button:disabled {
 }
 
 /* =========================================================
+   移除原本 staff 頁面的大色塊背景裝飾
+   這些通常是 absolute/fixed + pointer-events-none 的裝飾 div
+   ========================================================= */
+
+.pointer-events-none.fixed,
+.pointer-events-none.absolute,
+.fixed.pointer-events-none,
+.absolute.pointer-events-none {
+  display: none !important;
+}
+
+/* 針對粉紫大方塊再保險關閉 */
+[class*="bg-pink"].absolute,
+[class*="bg-pink"].fixed,
+[class*="bg-purple"].absolute,
+[class*="bg-purple"].fixed,
+[class*="bg-fuchsia"].absolute,
+[class*="bg-fuchsia"].fixed,
+[class*="bg-violet"].absolute,
+[class*="bg-violet"].fixed {
+  display: none !important;
+}
+
+/* =========================================================
    整體縮小
    ========================================================= */
 
 main {
   font-size: 14px !important;
   padding: 1rem !important;
+  background: transparent !important;
 }
 
-/* 最大寬度不要太寬 */
 .max-w-7xl {
   max-width: 1080px !important;
 }
@@ -109,15 +138,15 @@ main {
 }
 
 .p-9 {
-  padding: 1.4rem !important;
+  padding: 1.35rem !important;
 }
 
 .p-8 {
-  padding: 1.25rem !important;
+  padding: 1.2rem !important;
 }
 
 .p-7 {
-  padding: 1.15rem !important;
+  padding: 1.1rem !important;
 }
 
 .p-6 {
@@ -134,8 +163,8 @@ main {
 }
 
 .px-8 {
-  padding-left: 1.25rem !important;
-  padding-right: 1.25rem !important;
+  padding-left: 1.2rem !important;
+  padding-right: 1.2rem !important;
 }
 
 .px-6 {
@@ -149,8 +178,8 @@ main {
 }
 
 .py-8 {
-  padding-top: 1.25rem !important;
-  padding-bottom: 1.25rem !important;
+  padding-top: 1.2rem !important;
+  padding-bottom: 1.2rem !important;
 }
 
 .py-6 {
@@ -163,7 +192,7 @@ main {
 }
 
 .gap-8 {
-  gap: 1.25rem !important;
+  gap: 1.2rem !important;
 }
 
 .gap-6 {
@@ -175,7 +204,7 @@ main {
 }
 
 .space-y-8 > :not([hidden]) ~ :not([hidden]) {
-  margin-top: 1.25rem !important;
+  margin-top: 1.2rem !important;
 }
 
 .space-y-6 > :not([hidden]) ~ :not([hidden]) {
@@ -193,14 +222,14 @@ main {
 h1,
 .text-5xl,
 .text-4xl {
-  font-size: 1.75rem !important;
+  font-size: 1.72rem !important;
   line-height: 1.2 !important;
   letter-spacing: -0.03em;
 }
 
 h2,
 .text-3xl {
-  font-size: 1.3rem !important;
+  font-size: 1.28rem !important;
   line-height: 1.25 !important;
   letter-spacing: -0.02em;
 }
@@ -232,7 +261,7 @@ h3,
 }
 
 /* =========================================================
-   文字顏色
+   文字顏色：全部轉淡藍系
    ========================================================= */
 
 .text-zinc-950,
@@ -262,13 +291,11 @@ h3,
   color: var(--dn-muted) !important;
 }
 
+/* 原本粉紫文字全部改淡藍 */
+.text-pink-600,
+.text-fuchsia-600,
 .text-purple-700,
 .text-violet-700,
-.text-fuchsia-600,
-.text-pink-600 {
-  color: var(--dn-pink) !important;
-}
-
 .text-purple-600,
 .text-violet-600,
 .text-indigo-600 {
@@ -276,8 +303,7 @@ h3,
 }
 
 /* =========================================================
-   卡片微調
-   不強制 section 變成卡片，避免多出模塊
+   卡片：保留乾淨白底，不新增奇怪模塊
    ========================================================= */
 
 .bg-white,
@@ -286,6 +312,14 @@ h3,
 .bg-white\/70,
 .bg-white\/60 {
   background-color: var(--dn-bg-card) !important;
+}
+
+.bg-pink-50,
+.bg-fuchsia-50,
+.bg-purple-50,
+.bg-violet-50,
+.bg-indigo-50 {
+  background-color: var(--dn-primary-soft) !important;
 }
 
 .border,
@@ -328,7 +362,7 @@ textarea {
   min-height: 40px !important;
   border-radius: 12px !important;
   border: 1px solid var(--dn-border-strong) !important;
-  background: rgba(255, 255, 255, 0.9) !important;
+  background: rgba(255, 255, 255, 0.94) !important;
   color: var(--dn-text) !important;
   font-size: 13.5px !important;
   padding: 0.62rem 0.82rem !important;
@@ -344,13 +378,13 @@ textarea {
 input:focus,
 select:focus,
 textarea:focus {
-  border-color: rgba(124, 92, 255, 0.55) !important;
-  box-shadow: 0 0 0 3px rgba(124, 92, 255, 0.12) !important;
+  border-color: rgba(75, 163, 216, 0.68) !important;
+  box-shadow: 0 0 0 3px rgba(75, 163, 216, 0.15) !important;
 }
 
 input::placeholder,
 textarea::placeholder {
-  color: rgba(111, 99, 128, 0.58) !important;
+  color: rgba(82, 105, 125, 0.56) !important;
 }
 
 label {
@@ -365,7 +399,7 @@ input[type="checkbox"] {
   min-height: 18px !important;
   padding: 0 !important;
   border-radius: 5px !important;
-  accent-color: var(--dn-pink) !important;
+  accent-color: var(--dn-primary) !important;
 }
 
 input[type="date"],
@@ -375,7 +409,7 @@ input[type="time"] {
 }
 
 /* =========================================================
-   按鈕
+   按鈕：淡藍主色
    ========================================================= */
 
 button,
@@ -395,36 +429,36 @@ a[role="button"]:hover {
   transform: translateY(-1px);
 }
 
-/* 主色按鈕 */
+/* 原本粉紫按鈕全部改淡藍 */
 .bg-purple-600,
 .bg-violet-600,
 .bg-indigo-600,
 .bg-fuchsia-600,
 .bg-pink-600 {
-  background: linear-gradient(135deg, var(--dn-primary), var(--dn-pink)) !important;
+  background: linear-gradient(135deg, #4ba3d8, #77c5ee) !important;
   color: #ffffff !important;
 }
 
-/* 綠色按鈕 */
+/* 綠色按鈕保留，但調柔和 */
 .bg-emerald-600,
 .bg-green-600,
 .bg-teal-600 {
-  background: linear-gradient(135deg, #14a67f, #45c39e) !important;
+  background: linear-gradient(135deg, #16a085, #4bbf9f) !important;
   color: #ffffff !important;
 }
 
 /* 紅色按鈕 */
 .bg-red-600,
 .bg-rose-600 {
-  background: linear-gradient(135deg, #d94b5f, #ef7d8e) !important;
+  background: linear-gradient(135deg, #d65361, #ef7d8e) !important;
   color: #ffffff !important;
 }
 
-/* 灰色深色按鈕 */
+/* 灰色深色按鈕改藍灰 */
 .bg-zinc-900,
 .bg-slate-900,
 .bg-gray-900 {
-  background: linear-gradient(135deg, #3b314d, #5d5274) !important;
+  background: linear-gradient(135deg, #2c4a60, #4b718c) !important;
   color: #ffffff !important;
 }
 
@@ -433,7 +467,7 @@ button.bg-white,
 button.bg-zinc-50,
 button.bg-slate-50,
 button.bg-gray-50 {
-  background: rgba(255, 255, 255, 0.92) !important;
+  background: rgba(255, 255, 255, 0.94) !important;
   color: var(--dn-text) !important;
   border: 1px solid var(--dn-border) !important;
 }
@@ -450,7 +484,7 @@ table {
 }
 
 thead {
-  background: rgba(232, 90, 156, 0.1) !important;
+  background: rgba(75, 163, 216, 0.12) !important;
 }
 
 th {
@@ -463,11 +497,11 @@ th {
 th,
 td {
   padding: 0.58rem 0.65rem !important;
-  border-color: rgba(126, 96, 180, 0.12) !important;
+  border-color: rgba(84, 154, 198, 0.14) !important;
 }
 
 tbody tr:hover {
-  background: rgba(124, 92, 255, 0.045) !important;
+  background: rgba(75, 163, 216, 0.055) !important;
 }
 
 /* =========================================================
@@ -478,31 +512,20 @@ tbody tr:hover {
   font-size: 0.76rem;
 }
 
-.bg-purple-50,
-.bg-violet-50,
-.bg-indigo-50 {
-  background: var(--dn-purple-soft) !important;
-}
-
-.bg-pink-50,
-.bg-fuchsia-50 {
-  background: var(--dn-pink-soft) !important;
-}
-
 .bg-amber-50,
 .bg-yellow-50 {
-  background: rgba(242, 173, 78, 0.14) !important;
+  background: rgba(230, 169, 62, 0.14) !important;
 }
 
 .bg-emerald-50,
 .bg-green-50,
 .bg-teal-50 {
-  background: rgba(20, 166, 127, 0.12) !important;
+  background: rgba(22, 160, 133, 0.12) !important;
 }
 
 .bg-red-50,
 .bg-rose-50 {
-  background: rgba(217, 75, 95, 0.12) !important;
+  background: rgba(214, 83, 97, 0.12) !important;
 }
 
 /* =========================================================
@@ -515,16 +538,16 @@ tbody tr:hover {
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(124, 92, 255, 0.06);
+  background: rgba(75, 163, 216, 0.08);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(124, 92, 255, 0.25);
+  background: rgba(75, 163, 216, 0.32);
   border-radius: 999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(124, 92, 255, 0.38);
+  background: rgba(75, 163, 216, 0.48);
 }
 
 /* =========================================================
