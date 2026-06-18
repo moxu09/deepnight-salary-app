@@ -263,7 +263,7 @@ export default function AdminStaffPage() {
     return (
       <main className="deepnight-page flex items-center justify-center px-4">
         <div className="deepnight-card rounded-[32px] p-8 text-center">
-          <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4 border-pink-300 border-t-transparent" />
+          <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4 border-sky-300 border-t-transparent" />
           <p className="text-sm text-[#8b5a8f]">檢查後台權限中...</p>
         </div>
       </main>
@@ -272,14 +272,11 @@ export default function AdminStaffPage() {
 
   return (
     <main className="deepnight-page">
-      <div className="deepnight-glow left-[-90px] top-[-90px] h-72 w-72 bg-pink-300" />
-      <div className="deepnight-glow right-[-100px] top-32 h-80 w-80 bg-purple-300" />
-      <div className="deepnight-glow bottom-[-120px] left-1/2 h-80 w-80 -translate-x-1/2 bg-rose-200" />
 
-      <header className="relative z-10 border-b border-pink-200/50 bg-white/45 backdrop-blur-xl">
+      <header className="relative z-10 border-b border-sky-200/50 bg-white/45 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-5 md:flex-row md:items-center md:justify-between">
           <div>
-            <p className="text-sm font-semibold text-pink-500">
+            <p className="text-sm font-semibold text-sky-600">
               Qiunai Admin
             </p>
             <h1 className="deepnight-title-gradient text-2xl font-black">
@@ -323,13 +320,13 @@ export default function AdminStaffPage() {
                   key={staff.id}
                   className="deepnight-card rounded-[34px] p-6"
                 >
-                  <div className="flex flex-col gap-4 border-b border-pink-100 pb-5 md:flex-row md:items-center md:justify-between">
+                  <div className="flex flex-col gap-4 border-b border-sky-100 pb-5 md:flex-row md:items-center md:justify-between">
                     <div className="flex items-center gap-4">
                       {staff.avatar_url ? (
                         <img
                           src={staff.avatar_url}
                           alt=""
-                          className="h-14 w-14 rounded-[22px] border border-pink-200 bg-white object-cover shadow-lg"
+                          className="h-14 w-14 rounded-[22px] border border-sky-200 bg-white object-cover shadow-lg"
                         />
                       ) : (
                         <div className="h-14 w-14 rounded-[22px] bg-gradient-to-br from-pink-300 to-violet-300 shadow-lg" />
@@ -461,9 +458,9 @@ export default function AdminStaffPage() {
                     />
                   </div>
 
-                  <div className="mt-6 rounded-[28px] border border-pink-200/70 bg-white/55 p-5">
+                  <div className="mt-6 rounded-[28px] border border-sky-200/70 bg-white/55 p-5">
                     <div className="flex items-center gap-2">
-                      <Gamepad2 className="text-pink-400" size={20} />
+                      <Gamepad2 className="text-sky-500" size={20} />
                       <h3 className="font-black text-[#5b3768]">
                         可接遊戲 / 服務
                       </h3>
@@ -479,9 +476,9 @@ export default function AdminStaffPage() {
                         ([groupName, services]) => (
                           <div
                             key={groupName}
-                            className="rounded-[24px] border border-pink-100 bg-white/70 p-4"
+                            className="rounded-[24px] border border-sky-100 bg-white/70 p-4"
                           >
-                            <h4 className="font-black text-pink-500">
+                            <h4 className="font-black text-sky-600">
                               {groupName}
                             </h4>
 
@@ -489,7 +486,7 @@ export default function AdminStaffPage() {
                               {services.map((service) => (
                                 <label
                                   key={service.key}
-                                  className="flex cursor-pointer items-center justify-between gap-3 rounded-[18px] border border-pink-100 bg-white/70 px-3 py-2 transition hover:bg-pink-50"
+                                  className="flex cursor-pointer items-center justify-between gap-3 rounded-[18px] border border-sky-100 bg-white/70 px-3 py-2 transition hover:bg-sky-50"
                                 >
                                   <div className="flex items-center gap-3">
                                     <input
@@ -581,7 +578,7 @@ function CheckBox({
   onChange: (value: boolean) => void;
 }) {
   return (
-    <label className="flex cursor-pointer items-center gap-3 rounded-[20px] border border-pink-100 bg-white/65 px-4 py-3 transition hover:bg-pink-50">
+    <label className="flex cursor-pointer items-center gap-3 rounded-[20px] border border-sky-100 bg-white/65 px-4 py-3 transition hover:bg-sky-50">
       <input
         type="checkbox"
         checked={!!checked}

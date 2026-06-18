@@ -599,7 +599,7 @@ export default function StaffPage() {
     return (
       <main className="deepnight-page flex items-center justify-center px-4">
         <div className="deepnight-card rounded-[32px] p-8 text-center">
-          <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4 border-pink-300 border-t-transparent" />
+          <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4 border-sky-300 border-t-transparent" />
           <p className="text-sm text-[#8b5a8f]">載入員工資料中...</p>
         </div>
       </main>
@@ -628,7 +628,7 @@ export default function StaffPage() {
 
             <button
               onClick={logout}
-              className="rounded-2xl bg-rose-400 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-500"
+              className="rounded-2xl bg-sky-500 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-600"
             >
               登出
             </button>
@@ -644,18 +644,15 @@ export default function StaffPage() {
 
   return (
     <main className="deepnight-page">
-      <div className="deepnight-glow left-[-90px] top-[-90px] h-72 w-72 bg-pink-300" />
-      <div className="deepnight-glow right-[-100px] top-32 h-80 w-80 bg-purple-300" />
-      <div className="deepnight-glow bottom-[-120px] left-1/2 h-80 w-80 -translate-x-1/2 bg-rose-200" />
 
-      <header className="relative z-10 border-b border-pink-200/50 bg-white/45 backdrop-blur-xl">
+      <header className="relative z-10 border-b border-sky-200/50 bg-white/45 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-5 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-4">
             {staff.avatar_url ? (
               <img
                 src={staff.avatar_url}
                 alt=""
-                className="h-14 w-14 rounded-[22px] border border-pink-200 bg-white object-cover shadow-lg"
+                className="h-14 w-14 rounded-[22px] border border-sky-200 bg-white object-cover shadow-lg"
               />
             ) : (
               <div className="flex h-14 w-14 items-center justify-center rounded-[22px] bg-gradient-to-br from-pink-300 to-violet-300 text-white shadow-lg">
@@ -664,7 +661,7 @@ export default function StaffPage() {
             )}
 
             <div>
-              <p className="flex items-center gap-1 text-sm font-semibold text-pink-500">
+              <p className="flex items-center gap-1 text-sm font-semibold text-sky-600">
                 <Sparkles size={14} />
                 Qiunai Staff
               </p>
@@ -688,7 +685,7 @@ export default function StaffPage() {
 
             <button
               onClick={logout}
-              className="rounded-[18px] bg-rose-400 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-rose-200/70 hover:bg-rose-500"
+              className="rounded-[18px] bg-sky-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-sky-200/70 hover:bg-sky-600"
             >
               <span className="flex items-center gap-2">
                 <LogOut size={16} />
@@ -720,7 +717,7 @@ export default function StaffPage() {
           <Card>
             <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
               <div>
-                <p className="flex items-center gap-1 text-sm font-semibold text-pink-500">
+                <p className="flex items-center gap-1 text-sm font-semibold text-sky-600">
                   <Sparkles size={14} />
                   我的抽成檔位
                 </p>
@@ -813,7 +810,7 @@ export default function StaffPage() {
 
             <Card>
               <div className="flex items-center gap-2">
-                <WalletCards className="text-pink-400" size={20} />
+                <WalletCards className="text-sky-500" size={20} />
                 <h2 className="text-xl font-black text-[#5b3768]">個人資料</h2>
               </div>
 
@@ -886,7 +883,7 @@ export default function StaffPage() {
 
             <Card>
               <div className="flex items-center gap-2">
-                <Gamepad2 className="text-pink-400" size={20} />
+                <Gamepad2 className="text-sky-500" size={20} />
                 <h2 className="text-xl font-black text-[#5b3768]">
                   可接遊戲 / 服務
                 </h2>
@@ -896,7 +893,7 @@ export default function StaffPage() {
                 請勾選你可以接的項目。客人下單對應項目時，系統會依這裡篩選員工。
               </p>
 
-              <p className="mt-3 rounded-[22px] border border-pink-200 bg-pink-50/80 px-4 py-3 text-sm leading-6 text-pink-600">
+              <p className="mt-3 rounded-[22px] border border-sky-200 bg-sky-50/80 px-4 py-3 text-sm leading-6 text-sky-600">
                 英雄聯盟類型需要同時勾「模式」和「陪玩類型」。
                 例如：要接 ARAM｜大神陪玩，就要勾 ARAM + 大神陪玩。
               </p>
@@ -905,15 +902,15 @@ export default function StaffPage() {
                 {Object.entries(groupedServices).map(([groupName, services]) => (
                   <div
                     key={groupName}
-                    className="rounded-[26px] border border-pink-200/70 bg-white/55 p-4"
+                    className="rounded-[26px] border border-sky-200/70 bg-white/55 p-4"
                   >
-                    <h3 className="font-black text-pink-500">{groupName}</h3>
+                    <h3 className="font-black text-sky-600">{groupName}</h3>
 
                     <div className="mt-3 grid gap-3">
                       {services.map((service) => (
                         <label
                           key={service.key}
-                          className="flex cursor-pointer items-center justify-between gap-3 rounded-[20px] border border-pink-100 bg-white/70 px-4 py-3 transition hover:bg-pink-50"
+                          className="flex cursor-pointer items-center justify-between gap-3 rounded-[20px] border border-sky-100 bg-white/70 px-4 py-3 transition hover:bg-sky-50"
                         >
                           <div className="flex items-center gap-3">
                             <input
@@ -952,7 +949,7 @@ export default function StaffPage() {
 
           <div className="space-y-6">
             <Card noPadding>
-              <div className="border-b border-pink-100 p-5">
+              <div className="border-b border-sky-100 p-5">
                 <h2 className="text-xl font-black text-[#5b3768]">
                   本月訂單
                 </h2>
@@ -968,7 +965,7 @@ export default function StaffPage() {
               ) : (
                 <div className="overflow-x-auto">
                   <table className="min-w-[1000px] w-full text-left text-sm">
-                    <thead className="bg-pink-50 text-[#8b5a8f]">
+                    <thead className="bg-sky-50 text-[#8b5a8f]">
                       <tr>
                         <th className="px-4 py-3">完成時間</th>
                         <th className="px-4 py-3">客人</th>
@@ -984,7 +981,7 @@ export default function StaffPage() {
 
                     <tbody>
                       {orders.map((order) => (
-                        <tr key={order.id} className="border-t border-pink-100">
+                        <tr key={order.id} className="border-t border-sky-100">
                           <td className="px-4 py-3 text-[#8b5a8f]">
                             {formatDateTime(order.order_finished_at)}
                           </td>
@@ -1001,7 +998,7 @@ export default function StaffPage() {
                             ${Number(order.order_amount || 0).toLocaleString()}
                           </td>
 
-                          <td className="px-4 py-3 font-bold text-pink-500">
+                          <td className="px-4 py-3 font-bold text-sky-600">
                             ${Number(order.staff_salary || 0).toLocaleString()}
                           </td>
 
@@ -1044,7 +1041,7 @@ export default function StaffPage() {
             </Card>
 
             <Card noPadding>
-              <div className="border-b border-pink-100 p-5">
+              <div className="border-b border-sky-100 p-5">
                 <h2 className="text-xl font-black text-[#5b3768]">
                   本月額外獎金
                 </h2>
@@ -1057,7 +1054,7 @@ export default function StaffPage() {
               ) : (
                 <div className="overflow-x-auto">
                   <table className="min-w-[700px] w-full text-left text-sm">
-                    <thead className="bg-pink-50 text-[#8b5a8f]">
+                    <thead className="bg-sky-50 text-[#8b5a8f]">
                       <tr>
                         <th className="px-4 py-3">時間</th>
                         <th className="px-4 py-3">獎金名稱</th>
@@ -1068,7 +1065,7 @@ export default function StaffPage() {
 
                     <tbody>
                       {bonusList.map((bonus) => (
-                        <tr key={bonus.id} className="border-t border-pink-100">
+                        <tr key={bonus.id} className="border-t border-sky-100">
                           <td className="px-4 py-3 text-[#8b5a8f]">
                             {formatDateTime(bonus.created_at)}
                           </td>
@@ -1077,7 +1074,7 @@ export default function StaffPage() {
                             {bonus.title}
                           </td>
 
-                          <td className="px-4 py-3 font-bold text-pink-500">
+                          <td className="px-4 py-3 font-bold text-sky-600">
                             ${Number(bonus.amount || 0).toLocaleString()}
                           </td>
 
@@ -1139,13 +1136,13 @@ function ProgressBlock({
   note: string;
 }) {
   return (
-    <div className="rounded-[24px] border border-pink-200/70 bg-white/60 p-4">
+    <div className="rounded-[24px] border border-sky-200/70 bg-white/60 p-4">
       <div className="flex items-center justify-between gap-3">
         <p className="font-black text-[#5b3768]">{title}</p>
-        <p className="text-sm font-bold text-pink-500">{percent}%</p>
+        <p className="text-sm font-bold text-sky-600">{percent}%</p>
       </div>
 
-      <div className="mt-3 h-3 overflow-hidden rounded-full bg-pink-100">
+      <div className="mt-3 h-3 overflow-hidden rounded-full bg-sky-100">
         <div
           className="h-full rounded-full bg-gradient-to-r from-pink-300 via-fuchsia-300 to-violet-300"
           style={{
