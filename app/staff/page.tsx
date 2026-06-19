@@ -901,7 +901,7 @@ export default function StaffPage() {
                 </button>
               </div>
 
-              <div className="mt-5 grid gap-4 md:grid-cols-2">
+              <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-2">
                 {Object.entries(SERVICE_GROUPS).map(([groupName, items]) => (
                   <div
                     key={groupName}
@@ -916,7 +916,7 @@ export default function StaffPage() {
                         return (
                           <label
                             key={item.key}
-                            className="flex cursor-pointer items-center justify-between gap-3 rounded-[16px] border border-sky-100 bg-white px-3 py-2 text-sm transition hover:bg-sky-50"
+                            className="flex w-full cursor-pointer items-center justify-between gap-3 rounded-[16px] border border-sky-100 bg-white px-3 py-2 text-sm transition hover:bg-sky-50"
                           >
                             <span className="font-semibold text-slate-700">
                               {item.name}
@@ -926,6 +926,7 @@ export default function StaffPage() {
                               type="checkbox"
                               checked={checked}
                               onChange={() => toggleService(item.key)}
+                              className="h-[18px] w-[18px] shrink-0 accent-sky-500"
                             />
                           </label>
                         );

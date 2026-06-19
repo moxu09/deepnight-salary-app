@@ -615,3 +615,28 @@ tbody tr:hover {
     padding: 0.5rem 0.55rem !important;
   }
 }
+/* 手機版修正：checkbox / radio 不要被 input 全寬樣式撐爆 */
+input[type="checkbox"],
+input[type="radio"] {
+  width: 18px !important;
+  min-width: 18px !important;
+  max-width: 18px !important;
+  height: 18px !important;
+  min-height: 18px !important;
+  max-height: 18px !important;
+  padding: 0 !important;
+  flex: 0 0 18px !important;
+  accent-color: #0ea5e9;
+  cursor: pointer;
+}
+
+/* 手機版可接遊戲區塊避免超出畫面 */
+label:has(input[type="checkbox"]) {
+  max-width: 100%;
+  overflow: hidden;
+}
+
+label:has(input[type="checkbox"]) span {
+  min-width: 0;
+  word-break: break-word;
+}
