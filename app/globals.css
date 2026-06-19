@@ -640,3 +640,59 @@ label:has(input[type="checkbox"]) span {
   min-width: 0;
   word-break: break-word;
 }
+/* 手機版避免薪資網內容橫向爆版 */
+html,
+body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+main {
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+/* 手機版卡片、表單、區塊不可超出螢幕 */
+main > div,
+section,
+article,
+form,
+label,
+table,
+input,
+select,
+textarea,
+button {
+  max-width: 100%;
+}
+
+/* checkbox / radio 不吃一般 input 的全寬樣式 */
+input[type="checkbox"],
+input[type="radio"] {
+  width: 18px !important;
+  min-width: 18px !important;
+  max-width: 18px !important;
+  height: 18px !important;
+  min-height: 18px !important;
+  max-height: 18px !important;
+  padding: 0 !important;
+  flex: 0 0 18px !important;
+  accent-color: #0ea5e9;
+}
+
+/* 手機版服務卡片縮小一點 */
+@media (max-width: 640px) {
+  main {
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+
+  .rounded-\[28px\],
+  .rounded-\[30px\] {
+    border-radius: 22px !important;
+  }
+
+  .rounded-\[22px\] {
+    border-radius: 18px !important;
+  }
+}

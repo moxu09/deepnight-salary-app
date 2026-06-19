@@ -791,18 +791,18 @@ export default function AdminStaffPage() {
                           return (
                             <label
                               key={item.key}
-                              className="flex w-full cursor-pointer items-center justify-between gap-3 rounded-[16px] border border-sky-100 bg-white px-3 py-2 text-sm transition hover:bg-sky-50"
+                              className="grid w-full cursor-pointer grid-cols-[20px_1fr] items-center gap-3 rounded-[16px] border border-sky-100 bg-white px-3 py-2.5 text-sm transition hover:bg-sky-50"
                             >
-                              <span className="font-semibold text-slate-700">
-                                {item.name}
-                              </span>
-
                               <input
                                 type="checkbox"
                                 checked={checked}
                                 onChange={() => toggleService(item.key)}
                                 className="h-[18px] w-[18px] shrink-0 accent-sky-500"
                               />
+
+                              <span className="min-w-0 break-words font-semibold text-slate-700">
+                                {item.name}
+                              </span>
                             </label>
                           );
                         })}
