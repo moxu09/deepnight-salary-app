@@ -554,6 +554,10 @@ export default function AdminSalaryPage() {
           staff_name: staffName,
           service_name: orderForm.service_name || null,
           order_amount: orderAmount,
+          price: orderAmount,
+          service: orderForm.service_name || null,
+          completed_at: finishedAt,
+          assigned_player: staffName,
           staff_salary: staffSalary,
           bonus_amount: bonusAmount,
           salary_rate: salaryRate,
@@ -582,8 +586,11 @@ export default function AdminSalaryPage() {
     const { error } = await supabase.from("play_orders").insert({
       discord_id: orderForm.discord_id,
       staff_name: staffName,
+      assigned_player: staffName,
       service_name: orderForm.service_name || null,
+      service: orderForm.service_name || null,
       order_amount: orderAmount,
+      price: orderAmount,
       staff_salary: staffSalary,
       bonus_amount: bonusAmount,
       salary_rate: salaryRate,
@@ -592,6 +599,8 @@ export default function AdminSalaryPage() {
       platform_expense: staffSalary + bonusAmount,
       status: orderForm.status || "未發薪",
       order_finished_at: finishedAt,
+      completed_at: finishedAt,
+      created_at: finishedAt,
       is_deleted: false,
     });
 

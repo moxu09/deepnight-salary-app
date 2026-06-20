@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import {
@@ -10,7 +11,6 @@ import {
   Gamepad2,
   Save,
   Power,
-  CalendarDays,
   Gift,
   Trophy,
 } from "lucide-react";
@@ -177,6 +177,7 @@ function getManualRate(tier?: string | null) {
 
 function getDisplayName(staff: Staff | null) {
   if (!staff) return "員工";
+
   return (
     staff.display_name ||
     staff.real_name ||
@@ -284,8 +285,11 @@ export default function StaffPage() {
 
     return allSalaryOrders
       .filter((order) => {
-        const sourceDate = order.order_finished_at || order.completed_at || order.created_at;
+        const sourceDate =
+          order.order_finished_at || order.completed_at || order.created_at;
+
         if (!sourceDate) return false;
+
         return new Date(sourceDate).getFullYear() === year;
       })
       .reduce((sum, order) => sum + Number(order.staff_salary || 0), 0);
@@ -293,9 +297,11 @@ export default function StaffPage() {
 
   const currentRate = useMemo(() => {
     const manual = getManualRate(staff?.commission_tier);
+
     if (manual) return manual;
     if (totalYearSalary >= 100000) return 90;
     if (totalOrderAmount >= 10000) return 85;
+
     return 80;
   }, [staff?.commission_tier, totalOrderAmount, totalYearSalary]);
 
@@ -669,7 +675,10 @@ export default function StaffPage() {
                 disabled={refreshing}
                 className="inline-flex items-center justify-center gap-2 rounded-full border border-sky-100 bg-white px-4 py-2 text-sm font-bold text-slate-700 hover:bg-sky-50 disabled:opacity-60"
               >
-                <RefreshCw size={16} className={refreshing ? "animate-spin" : ""} />
+                <RefreshCw
+                  size={16}
+                  className={refreshing ? "animate-spin" : ""}
+                />
                 重新整理
               </button>
 
@@ -707,7 +716,8 @@ export default function StaffPage() {
                     </p>
 
                     <p className="pb-1 text-sm font-semibold text-slate-500">
-                      {staff.commission_tier === "auto" || !staff.commission_tier
+                      {staff.commission_tier === "auto" ||
+                      !staff.commission_tier
                         ? "自動判定"
                         : "後台設定"}
                     </p>
@@ -901,13 +911,15 @@ export default function StaffPage() {
                 </button>
               </div>
 
-              <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-2">
+              <div className="mobile-service-grid mt-5 grid grid-cols-1 gap-3 md:grid-cols-2">
                 {Object.entries(SERVICE_GROUPS).map(([groupName, items]) => (
                   <div
                     key={groupName}
-                    className="rounded-[22px] border border-sky-100 bg-sky-50/40 p-4"
+                    className="mobile-service-card rounded-[22px] border border-sky-100 bg-sky-50/40 p-4"
                   >
-                    <h3 className="font-black text-sky-700">{groupName}</h3>
+                    <h3 className="mobile-service-title font-black text-sky-700">
+                      {groupName}
+                    </h3>
 
                     <div className="mt-3 space-y-2">
                       {items.map((item) => {
@@ -916,13 +928,12 @@ export default function StaffPage() {
                         return (
                           <label
                             key={item.key}
-                            className="grid w-full cursor-pointer grid-cols-[20px_1fr] items-center gap-3 rounded-[16px] border border-sky-100 bg-white px-3 py-2.5 text-sm transition hover:bg-sky-50"
+                            className="mobile-service-option grid w-full cursor-pointer grid-cols-[32px_1fr] items-center gap-3 rounded-[16px] border border-sky-100 bg-white px-3 py-2.5 text-sm transition hover:bg-sky-50"
                           >
                             <input
                               type="checkbox"
                               checked={checked}
                               onChange={() => toggleService(item.key)}
-                              className="h-[18px] w-[18px] shrink-0 accent-sky-500"
                             />
 
                             <span className="min-w-0 break-words font-semibold text-slate-700">
@@ -954,7 +965,7 @@ export default function StaffPage() {
                   目前沒有本月訂單
                 </div>
               ) : (
-                <div className="overflow-x-auto">
+                <div className="mobile-table-card overflow-x-auto">
                   <table>
                     <thead>
                       <tr>
@@ -972,17 +983,35 @@ export default function StaffPage() {
                     <tbody>
                       {salaryOrders.map((order) => (
                         <tr key={order.id}>
-                          <td>{formatDateTime(order.order_finished_at || order.completed_at || order.created_at)}</td>
-                          <td>{getOrderCustomer(order)}</td>
-                          <td>{getOrderService(order)}</td>
-                          <td className="font-bold text-slate-700">
+                          <td data-label="完成時間">
+                            {formatDateTime(
+                              order.order_finished_at ||
+                                order.completed_at ||
+                                order.created_at
+                            )}
+                          </td>
+
+                          <td data-label="客人">{getOrderCustomer(order)}</td>
+
+                          <td data-label="服務">{getOrderService(order)}</td>
+
+                          <td
+                            data-label="訂單金額"
+                            className="font-bold text-slate-700"
+                          >
                             {money(getOrderAmount(order))}
                           </td>
-                          <td className="font-bold text-sky-600">
+
+                          <td
+                            data-label="薪資"
+                            className="font-bold text-sky-600"
+                          >
                             {money(order.staff_salary)}
                           </td>
-                          <td>{money(order.bonus_amount)}</td>
-                          <td>
+
+                          <td data-label="獎金">{money(order.bonus_amount)}</td>
+
+                          <td data-label="狀態">
                             <span
                               className={`rounded-full px-3 py-1 text-xs font-bold ${
                                 order.status === "已發薪"
@@ -993,7 +1022,10 @@ export default function StaffPage() {
                               {order.status || "未發薪"}
                             </span>
                           </td>
-                          <td>{order.status === "已發薪" ? "已發薪" : "-"}</td>
+
+                          <td data-label="發薪時間">
+                            {order.status === "已發薪" ? "已發薪" : "-"}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -1015,7 +1047,7 @@ export default function StaffPage() {
                   目前沒有本月獎金
                 </div>
               ) : (
-                <div className="overflow-x-auto">
+                <div className="mobile-table-card overflow-x-auto">
                   <table>
                     <thead>
                       <tr>
@@ -1029,10 +1061,20 @@ export default function StaffPage() {
                     <tbody>
                       {bonuses.map((bonus) => (
                         <tr key={bonus.id}>
-                          <td>{formatDateTime(bonus.created_at)}</td>
-                          <td>{bonus.bonus_type || "-"}</td>
-                          <td>{bonus.description || "-"}</td>
-                          <td className="font-bold text-sky-600">
+                          <td data-label="時間">
+                            {formatDateTime(bonus.created_at)}
+                          </td>
+
+                          <td data-label="類型">{bonus.bonus_type || "-"}</td>
+
+                          <td data-label="說明">
+                            {bonus.description || "-"}
+                          </td>
+
+                          <td
+                            data-label="金額"
+                            className="font-bold text-sky-600"
+                          >
                             {money(bonus.amount)}
                           </td>
                         </tr>
@@ -1058,13 +1100,7 @@ function StatCard({ title, value }: { title: string; value: string }) {
   );
 }
 
-function Field({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
+function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="block">
       <span className="mb-2 block text-sm font-bold text-slate-600">
@@ -1102,7 +1138,9 @@ function ProgressBar({
       </div>
 
       <div className="mt-2 flex items-center justify-between text-xs font-semibold text-slate-500">
-        <span>{money(current)} / {money(target)}</span>
+        <span>
+          {money(current)} / {money(target)}
+        </span>
         <span>還差 {money(Math.max(target - current, 0))}</span>
       </div>
     </div>

@@ -7,13 +7,13 @@
    2. 不要粉紫色
    3. 移除背景大色塊
    4. 保留輸入框方塊感
-   5. 內容整體縮小一點
+   5. 手機版輸入格、勾選格、訂單表格不爆版
    ========================================================= */
 
 :root {
   --dn-bg-main: #eef8ff;
   --dn-bg-soft: #f8fcff;
-  --dn-bg-card: rgba(255, 255, 255, 0.86);
+  --dn-bg-card: rgba(255, 255, 255, 0.9);
 
   --dn-text: #1f2f3f;
   --dn-text-soft: #52697d;
@@ -45,6 +45,7 @@ html,
 body {
   margin: 0;
   min-height: 100%;
+  max-width: 100%;
   overflow-x: hidden;
 }
 
@@ -84,7 +85,6 @@ button:disabled {
 
 /* =========================================================
    移除原本 staff 頁面的大色塊背景裝飾
-   這些通常是 absolute/fixed + pointer-events-none 的裝飾 div
    ========================================================= */
 
 .pointer-events-none.fixed,
@@ -94,7 +94,6 @@ button:disabled {
   display: none !important;
 }
 
-/* 針對粉紫大方塊再保險關閉 */
 [class*="bg-pink"].absolute,
 [class*="bg-pink"].fixed,
 [class*="bg-purple"].absolute,
@@ -111,6 +110,8 @@ button:disabled {
    ========================================================= */
 
 main {
+  max-width: 100vw;
+  overflow-x: hidden;
   font-size: 14px !important;
   padding: 1rem !important;
   background: transparent !important;
@@ -261,7 +262,7 @@ h3,
 }
 
 /* =========================================================
-   文字顏色：全部轉淡藍系
+   文字顏色
    ========================================================= */
 
 .text-zinc-950,
@@ -291,8 +292,9 @@ h3,
   color: var(--dn-muted) !important;
 }
 
-/* 原本粉紫文字全部改淡藍 */
 .text-pink-600,
+.text-pink-500,
+.text-pink-400,
 .text-fuchsia-600,
 .text-purple-700,
 .text-violet-700,
@@ -303,7 +305,7 @@ h3,
 }
 
 /* =========================================================
-   卡片：保留乾淨白底，不新增奇怪模塊
+   卡片
    ========================================================= */
 
 .bg-white,
@@ -353,13 +355,14 @@ h3,
 }
 
 /* =========================================================
-   輸入框：保留方塊感
+   輸入框
    ========================================================= */
 
-input,
+input:not([type="checkbox"]):not([type="radio"]),
 select,
 textarea {
   min-height: 40px !important;
+  width: 100%;
   border-radius: 12px !important;
   border: 1px solid var(--dn-border-strong) !important;
   background: rgba(255, 255, 255, 0.94) !important;
@@ -375,7 +378,7 @@ textarea {
   resize: vertical;
 }
 
-input:focus,
+input:not([type="checkbox"]):not([type="radio"]):focus,
 select:focus,
 textarea:focus {
   border-color: rgba(75, 163, 216, 0.68) !important;
@@ -393,13 +396,20 @@ label {
   font-weight: 700 !important;
 }
 
-input[type="checkbox"] {
+/* checkbox / radio 基礎版 */
+input[type="checkbox"],
+input[type="radio"] {
   width: 18px !important;
+  min-width: 18px !important;
+  max-width: 18px !important;
   height: 18px !important;
   min-height: 18px !important;
+  max-height: 18px !important;
   padding: 0 !important;
   border-radius: 5px !important;
   accent-color: var(--dn-primary) !important;
+  flex: 0 0 18px !important;
+  cursor: pointer;
 }
 
 input[type="date"],
@@ -409,7 +419,7 @@ input[type="time"] {
 }
 
 /* =========================================================
-   按鈕：淡藍主色
+   按鈕
    ========================================================= */
 
 button,
@@ -429,7 +439,6 @@ a[role="button"]:hover {
   transform: translateY(-1px);
 }
 
-/* 原本粉紫按鈕全部改淡藍 */
 .bg-purple-600,
 .bg-violet-600,
 .bg-indigo-600,
@@ -439,7 +448,6 @@ a[role="button"]:hover {
   color: #ffffff !important;
 }
 
-/* 綠色按鈕保留，但調柔和 */
 .bg-emerald-600,
 .bg-green-600,
 .bg-teal-600 {
@@ -447,14 +455,12 @@ a[role="button"]:hover {
   color: #ffffff !important;
 }
 
-/* 紅色按鈕 */
 .bg-red-600,
 .bg-rose-600 {
   background: linear-gradient(135deg, #d65361, #ef7d8e) !important;
   color: #ffffff !important;
 }
 
-/* 灰色深色按鈕改藍灰 */
 .bg-zinc-900,
 .bg-slate-900,
 .bg-gray-900 {
@@ -462,7 +468,6 @@ a[role="button"]:hover {
   color: #ffffff !important;
 }
 
-/* 淺色按鈕 */
 button.bg-white,
 button.bg-zinc-50,
 button.bg-slate-50,
@@ -473,7 +478,7 @@ button.bg-gray-50 {
 }
 
 /* =========================================================
-   表格
+   表格：桌機版
    ========================================================= */
 
 table {
@@ -551,148 +556,178 @@ tbody tr:hover {
 }
 
 /* =========================================================
-   手機版
+   手機版：輸入格、勾選格、服務卡片、訂單卡片
    ========================================================= */
 
-@media (max-width: 768px) {
-  body {
-    font-size: 13px;
-  }
-
-  main {
-    padding: 0.75rem !important;
-    font-size: 13px !important;
-  }
-
-  .p-10,
-  .p-9,
-  .p-8,
-  .p-7,
-  .p-6,
-  .p-5 {
-    padding: 0.85rem !important;
-  }
-
-  .px-10,
-  .px-8,
-  .px-6 {
-    padding-left: 0.85rem !important;
-    padding-right: 0.85rem !important;
-  }
-
-  .py-10,
-  .py-8,
-  .py-6 {
-    padding-top: 0.85rem !important;
-    padding-bottom: 0.85rem !important;
-  }
-
-  h1,
-  .text-5xl,
-  .text-4xl {
-    font-size: 1.45rem !important;
-  }
-
-  h2,
-  .text-3xl {
-    font-size: 1.15rem !important;
-  }
-
-  h3,
-  .text-2xl {
-    font-size: 1rem !important;
-  }
-
-  input,
-  select,
-  textarea,
-  button {
-    font-size: 13px !important;
-  }
-
-  th,
-  td {
-    padding: 0.5rem 0.55rem !important;
-  }
-}
-/* 手機版修正：checkbox / radio 不要被 input 全寬樣式撐爆 */
-input[type="checkbox"],
-input[type="radio"] {
-  width: 18px !important;
-  min-width: 18px !important;
-  max-width: 18px !important;
-  height: 18px !important;
-  min-height: 18px !important;
-  max-height: 18px !important;
-  padding: 0 !important;
-  flex: 0 0 18px !important;
-  accent-color: #0ea5e9;
-  cursor: pointer;
-}
-
-/* 手機版可接遊戲區塊避免超出畫面 */
-label:has(input[type="checkbox"]) {
-  max-width: 100%;
-  overflow: hidden;
-}
-
-label:has(input[type="checkbox"]) span {
-  min-width: 0;
-  word-break: break-word;
-}
-/* 手機版避免薪資網內容橫向爆版 */
-html,
-body {
-  max-width: 100%;
-  overflow-x: hidden;
-}
-
-main {
-  max-width: 100vw;
-  overflow-x: hidden;
-}
-
-/* 手機版卡片、表單、區塊不可超出螢幕 */
-main > div,
-section,
-article,
-form,
-label,
-table,
-input,
-select,
-textarea,
-button {
-  max-width: 100%;
-}
-
-/* checkbox / radio 不吃一般 input 的全寬樣式 */
-input[type="checkbox"],
-input[type="radio"] {
-  width: 18px !important;
-  min-width: 18px !important;
-  max-width: 18px !important;
-  height: 18px !important;
-  min-height: 18px !important;
-  max-height: 18px !important;
-  padding: 0 !important;
-  flex: 0 0 18px !important;
-  accent-color: #0ea5e9;
-}
-
-/* 手機版服務卡片縮小一點 */
 @media (max-width: 640px) {
+  html,
+  body {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
   main {
+    max-width: 100vw;
+    overflow-x: hidden;
     padding-left: 12px !important;
     padding-right: 12px !important;
   }
 
-  .rounded-\[28px\],
-  .rounded-\[30px\] {
-    border-radius: 22px !important;
+  main > div {
+    max-width: 100% !important;
   }
 
-  .rounded-\[22px\] {
-    border-radius: 18px !important;
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea {
+    min-height: 54px !important;
+    width: 100% !important;
+    border-radius: 20px !important;
+    border: 1.5px solid rgba(75, 163, 216, 0.34) !important;
+    background: rgba(255, 255, 255, 0.94) !important;
+    color: #1f2f3f !important;
+    padding: 0 16px !important;
+    font-size: 16px !important;
+    font-weight: 650 !important;
+    box-shadow: none !important;
+    outline: none !important;
+  }
+
+  textarea {
+    min-height: 108px !important;
+    padding-top: 14px !important;
+    padding-bottom: 14px !important;
+  }
+
+  input:not([type="checkbox"]):not([type="radio"]):focus,
+  select:focus,
+  textarea:focus {
+    border-color: #4ba3d8 !important;
+    box-shadow: 0 0 0 4px rgba(75, 163, 216, 0.16) !important;
+  }
+
+  input[type="checkbox"],
+  input[type="radio"] {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 28px !important;
+    min-width: 28px !important;
+    max-width: 28px !important;
+    height: 28px !important;
+    min-height: 28px !important;
+    max-height: 28px !important;
+    padding: 0 !important;
+    border-radius: 8px !important;
+    border: 2px solid rgba(38, 121, 172, 0.52) !important;
+    background: #ffffff !important;
+    flex: 0 0 28px !important;
+    cursor: pointer;
+  }
+
+  input[type="checkbox"]:checked,
+  input[type="radio"]:checked {
+    border-color: #2679ac !important;
+    background: linear-gradient(135deg, #4ba3d8, #77c5ee) !important;
+    box-shadow: inset 0 0 0 5px #ffffff;
+  }
+
+  .mobile-service-grid {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+  }
+
+  .mobile-service-card {
+    border-radius: 26px !important;
+    border: 1.5px solid rgba(75, 163, 216, 0.25) !important;
+    background: rgba(255, 255, 255, 0.78) !important;
+    padding: 16px !important;
+  }
+
+  .mobile-service-title {
+    color: #2679ac !important;
+    font-size: 20px !important;
+    font-weight: 900 !important;
+  }
+
+  .mobile-service-option {
+    display: grid !important;
+    grid-template-columns: 32px 1fr !important;
+    align-items: center !important;
+    gap: 12px !important;
+    width: 100% !important;
+    min-height: 56px !important;
+    border-radius: 22px !important;
+    border: 1.5px solid rgba(75, 163, 216, 0.25) !important;
+    background: rgba(255, 255, 255, 0.94) !important;
+    padding: 11px 14px !important;
+    overflow: hidden !important;
+  }
+
+  .mobile-service-option span {
+    min-width: 0 !important;
+    color: #52697d !important;
+    font-size: 17px !important;
+    font-weight: 800 !important;
+    word-break: break-word !important;
+  }
+
+  .mobile-table-card {
+    overflow: visible !important;
+  }
+
+  .mobile-table-card table,
+  .mobile-table-card thead,
+  .mobile-table-card tbody,
+  .mobile-table-card tr,
+  .mobile-table-card th,
+  .mobile-table-card td {
+    display: block !important;
+    width: 100% !important;
+  }
+
+  .mobile-table-card table {
+    border-spacing: 0 !important;
+  }
+
+  .mobile-table-card thead {
+    display: none !important;
+  }
+
+  .mobile-table-card tbody {
+    padding: 12px !important;
+  }
+
+  .mobile-table-card tr {
+    margin-bottom: 14px !important;
+    border-radius: 22px !important;
+    border: 1.5px solid rgba(75, 163, 216, 0.25) !important;
+    background: rgba(255, 255, 255, 0.94) !important;
+    padding: 12px 14px !important;
+    box-shadow: 0 8px 18px rgba(43, 102, 143, 0.07) !important;
+  }
+
+  .mobile-table-card td {
+    display: grid !important;
+    grid-template-columns: 86px 1fr !important;
+    align-items: start !important;
+    gap: 10px !important;
+    border-bottom: 1px solid rgba(75, 163, 216, 0.14) !important;
+    padding: 10px 0 !important;
+    color: #52697d !important;
+    font-size: 14px !important;
+    line-height: 1.5 !important;
+    word-break: break-word !important;
+  }
+
+  .mobile-table-card td:last-child {
+    border-bottom: 0 !important;
+  }
+
+  .mobile-table-card td::before {
+    content: attr(data-label);
+    color: #2679ac;
+    font-weight: 900;
+    white-space: nowrap;
   }
 }
