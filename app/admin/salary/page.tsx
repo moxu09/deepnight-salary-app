@@ -506,7 +506,9 @@ export default function AdminSalaryPage() {
       discord_id: order.discord_id || "",
       service_name: getOrderService(order) === "-" ? "" : getOrderService(order),
       order_amount: String(getOrderAmount(order) || ""),
-      salary_rate: String(order.salary_rate || 90),
+      salary_rate: String(
+        getStaffRate(staffList.find((item) => item.discord_id === order.discord_id))
+      ),
       bonus_amount: String(order.bonus_amount || 0),
       order_finished_at: order.order_finished_at
         ? new Date(order.order_finished_at).toISOString().slice(0, 16)
@@ -527,16 +529,14 @@ export default function AdminSalaryPage() {
     }
 
     const orderAmount = Number(orderForm.order_amount || 0);
-    const salaryRate = Number(orderForm.salary_rate || 0);
+    const selectedStaff = staffList.find(
+      (item) => item.discord_id === orderForm.discord_id
+    );
+    const salaryRate = getStaffRate(selectedStaff);
     const bonusAmount = Number(orderForm.bonus_amount || 0);
 
     if (orderAmount <= 0) {
       alert("請輸入訂單金額");
-      return;
-    }
-
-    if (salaryRate <= 0) {
-      alert("請輸入抽成比例");
       return;
     }
 
@@ -932,15 +932,14 @@ export default function AdminSalaryPage() {
                 />
               </Field>
 
-              <Field label="抽成比例">
-                <input
-                  type="number"
-                  value={orderForm.salary_rate}
-                  onChange={(event) =>
-                    updateOrderForm("salary_rate", event.target.value)
-                  }
-                  placeholder="例如：90"
-                />
+              <Field label="員工抽成">
+                <div className="flex min-h-[40px] items-center rounded-xl border border-sky-100 bg-sky-50/60 px-3 text-sm font-black text-sky-700">
+                  {orderForm.discord_id
+                    ? `${getStaffRate(
+                        staffList.find((item) => item.discord_id === orderForm.discord_id)
+                      )}%`
+                    : "請先選擇員工"}
+                </div>
               </Field>
 
               <Field label="訂單獎金">

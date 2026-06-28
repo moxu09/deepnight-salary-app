@@ -703,7 +703,9 @@ tbody tr:hover {
     border-radius: 22px !important;
     border: 1.5px solid rgba(75, 163, 216, 0.25) !important;
     background: rgba(255, 255, 255, 0.94) !important;
-    padding: 12px 14px !important;
+
+
+
     box-shadow: 0 8px 18px rgba(43, 102, 143, 0.07) !important;
   }
 
