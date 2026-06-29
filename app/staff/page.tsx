@@ -174,7 +174,89 @@ function getManualRate(tier?: string | null) {
   if (tier === "manager_95") return 95;
   return null;
 }
+function getTaipeiMonthText(date = new Date()) {
+  const taipeiDate = new Date(date.getTime() + 8 * 60 * 60 * 1000);
+  return taipeiDate.toISOString().slice(0, 7);
+}
 
+function getNextMonthTextFromIso(isoText?: string | null) {
+  if (!isoText) return "";
+
+  const date = new Date(isoText);
+  const taipeiDate = new Date(date.getTime() + 8 * 60 * 60 * 1000);
+
+  const year = taipeiDate.getUTCFullYear();
+  const month = taipeiDate.getUTCMonth();
+
+  const next = new Date(Date.UTC(year, month + 1, 1));
+  return next.toISOString().slice(0, 7);
+}
+
+function getOrderSourceDate(order: SalaryOrder) {
+  return order.order_finished_at || order.completed_at || order.created_at || null;
+}
+
+function getFirstReachAmountDate(
+  orderList: SalaryOrder[],
+  targetAmount: number
+) {
+  const sortedOrders = [...orderList]
+    .filter((order) => getOrderSourceDate(order))
+    .sort((a, b) => {
+      const aDate = getOrderSourceDate(a);
+      const bDate = getOrderSourceDate(b);
+
+      return new Date(aDate || 0).getTime() - new Date(bDate || 0).getTime();
+    });
+
+  let total = 0;
+
+  for (const order of sortedOrders) {
+    total += getOrderAmount(order);
+
+    if (total >= targetAmount) {
+      return getOrderSourceDate(order);
+    }
+  }
+
+  return null;
+}
+
+function getCurrentRateByRule(
+  staff: Staff | null,
+  orderList: SalaryOrder[],
+  totalYearSalary: number
+) {
+  const now = new Date();
+  const openingEnd = new Date("2026-09-01T00:00:00+08:00");
+
+  if (now < openingEnd) {
+    return 90;
+  }
+
+  const manual = getManualRate(staff?.commission_tier);
+
+  if (manual) {
+    return manual;
+  }
+
+  if (totalYearSalary >= 100000) {
+    return 90;
+  }
+
+  const firstReach10kDate = getFirstReachAmountDate(orderList, 10000);
+
+  if (firstReach10kDate) {
+    const reachNextMonth = getNextMonthTextFromIso(firstReach10kDate);
+    const currentMonth = getTaipeiMonthText(now);
+
+    if (currentMonth >= reachNextMonth) {
+      return 85;
+    }
+  }
+
+  return 80;
+}
 function getDisplayName(staff: Staff | null) {
   if (!staff) return "員工";
 
@@ -296,14 +378,9 @@ export default function StaffPage() {
   }, [allSalaryOrders]);
 
   const currentRate = useMemo(() => {
-    const manual = getManualRate(staff?.commission_tier);
-
-    if (manual) return manual;
-    if (totalYearSalary >= 100000) return 90;
-    if (totalOrderAmount >= 10000) return 85;
-
-    return 80;
-  }, [staff?.commission_tier, totalOrderAmount, totalYearSalary]);
+    return getCurrentRateByRule(staff, allSalaryOrders, totalYearSalary);
+  }, [staff, allSalaryOrders, totalYearSalary]);
+  
 
   const progress85 = Math.min(100, Math.round((totalOrderAmount / 10000) * 100));
   const progress90 = Math.min(100, Math.round((totalYearSalary / 100000) * 100));
@@ -724,7 +801,7 @@ export default function StaffPage() {
                   </div>
 
                   <p className="mt-3 text-sm leading-6 text-slate-500">
-                    85% 依累積接單金額判定；90% 依年度薪資進度判定。
+                    2026/09/01 前固定 90%；9 月後預設 80%，累積接單滿 10,000 後下個月 85%，年度薪資達標後隔年 90%。
                   </p>
                 </div>
               </div>

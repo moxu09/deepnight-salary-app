@@ -1,6 +1,7 @@
 "use client";
 
-import { ReactNode, useEffect, useMemo, useState } from "react";
+import type { ReactNode } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import {
   ArrowLeft,
@@ -120,6 +121,22 @@ function getDisplayName(staff: Staff | null) {
   );
 }
 
+function getCommissionTierLabel(value?: string | null) {
+  if (value === "rate_80") return "80%｜9月後基準";
+  if (value === "rate_85") return "85%｜接單達標";
+  if (value === "rate_90") return "90%｜特別設定";
+  if (value === "manager_95") return "95%｜主管津貼";
+  return "自動判定";
+}
+
+function getCommissionTierRank(value?: string | null) {
+  if (value === "manager_95") return 95;
+  if (value === "rate_90") return 90;
+  if (value === "rate_85") return 85;
+  if (value === "rate_80") return 80;
+  return 0;
+}
+
 function getDiscordIdFromSession(session: any) {
   const user = session?.user;
   const metadata = user?.user_metadata || {};
@@ -159,29 +176,81 @@ export default function AdminStaffPage() {
   const [form, setForm] = useState<StaffForm>(makeForm(null));
   const [allowedServices, setAllowedServices] = useState<string[]>([]);
   const [keyword, setKeyword] = useState("");
+  const [salarySort, setSalarySort] = useState("created_desc");
   const [saving, setSaving] = useState(false);
   const [serviceSaving, setServiceSaving] = useState(false);
 
   const filteredStaff = useMemo(() => {
     const key = keyword.trim().toLowerCase();
 
-    if (!key) return staffList;
+    let list = [...staffList];
 
-    return staffList.filter((staff) => {
-      const text = [
-        staff.discord_id,
-        staff.discord_name,
-        staff.display_name,
-        staff.real_name,
-        staff.salary_channel_id,
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
+    if (key) {
+      list = list.filter((staff) => {
+        const text = [
+          staff.discord_id,
+          staff.discord_name,
+          staff.display_name,
+          staff.real_name,
+          staff.salary_channel_id,
+          getCommissionTierLabel(staff.commission_tier),
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
 
-      return text.includes(key);
-    });
-  }, [staffList, keyword]);
+        return text.includes(key);
+      });
+    }
+
+    if (salarySort === "tier_auto") {
+      list = list.filter(
+        (staff) => !staff.commission_tier || staff.commission_tier === "auto"
+      );
+    }
+
+    if (salarySort === "tier_80") {
+      list = list.filter((staff) => staff.commission_tier === "rate_80");
+    }
+
+    if (salarySort === "tier_85") {
+      list = list.filter((staff) => staff.commission_tier === "rate_85");
+    }
+
+    if (salarySort === "tier_90") {
+      list = list.filter((staff) => staff.commission_tier === "rate_90");
+    }
+
+    if (salarySort === "tier_95") {
+      list = list.filter((staff) => staff.commission_tier === "manager_95");
+    }
+
+    if (salarySort === "commission_desc") {
+      list.sort(
+        (a, b) =>
+          getCommissionTierRank(b.commission_tier) -
+          getCommissionTierRank(a.commission_tier)
+      );
+    }
+
+    if (salarySort === "commission_asc") {
+      list.sort(
+        (a, b) =>
+          getCommissionTierRank(a.commission_tier) -
+          getCommissionTierRank(b.commission_tier)
+      );
+    }
+
+    if (salarySort === "name_asc") {
+      list.sort((a, b) => getDisplayName(a).localeCompare(getDisplayName(b)));
+    }
+
+    if (salarySort === "name_desc") {
+      list.sort((a, b) => getDisplayName(b).localeCompare(getDisplayName(a)));
+    }
+
+    return list;
+  }, [staffList, keyword, salarySort]);
 
   const activeCount = staffList.filter((staff) => staff.is_active !== false).length;
   const onlineCount = staffList.filter((staff) => staff.is_online).length;
@@ -508,9 +577,28 @@ export default function AdminStaffPage() {
                 <input
                   value={keyword}
                   onChange={(event) => setKeyword(event.target.value)}
-                  placeholder="搜尋名稱、Discord ID、頻道 ID"
+                  placeholder="搜尋名稱、Discord ID、頻道 ID、薪資檔位"
                   className="min-h-0 flex-1 border-none bg-transparent p-0 text-sm outline-none focus:shadow-none"
                 />
+              </div>
+
+              <div className="mt-3">
+                <select
+                  value={salarySort}
+                  onChange={(event) => setSalarySort(event.target.value)}
+                  className="w-full rounded-2xl border border-sky-100 bg-white px-3 py-2 text-sm font-bold text-slate-700 outline-none focus:border-sky-300 focus:ring-2 focus:ring-sky-100"
+                >
+                  <option value="created_desc">薪資排序：最新建立</option>
+                  <option value="commission_desc">薪資排序：抽成高到低</option>
+                  <option value="commission_asc">薪資排序：抽成低到高</option>
+                  <option value="name_asc">名稱排序：A 到 Z</option>
+                  <option value="name_desc">名稱排序：Z 到 A</option>
+                  <option value="tier_auto">只看：自動判定</option>
+                  <option value="tier_80">只看：80%</option>
+                  <option value="tier_85">只看：85%</option>
+                  <option value="tier_90">只看：90%</option>
+                  <option value="tier_95">只看：主管津貼 95%</option>
+                </select>
               </div>
             </div>
 
@@ -559,6 +647,11 @@ export default function AdminStaffPage() {
 
                             <p className="mt-0.5 truncate text-xs font-semibold text-slate-400">
                               {staff.discord_id}
+                            </p>
+
+                            <p className="mt-1 truncate text-xs font-bold text-sky-600">
+                              薪資檔位：
+                              {getCommissionTierLabel(staff.commission_tier)}
                             </p>
                           </div>
 
@@ -645,7 +738,9 @@ export default function AdminStaffPage() {
                   <Field label="性別">
                     <select
                       value={form.gender}
-                      onChange={(event) => updateForm("gender", event.target.value)}
+                      onChange={(event) =>
+                        updateForm("gender", event.target.value)
+                      }
                     >
                       <option value="">未填寫</option>
                       <option value="男">男</option>
@@ -702,25 +797,26 @@ export default function AdminStaffPage() {
                       }
                     >
                       <option value="auto">自動判定</option>
-                      <option value="rate_80">80%</option>
-                      <option value="rate_85">85%</option>
-                      <option value="rate_90">90%</option>
+                      <option value="rate_80">80%｜9月後基準</option>
+                      <option value="rate_85">85%｜接單達標</option>
+                      <option value="rate_90">90%｜特別設定</option>
                       <option value="manager_95">主管津貼 95%</option>
                     </select>
                   </Field>
 
-                  <Field label="抽成備註">
-                    <textarea
-                      value={form.commission_note}
-                      onChange={(event) =>
-                        updateForm("commission_note", event.target.value)
-                      }
-                      placeholder="可填寫後台備註"
-                      className="md:col-span-2"
-                    />
-                  </Field>
+                  <div className="md:col-span-2">
+                    <Field label="抽成備註">
+                      <textarea
+                        value={form.commission_note}
+                        onChange={(event) =>
+                          updateForm("commission_note", event.target.value)
+                        }
+                        placeholder="可填寫後台備註，例如：主管津貼、特殊合約、活動期間"
+                      />
+                    </Field>
+                  </div>
 
-                  <div className="md:col-span-2 grid gap-3 md:grid-cols-3">
+                  <div className="grid gap-3 md:col-span-2 md:grid-cols-3">
                     <SwitchBox
                       title="帳號啟用"
                       desc="關閉後不列入可管理員工"

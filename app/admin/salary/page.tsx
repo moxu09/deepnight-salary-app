@@ -172,8 +172,136 @@ function getManualCommissionRate(tier?: string | null) {
   return null;
 }
 
-function getStaffRate(staff?: Staff | null) {
-  return getManualCommissionRate(staff?.commission_tier) || 90;
+function getTaipeiMonthText(date = new Date()) {
+  const taipeiDate = new Date(date.getTime() + 8 * 60 * 60 * 1000);
+  return taipeiDate.toISOString().slice(0, 7);
+}
+
+function getNextMonthTextFromIso(isoText?: string | null) {
+  if (!isoText) return "";
+
+  const date = new Date(isoText);
+  const taipeiDate = new Date(date.getTime() + 8 * 60 * 60 * 1000);
+
+  const year = taipeiDate.getUTCFullYear();
+  const month = taipeiDate.getUTCMonth();
+
+  const next = new Date(Date.UTC(year, month + 1, 1));
+  return next.toISOString().slice(0, 7);
+}
+
+function getOrderSourceDate(order: SalaryOrder) {
+  return order.order_finished_at || order.completed_at || order.created_at || null;
+}
+
+function getStaffTotalOrderAmountBeforeDate(
+  orderList: SalaryOrder[],
+  discordId: string,
+  beforeIso: string
+) {
+  const beforeDate = new Date(beforeIso);
+
+  return orderList
+    .filter((order) => order.discord_id === discordId)
+    .filter((order) => {
+      const sourceDate = getOrderSourceDate(order);
+      if (!sourceDate) return false;
+      return new Date(sourceDate) < beforeDate;
+    })
+    .reduce((sum, order) => sum + getOrderAmount(order), 0);
+}
+
+function getStaffYearSalaryTotal(
+  orderList: SalaryOrder[],
+  discordId: string,
+  year: number
+) {
+  return orderList
+    .filter((order) => order.discord_id === discordId)
+    .filter((order) => {
+      const sourceDate = getOrderSourceDate(order);
+      if (!sourceDate) return false;
+      return new Date(sourceDate).getFullYear() === year;
+    })
+    .reduce((sum, order) => sum + Number(order.staff_salary || 0), 0);
+}
+
+function getFirstReachAmountDate(
+  orderList: SalaryOrder[],
+  discordId: string,
+  targetAmount: number
+) {
+  const sortedOrders = orderList
+    .filter((order) => order.discord_id === discordId)
+    .filter((order) => order.is_deleted !== true)
+    .sort((a, b) => {
+      const aDate = getOrderSourceDate(a);
+      const bDate = getOrderSourceDate(b);
+
+      return new Date(aDate || 0).getTime() - new Date(bDate || 0).getTime();
+    });
+
+  let total = 0;
+
+  for (const order of sortedOrders) {
+    total += getOrderAmount(order);
+
+    if (total >= targetAmount) {
+      return getOrderSourceDate(order);
+    }
+  }
+
+  return null;
+}
+
+function getStaffRate(
+  staff: Staff | null | undefined,
+  finishedAtInput?: string,
+  orderList: SalaryOrder[] = []
+) {
+  const finishedAt = datetimeToIso(finishedAtInput || getNowInput());
+  const finishedDate = new Date(finishedAt);
+  const openingEnd = new Date("2026-09-01T00:00:00+08:00");
+
+  if (finishedDate < openingEnd) {
+    return 90;
+  }
+
+  const manualRate = getManualCommissionRate(staff?.commission_tier);
+
+  if (manualRate) {
+    return manualRate;
+  }
+
+  const discordId = staff?.discord_id;
+
+  if (!discordId) {
+    return 80;
+  }
+
+  const previousYear = finishedDate.getFullYear() - 1;
+  const previousYearSalary = getStaffYearSalaryTotal(
+    orderList,
+    discordId,
+    previousYear
+  );
+
+  if (previousYearSalary >= 100000) {
+    return 90;
+  }
+
+  const firstReach10kDate = getFirstReachAmountDate(orderList, discordId, 10000);
+
+  if (firstReach10kDate) {
+    const reachNextMonth = getNextMonthTextFromIso(firstReach10kDate);
+    const orderMonth = getTaipeiMonthText(finishedDate);
+
+    if (orderMonth >= reachNextMonth) {
+      return 85;
+    }
+  }
+
+  return 80;
 }
 
 function getOrderAmount(order: SalaryOrder) {
@@ -532,7 +660,11 @@ export default function AdminSalaryPage() {
     const selectedStaff = staffList.find(
       (item) => item.discord_id === orderForm.discord_id
     );
-    const salaryRate = getStaffRate(selectedStaff);
+    const salaryRate = getStaffRate(
+      selectedStaff,
+      orderForm.order_finished_at,
+      orders
+    );
     const bonusAmount = Number(orderForm.bonus_amount || 0);
 
     if (orderAmount <= 0) {
@@ -557,7 +689,7 @@ export default function AdminSalaryPage() {
           price: orderAmount,
           service: orderForm.service_name || null,
           completed_at: finishedAt,
-          assigned_player: staffName,
+          assigned_player: orderForm.discord_id,
           staff_salary: staffSalary,
           bonus_amount: bonusAmount,
           salary_rate: salaryRate,
@@ -586,7 +718,7 @@ export default function AdminSalaryPage() {
     const { error } = await supabase.from("play_orders").insert({
       discord_id: orderForm.discord_id,
       staff_name: staffName,
-      assigned_player: staffName,
+      assigned_player: orderForm.discord_id,
       service_name: orderForm.service_name || null,
       service: orderForm.service_name || null,
       order_amount: orderAmount,
@@ -936,7 +1068,9 @@ export default function AdminSalaryPage() {
                 <div className="flex min-h-[40px] items-center rounded-xl border border-sky-100 bg-sky-50/60 px-3 text-sm font-black text-sky-700">
                   {orderForm.discord_id
                     ? `${getStaffRate(
-                        staffList.find((item) => item.discord_id === orderForm.discord_id)
+                        staffList.find((item) => item.discord_id === orderForm.discord_id),
+                        orderForm.order_finished_at,
+                        orders
                       )}%`
                     : "請先選擇員工"}
                 </div>
