@@ -14,6 +14,11 @@ import {
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
+const DEEPNIGHT_GUILD_ID =
+  process.env.NEXT_PUBLIC_DEEPNIGHT_GUILD_ID ||
+  process.env.NEXT_PUBLIC_GUILD_ID ||
+  "1501098191813214312";
+
 type Staff = {
   id: string;
   discord_id: string;
@@ -374,6 +379,7 @@ export default function SalaryRankPage() {
         .select(
           "id, discord_id, staff_name, order_amount, price, staff_salary, bonus_amount, status, order_finished_at, completed_at, created_at, is_deleted"
         )
+        .eq("guild_id", DEEPNIGHT_GUILD_ID)
         .or("is_deleted.eq.false,is_deleted.is.null")
         .order("order_finished_at", { ascending: false }),
 

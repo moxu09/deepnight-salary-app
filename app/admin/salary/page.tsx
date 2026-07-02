@@ -20,6 +20,11 @@ import {
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
+const DEEPNIGHT_GUILD_ID =
+  process.env.NEXT_PUBLIC_DEEPNIGHT_GUILD_ID ||
+  process.env.NEXT_PUBLIC_GUILD_ID ||
+  "1501098191813214312";
+
 type Staff = {
   id: string;
   discord_id: string;
@@ -559,6 +564,7 @@ export default function AdminSalaryPage() {
     let orderQuery = supabase
       .from("play_orders")
       .select("*")
+      .eq("guild_id", DEEPNIGHT_GUILD_ID)
       .or("is_deleted.eq.false,is_deleted.is.null")
       .order("order_finished_at", { ascending: false });
 
@@ -682,24 +688,32 @@ export default function AdminSalaryPage() {
     }
 
     const orderAmount = Number(orderForm.order_amount || 0);
+    const bonusAmount = Number(orderForm.bonus_amount || 0);
+
+    if (orderAmount <= 0 || Number.isNaN(orderAmount)) {
+      alert("請輸入正確訂單金額");
+      return;
+    }
+
+    if (Number.isNaN(bonusAmount)) {
+      alert("請輸入正確訂單獎金");
+      return;
+    }
+
     const selectedStaff = staffList.find(
       (item) => item.discord_id === orderForm.discord_id
     );
+
     const salaryRate = getStaffRate(
       selectedStaff,
       orderForm.order_finished_at,
       orders
     );
-    const bonusAmount = Number(orderForm.bonus_amount || 0);
-
-    if (orderAmount <= 0) {
-      alert("請輸入訂單金額");
-      return;
-    }
 
     const staffName = getStaffNameByDiscordId(staffList, orderForm.discord_id);
     const staffSalary = Math.round(orderAmount * (salaryRate / 100));
     const finishedAt = datetimeToIso(orderForm.order_finished_at);
+    const manualOrderNo = `MANUAL-${Date.now()}`;
 
     setSavingOrder(true);
 
@@ -709,12 +723,12 @@ export default function AdminSalaryPage() {
         .update({
           discord_id: orderForm.discord_id,
           staff_name: staffName,
+          assigned_player: orderForm.discord_id,
           service_name: orderForm.service_name || null,
+          service: orderForm.service_name || null,
           order_amount: orderAmount,
           price: orderAmount,
-          service: orderForm.service_name || null,
           completed_at: finishedAt,
-          assigned_player: orderForm.discord_id,
           staff_salary: staffSalary,
           bonus_amount: bonusAmount,
           salary_rate: salaryRate,
@@ -724,13 +738,18 @@ export default function AdminSalaryPage() {
           status: orderForm.status || "未發薪",
           order_finished_at: finishedAt,
         })
-        .eq("id", editingOrderId);
+        .eq("id", editingOrderId)
+        .eq("guild_id", DEEPNIGHT_GUILD_ID);
 
       setSavingOrder(false);
 
       if (error) {
         console.error("update order error:", error);
-        alert("更新訂單失敗");
+        alert(
+          "更新訂單失敗：\n" +
+            (error.message || "未知錯誤") +
+            "\n\n請把這段錯誤貼給我。"
+        );
         return;
       }
 
@@ -740,10 +759,15 @@ export default function AdminSalaryPage() {
       return;
     }
 
-    const { error } = await supabase.from("play_orders").insert({
+   const payload = {
+      guild_id: DEEPNIGHT_GUILD_ID,
+      order_id: manualOrderNo,
+      order_no: manualOrderNo,
       discord_id: orderForm.discord_id,
       staff_name: staffName,
       assigned_player: orderForm.discord_id,
+      customer_id: "manual",
+      customer_name: "手動新增",
       service_name: orderForm.service_name || null,
       service: orderForm.service_name || null,
       order_amount: orderAmount,
@@ -759,17 +783,23 @@ export default function AdminSalaryPage() {
       completed_at: finishedAt,
       created_at: finishedAt,
       is_deleted: false,
-    });
+    };
+
+    const { error } = await supabase.from("play_orders").insert(payload);
 
     setSavingOrder(false);
 
     if (error) {
-      console.error("insert order error:", error);
-      alert("新增訂單失敗");
+      console.error("insert order error:", error, payload);
+      alert(
+        "新增訂單失敗：\n" +
+          (error.message || "未知錯誤") +
+          "\n\n請把這段錯誤貼給我。"
+      );
       return;
     }
 
-    alert("訂單已新增");
+    alert(`訂單已新增\n抽成：${salaryRate}%\n薪資：${staffSalary}`);
     resetOrderForm();
     await loadSalaryData();
   }
@@ -885,7 +915,8 @@ export default function AdminSalaryPage() {
       .update({
         status: "已發薪",
       })
-      .eq("id", order.id);
+      .eq("id", order.id)
+      .eq("guild_id", DEEPNIGHT_GUILD_ID);
 
     if (error) {
       console.error("mark paid error:", error);
@@ -906,7 +937,8 @@ export default function AdminSalaryPage() {
       .update({
         is_deleted: true,
       })
-      .eq("id", order.id);
+      .eq("id", order.id)
+      .eq("guild_id", DEEPNIGHT_GUILD_ID);
 
     if (error) {
       console.error("delete order error:", error);
@@ -944,6 +976,7 @@ export default function AdminSalaryPage() {
       .update({
         status: "已發薪",
       })
+      .eq("guild_id", DEEPNIGHT_GUILD_ID)
       .gte("order_finished_at", startIso)
       .lte("order_finished_at", endIso)
       .neq("status", "已發薪");
