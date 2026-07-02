@@ -123,15 +123,39 @@ const SERVICE_GROUPS: Record<string, ServiceItem[]> = {
 
 const ALL_SERVICES = Object.values(SERVICE_GROUPS).flat();
 
-function getNowMonthRange() {
+function getCurrentMonthInput() {
   const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
-  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function getMonthRange(monthText: string) {
+  const [yearText, monthValueText] = monthText.split("-");
+  const year = Number(yearText);
+  const monthValue = Number(monthValueText);
+  const source =
+    Number.isInteger(year) && Number.isInteger(monthValue) && monthValue >= 1
+      ? new Date(year, monthValue - 1, 1)
+      : new Date();
+
+  const start = new Date(source.getFullYear(), source.getMonth(), 1, 0, 0, 0);
+  const end = new Date(source.getFullYear(), source.getMonth() + 1, 0, 23, 59, 59);
 
   return {
     startIso: start.toISOString(),
     endIso: end.toISOString(),
   };
+}
+
+function formatMonthLabel(monthText: string) {
+  if (!monthText) return "所選月份";
+
+  const [yearText, monthTextValue] = monthText.split("-");
+  const month = Number(monthTextValue);
+
+  if (!yearText || !month) return "所選月份";
+
+  return `${yearText} 年 ${month} 月`;
 }
 
 function money(value: number | null | undefined) {
@@ -229,15 +253,14 @@ function getCurrentRateByRule(
 ) {
   const now = new Date();
   const openingEnd = new Date("2026-09-01T00:00:00+08:00");
-
-  if (now < openingEnd) {
-    return 90;
-  }
-
   const manual = getManualRate(staff?.commission_tier);
 
   if (manual) {
     return manual;
+  }
+
+  if (now < openingEnd) {
+    return 90;
   }
 
   if (totalYearSalary >= 100000) {
@@ -321,6 +344,7 @@ export default function StaffPage() {
   const [serviceSaving, setServiceSaving] = useState(false);
   const [onlineSaving, setOnlineSaving] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [selectedMonth, setSelectedMonth] = useState(getCurrentMonthInput());
 
   const [profileForm, setProfileForm] = useState<ProfileForm>({
     display_name: "",
@@ -456,7 +480,7 @@ export default function StaffPage() {
   }
 
   async function loadSalaryData(discordId: string) {
-    const { startIso, endIso } = getNowMonthRange();
+    const { startIso, endIso } = getMonthRange(selectedMonth);
 
     const { data: monthOrders, error: monthError } = await supabase
       .from("play_orders")
@@ -771,10 +795,34 @@ export default function StaffPage() {
         </header>
 
         <section className="grid gap-4 md:grid-cols-4">
-          <StatCard title="本月訂單" value={`${monthOrderCount} 筆`} />
-          <StatCard title="本月薪資" value={money(monthSalary)} />
-          <StatCard title="本月獎金" value={money(monthBonus)} />
+          <StatCard title="月份訂單" value={`${monthOrderCount} 筆`} />
+          <StatCard title="月份薪資" value={money(monthSalary)} />
+          <StatCard title="獎金 / 扣除" value={money(monthBonus)} />
           <StatCard title="未發薪" value={money(unpaidAmount)} />
+        </section>
+
+        <section className="rounded-[28px] border border-sky-100 bg-white p-5 shadow-sm shadow-sky-100">
+          <div className="grid gap-4 md:grid-cols-[1fr_auto] md:items-end">
+            <Field label="薪資月份">
+              <input
+                type="month"
+                value={selectedMonth}
+                onChange={(event) => setSelectedMonth(event.target.value)}
+              />
+            </Field>
+
+            <button
+              onClick={refreshAll}
+              disabled={refreshing}
+              className="inline-flex items-center justify-center gap-2 rounded-full bg-sky-500 px-5 py-2.5 text-sm font-bold text-white shadow-sm shadow-sky-200 hover:bg-sky-600 disabled:opacity-60"
+            >
+              <RefreshCw
+                size={16}
+                className={refreshing ? "animate-spin" : ""}
+              />
+              查詢月份
+            </button>
+          </div>
         </section>
 
         <section className="grid gap-5 xl:grid-cols-[0.9fr_1.4fr]">
@@ -801,7 +849,7 @@ export default function StaffPage() {
                   </div>
 
                   <p className="mt-3 text-sm leading-6 text-slate-500">
-                    2026/09/01 前固定 90%；9 月後預設 80%，累積接單滿 10,000 後下個月 85%，年度薪資達標後隔年 90%。
+                    2026/09/01 前未手動設定者預設 90%；後台設定會優先套用。9 月後預設 80%，累積接單滿 10,000 後下個月 85%，年度薪資達標後隔年 90%。
                   </p>
                 </div>
               </div>
@@ -1029,17 +1077,17 @@ export default function StaffPage() {
               <div className="border-b border-sky-100 px-5 py-4">
                 <h2 className="flex items-center gap-2 text-lg font-black text-slate-900">
                   <WalletCards size={20} className="text-sky-500" />
-                  本月訂單
+                  {formatMonthLabel(selectedMonth)}訂單
                 </h2>
 
                 <p className="mt-1 text-sm text-slate-500">
-                  顯示本月 1 號到現在的訂單。
+                  顯示所選月份的薪資訂單。
                 </p>
               </div>
 
               {salaryOrders.length === 0 ? (
                 <div className="px-5 py-12 text-center text-sm font-semibold text-slate-400">
-                  目前沒有本月訂單
+                  目前沒有這個月份的訂單
                 </div>
               ) : (
                 <div className="mobile-table-card overflow-x-auto">
@@ -1115,13 +1163,13 @@ export default function StaffPage() {
               <div className="border-b border-sky-100 px-5 py-4">
                 <h2 className="flex items-center gap-2 text-lg font-black text-slate-900">
                   <Gift size={20} className="text-sky-500" />
-                  本月獎金
+                  {formatMonthLabel(selectedMonth)}獎金 / 扣除
                 </h2>
               </div>
 
               {bonuses.length === 0 ? (
                 <div className="px-5 py-10 text-center text-sm font-semibold text-slate-400">
-                  目前沒有本月獎金
+                  目前沒有這個月份的獎金或扣除
                 </div>
               ) : (
                 <div className="mobile-table-card overflow-x-auto">
@@ -1150,7 +1198,11 @@ export default function StaffPage() {
 
                           <td
                             data-label="金額"
-                            className="font-bold text-sky-600"
+                            className={`font-bold ${
+                              Number(bonus.amount || 0) < 0
+                                ? "text-red-500"
+                                : "text-sky-600"
+                            }`}
                           >
                             {money(bonus.amount)}
                           </td>

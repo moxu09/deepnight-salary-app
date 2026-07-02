@@ -10,6 +10,7 @@ import {
   Edit3,
   Gift,
   Loader2,
+  MinusCircle,
   Plus,
   RefreshCw,
   Save,
@@ -80,6 +81,13 @@ type BonusForm = {
   bonus_type: string;
   description: string;
   amount: string;
+  created_at: string;
+};
+
+type DeductionForm = {
+  discord_id: string;
+  amount: string;
+  description: string;
   created_at: string;
 };
 
@@ -262,15 +270,14 @@ function getStaffRate(
   const finishedAt = datetimeToIso(finishedAtInput || getNowInput());
   const finishedDate = new Date(finishedAt);
   const openingEnd = new Date("2026-09-01T00:00:00+08:00");
-
-  if (finishedDate < openingEnd) {
-    return 90;
-  }
-
   const manualRate = getManualCommissionRate(staff?.commission_tier);
 
   if (manualRate) {
     return manualRate;
+  }
+
+  if (finishedDate < openingEnd) {
+    return 90;
   }
 
   const discordId = staff?.discord_id;
@@ -342,6 +349,7 @@ export default function AdminSalaryPage() {
   const [endDate, setEndDate] = useState(getTodayInput());
   const [savingOrder, setSavingOrder] = useState(false);
   const [savingBonus, setSavingBonus] = useState(false);
+  const [savingDeduction, setSavingDeduction] = useState(false);
   const [paying, setPaying] = useState(false);
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
 
@@ -360,6 +368,13 @@ export default function AdminSalaryPage() {
     bonus_type: "",
     description: "",
     amount: "",
+    created_at: getNowInput(),
+  });
+
+  const [deductionForm, setDeductionForm] = useState<DeductionForm>({
+    discord_id: "",
+    amount: "",
+    description: "",
     created_at: getNowInput(),
   });
 
@@ -615,6 +630,16 @@ export default function AdminSalaryPage() {
     }));
   }
 
+  function updateDeductionForm<K extends keyof DeductionForm>(
+    key: K,
+    value: DeductionForm[K]
+  ) {
+    setDeductionForm((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
+  }
+
   function resetOrderForm() {
     setEditingOrderId(null);
     setOrderForm({
@@ -795,6 +820,59 @@ export default function AdminSalaryPage() {
     await loadSalaryData();
   }
 
+  async function saveDeduction() {
+    if (!deductionForm.discord_id) {
+      alert("請選擇員工");
+      return;
+    }
+
+    const amount = Number(deductionForm.amount || 0);
+
+    if (amount <= 0) {
+      alert("請輸入扣除金額");
+      return;
+    }
+
+    if (!deductionForm.description.trim()) {
+      alert("請填寫扣除備註");
+      return;
+    }
+
+    const staffName = getStaffNameByDiscordId(
+      staffList,
+      deductionForm.discord_id
+    );
+    const createdAt = datetimeToIso(deductionForm.created_at);
+
+    setSavingDeduction(true);
+
+    const { error } = await supabase.from("players_bonus").insert({
+      discord_id: deductionForm.discord_id,
+      staff_name: staffName,
+      bonus_type: "薪水扣除",
+      description: deductionForm.description.trim(),
+      amount: -Math.abs(amount),
+      created_at: createdAt,
+    });
+
+    setSavingDeduction(false);
+
+    if (error) {
+      console.error("insert salary deduction error:", error);
+      alert("新增薪水扣除失敗");
+      return;
+    }
+
+    alert("薪水扣除已新增");
+    setDeductionForm({
+      discord_id: "",
+      amount: "",
+      description: "",
+      created_at: getNowInput(),
+    });
+    await loadSalaryData();
+  }
+
   async function markOrderPaid(order: SalaryOrder) {
     const ok = confirm(
       `確定要將「${order.staff_name || order.discord_id}」這筆訂單標記為已發薪嗎？`
@@ -942,7 +1020,7 @@ export default function AdminSalaryPage() {
         <section className="grid gap-4 md:grid-cols-4">
           <StatCard title="總收入" value={money(totalIncome)} />
           <StatCard title="薪資支出" value={money(totalSalary)} />
-          <StatCard title="獎金支出" value={money(totalBonus)} />
+          <StatCard title="獎金 / 扣除" value={money(totalBonus)} />
           <StatCard title="未發薪" value={money(unpaidTotal)} />
         </section>
 
@@ -1208,6 +1286,80 @@ export default function AdminSalaryPage() {
               </div>
             </div>
 
+            <div className="rounded-[28px] border border-red-100 bg-white p-5 shadow-sm shadow-red-100">
+              <h2 className="flex items-center gap-2 text-lg font-black text-slate-900">
+                <MinusCircle size={20} className="text-red-500" />
+                新增薪水扣除
+              </h2>
+
+              <p className="mt-1 text-sm text-slate-500">
+                扣除金額會以負數列入薪資明細。
+              </p>
+
+              <div className="mt-5 grid gap-4 md:grid-cols-2">
+                <Field label="員工">
+                  <select
+                    value={deductionForm.discord_id}
+                    onChange={(event) =>
+                      updateDeductionForm("discord_id", event.target.value)
+                    }
+                  >
+                    <option value="">選擇員工</option>
+                    {staffList.map((staff) => (
+                      <option key={staff.id} value={staff.discord_id}>
+                        {getDisplayStaffName(staff)}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+
+                <Field label="扣除金額">
+                  <input
+                    type="number"
+                    min="1"
+                    value={deductionForm.amount}
+                    onChange={(event) =>
+                      updateDeductionForm("amount", event.target.value)
+                    }
+                    placeholder="例如：300"
+                  />
+                </Field>
+
+                <Field label="扣除時間">
+                  <input
+                    type="datetime-local"
+                    value={deductionForm.created_at}
+                    onChange={(event) =>
+                      updateDeductionForm("created_at", event.target.value)
+                    }
+                  />
+                </Field>
+
+                <div className="md:col-span-2">
+                  <Field label="備註">
+                    <textarea
+                      value={deductionForm.description}
+                      onChange={(event) =>
+                        updateDeductionForm("description", event.target.value)
+                      }
+                      placeholder="例如：遲到、請假扣款、手動修正"
+                    />
+                  </Field>
+                </div>
+
+                <div className="md:col-span-2">
+                  <button
+                    onClick={saveDeduction}
+                    disabled={savingDeduction}
+                    className="flex w-full items-center justify-center gap-2 rounded-full bg-red-500 px-5 py-3 text-sm font-bold text-white hover:bg-red-600 disabled:opacity-60"
+                  >
+                    <Save size={16} />
+                    {savingDeduction ? "儲存中..." : "新增扣除"}
+                  </button>
+                </div>
+              </div>
+            </div>
+
             <div className="rounded-[28px] border border-sky-100 bg-white p-5 shadow-sm shadow-sky-100">
               <h2 className="flex items-center gap-2 text-lg font-black text-slate-900">
                 <CheckCircle2 size={20} className="text-sky-500" />
@@ -1388,17 +1540,17 @@ export default function AdminSalaryPage() {
           <div className="border-b border-sky-100 px-5 py-4">
             <h2 className="flex items-center gap-2 text-lg font-black text-slate-900">
               <BadgeDollarSign size={20} className="text-sky-500" />
-              獎金列表
+              獎金 / 扣除列表
             </h2>
 
             <p className="mt-1 text-sm text-slate-500">
-              目前顯示 {filteredBonuses.length} 筆獎金。
+              目前顯示 {filteredBonuses.length} 筆獎金 / 扣除。
             </p>
           </div>
 
           {filteredBonuses.length === 0 ? (
             <div className="px-5 py-10 text-center text-sm font-semibold text-slate-400">
-              沒有符合條件的獎金
+              沒有符合條件的獎金或扣除
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -1427,7 +1579,13 @@ export default function AdminSalaryPage() {
                       </td>
                       <td>{bonus.bonus_type || "-"}</td>
                       <td>{bonus.description || "-"}</td>
-                      <td className="font-bold text-sky-600">
+                      <td
+                        className={`font-bold ${
+                          Number(bonus.amount || 0) < 0
+                            ? "text-red-500"
+                            : "text-sky-600"
+                        }`}
+                      >
                         {money(bonus.amount)}
                       </td>
                     </tr>
