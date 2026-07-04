@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   ArrowRight,
+  Banknote,
   Loader2,
   Settings,
   Users,
@@ -133,6 +134,13 @@ export default function AdminHomePage() {
             icon={<Trophy size={38} />}
             title="員工薪資排序"
             description="查看每位員工薪水總額，可依薪資升冪或降冪排序。"
+          />
+
+          <AdminCard
+            href="/admin/payroll"
+            icon={<Banknote size={38} />}
+            title="發薪模式"
+            description="彙整有薪水要發的員工、薪水、獎金、銀行帳號與戶名。"
           />
 
           <AdminCard
