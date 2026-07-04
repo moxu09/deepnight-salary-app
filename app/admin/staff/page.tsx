@@ -4,26 +4,21 @@ import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import {
-  RefreshCw,
-  LogOut,
-  UserRound,
-  WalletCards,
+  ArrowLeft,
+  CheckCircle2,
   Gamepad2,
+  Loader2,
+  RefreshCw,
   Save,
-  Power,
-  Gift,
-  Trophy,
+  Search,
+  Settings2,
+  UserRound,
+  Users,
 } from "lucide-react";
-
-const DEEPNIGHT_GUILD_ID =
-  process.env.NEXT_PUBLIC_DEEPNIGHT_GUILD_ID ||
-  process.env.NEXT_PUBLIC_GUILD_ID ||
-  "1501098191813214312";
-
-const DEEPNIGHT_PLAY_ORDER_FILTER = `guild_id.eq.${DEEPNIGHT_GUILD_ID},guild_id.is.null`;
+import Link from "next/link";
 
 type Staff = {
-  id?: string;
+  id: string;
   discord_id: string;
   discord_name?: string | null;
   display_name?: string | null;
@@ -32,55 +27,31 @@ type Staff = {
   birthday?: string | null;
   bank_name?: string | null;
   bank_account?: string | null;
+  salary_channel_id?: string | null;
   avatar_url?: string | null;
-  is_online?: boolean | null;
   is_active?: boolean | null;
+  is_online?: boolean | null;
   can_take_order?: boolean | null;
   allowed_services?: string[] | null;
   commission_tier?: string | null;
   commission_note?: string | null;
   created_at?: string | null;
+  updated_at?: string | null;
 };
 
-type SalaryOrder = {
-  id: string;
-  order_no?: string | null;
-  order_id?: string | null;
-  discord_id: string;
-  staff_name?: string | null;
-  customer_name?: string | null;
-  customer_id?: string | null;
-  service_name?: string | null;
-  service?: string | null;
-  order_amount?: number | null;
-  price?: number | null;
-  staff_salary?: number | null;
-  bonus_amount?: number | null;
-  salary_rate?: number | null;
-  salary_level?: string | null;
-  status?: string | null;
-  order_finished_at?: string | null;
-  completed_at?: string | null;
-  created_at?: string | null;
-};
-
-type Bonus = {
-  id: string;
-  discord_id: string;
-  staff_name?: string | null;
-  bonus_type?: string | null;
-  description?: string | null;
-  amount?: number | null;
-  created_at?: string | null;
-};
-
-type ProfileForm = {
+type StaffForm = {
   display_name: string;
   real_name: string;
   gender: string;
   birthday: string;
   bank_name: string;
   bank_account: string;
+  salary_channel_id: string;
+  commission_tier: string;
+  commission_note: string;
+  is_active: boolean;
+  is_online: boolean;
+  can_take_order: boolean;
 };
 
 type ServiceItem = {
@@ -130,188 +101,40 @@ const SERVICE_GROUPS: Record<string, ServiceItem[]> = {
 
 const ALL_SERVICES = Object.values(SERVICE_GROUPS).flat();
 
-function getCurrentMonthInput() {
-  const now = new Date();
-
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-}
-
-function getMonthRange(monthText: string) {
-  const [yearText, monthValueText] = monthText.split("-");
-  const year = Number(yearText);
-  const monthValue = Number(monthValueText);
-
-  const source =
-    Number.isInteger(year) && Number.isInteger(monthValue) && monthValue >= 1
-      ? new Date(year, monthValue - 1, 1)
-      : new Date();
-
-  const start = new Date(source.getFullYear(), source.getMonth(), 1, 0, 0, 0);
-  const end = new Date(
-    source.getFullYear(),
-    source.getMonth() + 1,
-    0,
-    23,
-    59,
-    59
-  );
-
-  return {
-    startIso: start.toISOString(),
-    endIso: end.toISOString(),
-  };
-}
-
-function formatMonthLabel(monthText: string) {
-  if (!monthText) return "所選月份";
-
-  const [yearText, monthTextValue] = monthText.split("-");
-  const month = Number(monthTextValue);
-
-  if (!yearText || !month) return "所選月份";
-
-  return `${yearText} 年 ${month} 月`;
-}
-
-function money(value: number | null | undefined) {
-  return `$${Number(value || 0).toLocaleString("zh-TW")}`;
-}
-
-function formatDateTime(value?: string | null) {
-  if (!value) return "-";
-
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) return "-";
-
-  return date.toLocaleString("zh-TW", {
-    hour12: true,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
-function getOrderAmount(order: SalaryOrder) {
-  return Number(order.order_amount ?? order.price ?? 0);
-}
-
-function getOrderService(order: SalaryOrder) {
-  return order.service_name || order.service || "-";
-}
-
-function getOrderCustomer(order: SalaryOrder) {
-  return order.customer_name || order.customer_id || "-";
-}
-
-function getManualRate(tier?: string | null) {
-  if (tier === "rate_80") return 80;
-  if (tier === "rate_85") return 85;
-  if (tier === "rate_90") return 90;
-  if (tier === "manager_95") return 95;
-  return null;
-}
-
-function getTaipeiMonthText(date = new Date()) {
-  const taipeiDate = new Date(date.getTime() + 8 * 60 * 60 * 1000);
-  return taipeiDate.toISOString().slice(0, 7);
-}
-
-function getNextMonthTextFromIso(isoText?: string | null) {
-  if (!isoText) return "";
-
-  const date = new Date(isoText);
-  const taipeiDate = new Date(date.getTime() + 8 * 60 * 60 * 1000);
-
-  const year = taipeiDate.getUTCFullYear();
-  const month = taipeiDate.getUTCMonth();
-
-  const next = new Date(Date.UTC(year, month + 1, 1));
-  return next.toISOString().slice(0, 7);
-}
-
-function getOrderSourceDate(order: SalaryOrder) {
-  return order.order_finished_at || order.completed_at || order.created_at || null;
-}
-
-function getFirstReachAmountDate(orderList: SalaryOrder[], targetAmount: number) {
-  const sortedOrders = [...orderList]
-    .filter((order) => getOrderSourceDate(order))
-    .sort((a, b) => {
-      const aDate = getOrderSourceDate(a);
-      const bDate = getOrderSourceDate(b);
-
-      return new Date(aDate || 0).getTime() - new Date(bDate || 0).getTime();
-    });
-
-  let total = 0;
-
-  for (const order of sortedOrders) {
-    total += getOrderAmount(order);
-
-    if (total >= targetAmount) {
-      return getOrderSourceDate(order);
-    }
-  }
-
-  return null;
-}
-
-function getCurrentRateByRule(
-  staff: Staff | null,
-  orderList: SalaryOrder[],
-  totalYearSalary: number
-) {
-  const now = new Date();
-  const openingEnd = new Date("2026-09-01T00:00:00+08:00");
-  const manual = getManualRate(staff?.commission_tier);
-
-  if (manual) {
-    return manual;
-  }
-
-  if (now < openingEnd) {
-    return 90;
-  }
-
-  if (totalYearSalary >= 100000) {
-    return 90;
-  }
-
-  const firstReach10kDate = getFirstReachAmountDate(orderList, 10000);
-
-  if (firstReach10kDate) {
-    const reachNextMonth = getNextMonthTextFromIso(firstReach10kDate);
-    const currentMonth = getTaipeiMonthText(now);
-
-    if (currentMonth >= reachNextMonth) {
-      return 85;
-    }
-  }
-
-  return 80;
-}
-
-function getDisplayName(staff: Staff | null) {
-  if (!staff) return "員工";
-
-  return (
-    staff.display_name ||
-    staff.real_name ||
-    staff.discord_name ||
-    staff.discord_id ||
-    "員工"
-  );
-}
-
 function getServiceName(key: string) {
   return ALL_SERVICES.find((item) => item.key === key)?.name || key;
 }
 
 function getServiceCategory(key: string) {
   return ALL_SERVICES.find((item) => item.key === key)?.category || "其他";
+}
+
+function getDisplayName(staff: Staff | null) {
+  if (!staff) return "未選擇員工";
+
+  return (
+    staff.display_name ||
+    staff.real_name ||
+    staff.discord_name ||
+    staff.discord_id ||
+    "未知員工"
+  );
+}
+
+function getCommissionTierLabel(value?: string | null) {
+  if (value === "rate_80") return "80%｜9月後基準";
+  if (value === "rate_85") return "85%｜接單達標";
+  if (value === "rate_90") return "90%｜特別設定";
+  if (value === "manager_95") return "95%｜主管津貼";
+  return "自動判定";
+}
+
+function getCommissionTierRank(value?: string | null) {
+  if (value === "manager_95") return 95;
+  if (value === "rate_90") return 90;
+  if (value === "rate_85") return 85;
+  if (value === "rate_80") return 80;
+  return 0;
 }
 
 function getDiscordIdFromSession(session: any) {
@@ -328,114 +151,123 @@ function getDiscordIdFromSession(session: any) {
   ).trim();
 }
 
-function getDiscordNameFromSession(session: any) {
-  const metadata = session?.user?.user_metadata || {};
-
-  return (
-    metadata.global_name ||
-    metadata.full_name ||
-    metadata.name ||
-    metadata.preferred_username ||
-    metadata.user_name ||
-    metadata.username ||
-    "Discord 使用者"
-  );
+function makeForm(staff: Staff | null): StaffForm {
+  return {
+    display_name: staff?.display_name || "",
+    real_name: staff?.real_name || "",
+    gender: staff?.gender || "",
+    birthday: staff?.birthday || "",
+    bank_name: staff?.bank_name || "",
+    bank_account: staff?.bank_account || "",
+    salary_channel_id: staff?.salary_channel_id || "",
+    commission_tier: staff?.commission_tier || "auto",
+    commission_note: staff?.commission_note || "",
+    is_active: staff?.is_active !== false,
+    is_online: Boolean(staff?.is_online),
+    can_take_order: staff?.can_take_order !== false,
+  };
 }
 
-function getAvatarFromSession(session: any) {
-  const metadata = session?.user?.user_metadata || {};
-  return metadata.avatar_url || metadata.picture || null;
-}
-
-export default function StaffPage() {
+export default function AdminStaffPage() {
+  const [checking, setChecking] = useState(true);
   const [loading, setLoading] = useState(true);
-  const [staff, setStaff] = useState<Staff | null>(null);
-  const [salaryOrders, setSalaryOrders] = useState<SalaryOrder[]>([]);
-  const [allSalaryOrders, setAllSalaryOrders] = useState<SalaryOrder[]>([]);
-  const [bonuses, setBonuses] = useState<Bonus[]>([]);
+  const [staffList, setStaffList] = useState<Staff[]>([]);
+  const [selectedStaff, setSelectedStaff] = useState<Staff | null>(null);
+  const [form, setForm] = useState<StaffForm>(makeForm(null));
   const [allowedServices, setAllowedServices] = useState<string[]>([]);
-  const [profileSaving, setProfileSaving] = useState(false);
+  const [keyword, setKeyword] = useState("");
+  const [salarySort, setSalarySort] = useState("created_desc");
+  const [saving, setSaving] = useState(false);
   const [serviceSaving, setServiceSaving] = useState(false);
-  const [onlineSaving, setOnlineSaving] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-  const [selectedMonth, setSelectedMonth] = useState(getCurrentMonthInput());
 
-  const [profileForm, setProfileForm] = useState<ProfileForm>({
-    display_name: "",
-    real_name: "",
-    gender: "",
-    birthday: "",
-    bank_name: "",
-    bank_account: "",
-  });
+  const filteredStaff = useMemo(() => {
+    const key = keyword.trim().toLowerCase();
 
-  const monthOrderCount = salaryOrders.length;
+    let list = [...staffList];
 
-  const monthSalary = useMemo(() => {
-    return salaryOrders.reduce(
-      (sum, order) => sum + Number(order.staff_salary || 0),
-      0
-    );
-  }, [salaryOrders]);
+    if (key) {
+      list = list.filter((staff) => {
+        const text = [
+          staff.discord_id,
+          staff.discord_name,
+          staff.display_name,
+          staff.real_name,
+          staff.salary_channel_id,
+          getCommissionTierLabel(staff.commission_tier),
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
 
-  const monthBonus = useMemo(() => {
-    return bonuses.reduce((sum, bonus) => sum + Number(bonus.amount || 0), 0);
-  }, [bonuses]);
+        return text.includes(key);
+      });
+    }
 
-  const unpaidAmount = useMemo(() => {
-    const orderTotal = salaryOrders
-      .filter((order) => order.status !== "已發薪")
-      .reduce(
-        (sum, order) =>
-          sum +
-          Number(order.staff_salary || 0) +
-          Number(order.bonus_amount || 0),
-        0
+    if (salarySort === "tier_auto") {
+      list = list.filter(
+        (staff) => !staff.commission_tier || staff.commission_tier === "auto"
       );
+    }
 
-    return orderTotal + monthBonus;
-  }, [salaryOrders, monthBonus]);
+    if (salarySort === "tier_80") {
+      list = list.filter((staff) => staff.commission_tier === "rate_80");
+    }
 
-  const totalOrderAmount = useMemo(() => {
-    return allSalaryOrders.reduce((sum, order) => sum + getOrderAmount(order), 0);
-  }, [allSalaryOrders]);
+    if (salarySort === "tier_85") {
+      list = list.filter((staff) => staff.commission_tier === "rate_85");
+    }
 
-  const totalYearSalary = useMemo(() => {
-    const year = new Date().getFullYear();
+    if (salarySort === "tier_90") {
+      list = list.filter((staff) => staff.commission_tier === "rate_90");
+    }
 
-    return allSalaryOrders
-      .filter((order) => {
-        const sourceDate =
-          order.order_finished_at || order.completed_at || order.created_at;
+    if (salarySort === "tier_95") {
+      list = list.filter((staff) => staff.commission_tier === "manager_95");
+    }
 
-        if (!sourceDate) return false;
+    if (salarySort === "commission_desc") {
+      list.sort(
+        (a, b) =>
+          getCommissionTierRank(b.commission_tier) -
+          getCommissionTierRank(a.commission_tier)
+      );
+    }
 
-        return new Date(sourceDate).getFullYear() === year;
-      })
-      .reduce((sum, order) => sum + Number(order.staff_salary || 0), 0);
-  }, [allSalaryOrders]);
+    if (salarySort === "commission_asc") {
+      list.sort(
+        (a, b) =>
+          getCommissionTierRank(a.commission_tier) -
+          getCommissionTierRank(b.commission_tier)
+      );
+    }
 
-  const currentRate = useMemo(() => {
-    return getCurrentRateByRule(staff, allSalaryOrders, totalYearSalary);
-  }, [staff, allSalaryOrders, totalYearSalary]);
+    if (salarySort === "name_asc") {
+      list.sort((a, b) => getDisplayName(a).localeCompare(getDisplayName(b)));
+    }
 
-  const progress85 = Math.min(100, Math.round((totalOrderAmount / 10000) * 100));
-  const progress90 = Math.min(100, Math.round((totalYearSalary / 100000) * 100));
+    if (salarySort === "name_desc") {
+      list.sort((a, b) => getDisplayName(b).localeCompare(getDisplayName(a)));
+    }
+
+    return list;
+  }, [staffList, keyword, salarySort]);
+
+  const activeCount = staffList.filter((staff) => staff.is_active !== false).length;
+  const onlineCount = staffList.filter((staff) => staff.is_online).length;
 
   useEffect(() => {
     boot();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function boot() {
-    setLoading(true);
+    setChecking(true);
 
     try {
       const { data } = await supabase.auth.getSession();
       const session = data.session;
 
       if (!session) {
-        window.location.href = "/login";
+        window.location.href = "/admin-login";
         return;
       }
 
@@ -444,207 +276,99 @@ export default function StaffPage() {
       if (!discordId) {
         alert("無法取得 Discord ID，請重新登入。");
         await supabase.auth.signOut();
-        window.location.href = "/login";
+        window.location.href = "/admin-login";
         return;
       }
 
-      const ensureRes = await fetch("/api/deepnight/ensure-staff", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({
-          access_token: session.access_token,
-          discord_id: discordId,
-          discord_name: getDiscordNameFromSession(session),
-          avatar_url: getAvatarFromSession(session),
-        }),
-      });
+      const { data: admin, error } = await supabase
+        .from("admins")
+        .select("*")
+        .eq("discord_id", discordId)
+        .eq("is_active", true)
+        .maybeSingle();
 
-      const ensureData = await ensureRes.json();
-
-      if (!ensureRes.ok || !ensureData.ok) {
-        alert(ensureData.message || "員工身分驗證失敗");
-        await supabase.auth.signOut();
-        window.location.href = "/login";
+      if (error) {
+        console.error("check admin error:", error);
+        alert("檢查後台權限失敗");
+        window.location.href = "/staff";
         return;
       }
 
-      const staffData = (ensureData.staff || ensureData.player) as Staff | null;
-
-      if (!staffData?.discord_id) {
-        alert("員工資料建立失敗，請重新登入。");
-        await supabase.auth.signOut();
-        window.location.href = "/login";
+      if (!admin) {
+        alert("你沒有後台管理權限");
+        window.location.href = "/staff";
         return;
       }
 
-      setStaff(staffData);
-      setProfileForm({
-        display_name: staffData.display_name || "",
-        real_name: staffData.real_name || "",
-        gender: staffData.gender || "",
-        birthday: staffData.birthday || "",
-        bank_name: staffData.bank_name || "",
-        bank_account: staffData.bank_account || "",
-      });
-
-      await Promise.all([
-        loadSalaryData(staffData.discord_id),
-        loadStaffServices(staffData.discord_id, staffData.allowed_services || []),
-      ]);
+      await loadStaff();
     } catch (error) {
-      console.error("staff boot error:", error);
-      alert("讀取員工資料失敗");
+      console.error("admin staff boot error:", error);
+      alert("檢查後台權限失敗");
+      window.location.href = "/staff";
     } finally {
-      setLoading(false);
+      setChecking(false);
     }
   }
 
-  async function loadSalaryData(discordId: string) {
-    const { startIso, endIso } = getMonthRange(selectedMonth);
+  async function loadStaff() {
+    setLoading(true);
 
-    const { data: monthOrders, error: monthError } = await supabase
-      .from("play_orders")
+    const { data, error } = await supabase
+      .from("players")
       .select("*")
-      .or(DEEPNIGHT_PLAY_ORDER_FILTER)
-      .eq("discord_id", discordId)
-      .or("is_deleted.eq.false,is_deleted.is.null")
-      .gte("order_finished_at", startIso)
-      .lte("order_finished_at", endIso)
-      .order("order_finished_at", { ascending: false });
-
-    if (monthError) {
-      console.error("load salary orders error:", monthError);
-      setSalaryOrders([]);
-    } else {
-      setSalaryOrders((monthOrders || []) as SalaryOrder[]);
-    }
-
-    const { data: allOrders, error: allError } = await supabase
-      .from("play_orders")
-      .select("*")
-      .or(DEEPNIGHT_PLAY_ORDER_FILTER)
-      .eq("discord_id", discordId)
-      .or("is_deleted.eq.false,is_deleted.is.null")
-      .order("order_finished_at", { ascending: false });
-
-    if (allError) {
-      console.error("load all salary orders error:", allError);
-      setAllSalaryOrders([]);
-    } else {
-      setAllSalaryOrders((allOrders || []) as SalaryOrder[]);
-    }
-
-    const { data: bonusData, error: bonusError } = await supabase
-      .from("players_bonus")
-      .select("*")
-      .eq("discord_id", discordId)
-      .gte("created_at", startIso)
-      .lte("created_at", endIso)
       .order("created_at", { ascending: false });
 
-    if (bonusError) {
-      console.error("load bonus error:", bonusError);
-      setBonuses([]);
-    } else {
-      setBonuses((bonusData || []) as Bonus[]);
+    setLoading(false);
+
+    if (error) {
+      console.error("load staff error:", error);
+      alert("讀取員工資料失敗");
+      return;
+    }
+
+    const list = (data || []) as Staff[];
+    setStaffList(list);
+
+    if (!selectedStaff && list.length > 0) {
+      selectStaff(list[0]);
+    } else if (selectedStaff) {
+      const updated = list.find((item) => item.id === selectedStaff.id);
+      if (updated) selectStaff(updated);
     }
   }
 
-  async function loadStaffServices(discordId: string, fallback: string[] = []) {
+  async function selectStaff(staff: Staff) {
+    setSelectedStaff(staff);
+    setForm(makeForm(staff));
+
+    const services = Array.isArray(staff.allowed_services)
+      ? staff.allowed_services
+      : [];
+
     const { data, error } = await supabase
       .from("players_services")
       .select("*")
-      .eq("discord_id", discordId)
+      .eq("discord_id", staff.discord_id)
       .eq("enabled", true);
 
     if (error) {
       console.error("load staff services error:", error);
-      setAllowedServices(fallback || []);
+      setAllowedServices(services);
       return;
     }
 
-    const services = (data || [])
+    const serviceKeys = (data || [])
       .map((item: any) => String(item.service_key || "").trim())
       .filter(Boolean);
 
-    setAllowedServices(services.length > 0 ? services : fallback || []);
+    setAllowedServices(serviceKeys.length > 0 ? serviceKeys : services);
   }
 
-  async function refreshAll() {
-    if (!staff) return;
-
-    setRefreshing(true);
-
-    try {
-      await Promise.all([
-        loadSalaryData(staff.discord_id),
-        loadStaffServices(staff.discord_id, staff.allowed_services || []),
-      ]);
-    } finally {
-      setRefreshing(false);
-    }
-  }
-
-  async function saveProfile() {
-    if (!staff) return;
-
-    setProfileSaving(true);
-
-    const { data, error } = await supabase
-      .from("players")
-      .update({
-        display_name: profileForm.display_name || null,
-        real_name: profileForm.real_name || null,
-        gender: profileForm.gender || null,
-        birthday: profileForm.birthday || null,
-        bank_name: profileForm.bank_name || null,
-        bank_account: profileForm.bank_account || null,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("discord_id", staff.discord_id)
-      .select("*")
-      .single();
-
-    setProfileSaving(false);
-
-    if (error) {
-      console.error("save profile error:", error);
-      alert("儲存個人資料失敗");
-      return;
-    }
-
-    setStaff(data as Staff);
-    alert("個人資料已儲存");
-  }
-
-  async function toggleOnline() {
-    if (!staff) return;
-
-    const nextOnline = !staff.is_online;
-    setOnlineSaving(true);
-
-    const { data, error } = await supabase
-      .from("players")
-      .update({
-        is_online: nextOnline,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("discord_id", staff.discord_id)
-      .select("*")
-      .single();
-
-    setOnlineSaving(false);
-
-    if (error) {
-      console.error("toggle online error:", error);
-      alert("更新接單狀態失敗");
-      return;
-    }
-
-    setStaff(data as Staff);
+  function updateForm<K extends keyof StaffForm>(key: K, value: StaffForm[K]) {
+    setForm((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
   }
 
   function toggleService(serviceKey: string) {
@@ -657,8 +381,52 @@ export default function StaffPage() {
     });
   }
 
+  async function saveStaff() {
+    if (!selectedStaff) return;
+
+    setSaving(true);
+
+    const { data, error } = await supabase
+      .from("players")
+      .update({
+        display_name: form.display_name || null,
+        real_name: form.real_name || null,
+        gender: form.gender || null,
+        birthday: form.birthday || null,
+        bank_name: form.bank_name || null,
+        bank_account: form.bank_account || null,
+        salary_channel_id: form.salary_channel_id || null,
+        commission_tier: form.commission_tier || "auto",
+        commission_note: form.commission_note || null,
+        is_active: form.is_active,
+        is_online: form.is_online,
+        can_take_order: form.can_take_order,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", selectedStaff.id)
+      .select("*")
+      .single();
+
+    setSaving(false);
+
+    if (error) {
+      console.error("save staff error:", error);
+      alert("儲存員工資料失敗");
+      return;
+    }
+
+    const updated = data as Staff;
+
+    setSelectedStaff(updated);
+    setStaffList((prev) =>
+      prev.map((staff) => (staff.id === updated.id ? updated : staff))
+    );
+
+    alert("員工資料已儲存");
+  }
+
   async function saveServices() {
-    if (!staff) return;
+    if (!selectedStaff) return;
 
     setServiceSaving(true);
 
@@ -668,30 +436,30 @@ export default function StaffPage() {
         allowed_services: allowedServices,
         updated_at: new Date().toISOString(),
       })
-      .eq("discord_id", staff.discord_id);
+      .eq("id", selectedStaff.id);
 
     if (updateStaffError) {
       setServiceSaving(false);
-      console.error("update allowed_services error:", updateStaffError);
-      alert("更新可接遊戲失敗");
+      console.error("update staff services error:", updateStaffError);
+      alert("儲存可接服務失敗");
       return;
     }
 
     const { error: deleteError } = await supabase
       .from("players_services")
       .delete()
-      .eq("discord_id", staff.discord_id);
+      .eq("discord_id", selectedStaff.discord_id);
 
     if (deleteError) {
       setServiceSaving(false);
       console.error("delete services error:", deleteError);
-      alert("更新可接遊戲失敗");
+      alert("儲存可接服務失敗");
       return;
     }
 
     if (allowedServices.length > 0) {
       const rows = allowedServices.map((serviceKey) => ({
-        discord_id: staff.discord_id,
+        discord_id: selectedStaff.discord_id,
         service_key: serviceKey,
         service_name: getServiceName(serviceKey),
         category: getServiceCategory(serviceKey),
@@ -706,12 +474,23 @@ export default function StaffPage() {
       if (insertError) {
         setServiceSaving(false);
         console.error("insert services error:", insertError);
-        alert("更新可接遊戲失敗");
+        alert("儲存可接服務失敗");
         return;
       }
     }
 
-    setStaff((prev) =>
+    setStaffList((prev) =>
+      prev.map((staff) =>
+        staff.id === selectedStaff.id
+          ? {
+              ...staff,
+              allowed_services: allowedServices,
+            }
+          : staff
+      )
+    );
+
+    setSelectedStaff((prev) =>
       prev
         ? {
             ...prev,
@@ -721,41 +500,21 @@ export default function StaffPage() {
     );
 
     setServiceSaving(false);
-    alert("可接遊戲已儲存");
+    alert("可接服務已儲存");
   }
 
-  async function logout() {
-    await supabase.auth.signOut();
-    window.location.href = "/login";
+  async function refresh() {
+    await loadStaff();
   }
 
-  if (loading) {
+  if (checking) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[#eef7fd] text-slate-700">
+      <main className="flex min-h-screen items-center justify-center bg-[#eef7fd]">
         <div className="rounded-[28px] border border-sky-100 bg-white px-8 py-7 text-center shadow-sm shadow-sky-100">
-          <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-sky-300 border-t-transparent" />
-          <p className="text-sm font-semibold text-slate-600">
-            正在讀取員工資料...
+          <Loader2 className="mx-auto animate-spin text-sky-500" size={34} />
+          <p className="mt-4 text-sm font-semibold text-slate-600">
+            正在檢查後台權限...
           </p>
-        </div>
-      </main>
-    );
-  }
-
-  if (!staff) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-[#eef7fd] text-slate-700">
-        <div className="rounded-[28px] border border-sky-100 bg-white px-8 py-7 text-center shadow-sm shadow-sky-100">
-          <p className="text-sm font-semibold text-slate-600">
-            找不到員工資料，請重新登入。
-          </p>
-
-          <button
-            onClick={logout}
-            className="mt-5 rounded-full bg-sky-500 px-5 py-2 text-sm font-bold text-white hover:bg-sky-600"
-          >
-            重新登入
-          </button>
         </div>
       </main>
     );
@@ -766,474 +525,386 @@ export default function StaffPage() {
       <div className="mx-auto max-w-7xl space-y-5">
         <header className="rounded-[30px] border border-sky-100 bg-white px-6 py-5 shadow-sm shadow-sky-100">
           <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
-            <div className="flex items-center gap-4">
-              <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-3xl bg-sky-100 text-sky-600">
-                {staff.avatar_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={staff.avatar_url}
-                    alt="avatar"
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <UserRound size={30} />
-                )}
-              </div>
+            <div>
+              <Link
+                href="/admin"
+                className="inline-flex items-center gap-2 text-sm font-bold text-sky-600 hover:text-sky-700"
+              >
+                <ArrowLeft size={16} />
+                回管理後台
+              </Link>
 
-              <div>
-                <p className="text-sm font-bold text-sky-600">
-                  DeepNight Staff
-                </p>
+              <p className="mt-4 text-sm font-bold text-sky-600">
+                DeepNight Admin
+              </p>
 
-                <h1 className="mt-1 text-2xl font-black text-slate-900">
-                  深夜不關燈｜員工薪資中心
-                </h1>
+              <h1 className="mt-1 text-2xl font-black text-slate-900 md:text-3xl">
+                員工管理
+              </h1>
 
-                <p className="mt-1 text-sm text-slate-500">
-                  {getDisplayName(staff)}
-                </p>
-              </div>
+              <p className="mt-2 text-sm text-slate-500">
+                管理員工資料、上下線狀態、抽成檔位、薪資頻道與可接服務。
+              </p>
             </div>
 
-            <div className="flex flex-wrap gap-3">
-              <button
-                onClick={refreshAll}
-                disabled={refreshing}
-                className="inline-flex items-center justify-center gap-2 rounded-full border border-sky-100 bg-white px-4 py-2 text-sm font-bold text-slate-700 hover:bg-sky-50 disabled:opacity-60"
-              >
-                <RefreshCw
-                  size={16}
-                  className={refreshing ? "animate-spin" : ""}
-                />
-                重新整理
-              </button>
-
-              <button
-                onClick={logout}
-                className="inline-flex items-center justify-center gap-2 rounded-full bg-sky-500 px-4 py-2 text-sm font-bold text-white shadow-sm shadow-sky-200 hover:bg-sky-600"
-              >
-                <LogOut size={16} />
-                登出
-              </button>
-            </div>
+            <button
+              onClick={refresh}
+              disabled={loading}
+              className="inline-flex items-center justify-center gap-2 rounded-full bg-sky-500 px-5 py-2.5 text-sm font-bold text-white shadow-sm shadow-sky-200 hover:bg-sky-600 disabled:opacity-60"
+            >
+              <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
+              重新整理
+            </button>
           </div>
         </header>
 
-        <section className="grid gap-4 md:grid-cols-4">
-          <StatCard title="月份訂單" value={`${monthOrderCount} 筆`} />
-          <StatCard title="月份薪資" value={money(monthSalary)} />
-          <StatCard title="獎金 / 扣除" value={money(monthBonus)} />
-          <StatCard title="未發薪" value={money(unpaidAmount)} />
+        <section className="grid gap-4 md:grid-cols-3">
+          <StatCard title="員工總數" value={`${staffList.length} 人`} />
+          <StatCard title="啟用中" value={`${activeCount} 人`} />
+          <StatCard title="目前上線" value={`${onlineCount} 人`} />
         </section>
 
-        <section className="rounded-[28px] border border-sky-100 bg-white p-5 shadow-sm shadow-sky-100">
-          <div className="grid gap-4 md:grid-cols-[1fr_auto] md:items-end">
-            <Field label="薪資月份">
-              <input
-                type="month"
-                value={selectedMonth}
-                onChange={(event) => setSelectedMonth(event.target.value)}
-              />
-            </Field>
+        <section className="grid gap-5 xl:grid-cols-[0.85fr_1.4fr]">
+          <div className="rounded-[28px] border border-sky-100 bg-white shadow-sm shadow-sky-100">
+            <div className="border-b border-sky-100 p-5">
+              <h2 className="flex items-center gap-2 text-lg font-black text-slate-900">
+                <Users size={20} className="text-sky-500" />
+                員工列表
+              </h2>
 
-            <button
-              onClick={refreshAll}
-              disabled={refreshing}
-              className="inline-flex items-center justify-center gap-2 rounded-full bg-sky-500 px-5 py-2.5 text-sm font-bold text-white shadow-sm shadow-sky-200 hover:bg-sky-600 disabled:opacity-60"
-            >
-              <RefreshCw
-                size={16}
-                className={refreshing ? "animate-spin" : ""}
-              />
-              查詢月份
-            </button>
-          </div>
-        </section>
-
-        <section className="grid gap-5 xl:grid-cols-[0.9fr_1.4fr]">
-          <div className="space-y-5">
-            <div className="rounded-[28px] border border-sky-100 bg-white p-5 shadow-sm shadow-sky-100">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="flex items-center gap-2 text-sm font-bold text-sky-600">
-                    <Trophy size={18} />
-                    我的抽成檔位
-                  </p>
-
-                  <div className="mt-4 flex items-end gap-2">
-                    <p className="text-4xl font-black text-slate-900">
-                      {currentRate}%
-                    </p>
-
-                    <p className="pb-1 text-sm font-semibold text-slate-500">
-                      {staff.commission_tier === "auto" ||
-                      !staff.commission_tier
-                        ? "自動判定"
-                        : "後台設定"}
-                    </p>
-                  </div>
-
-                  <p className="mt-3 text-sm leading-6 text-slate-500">
-                    2026/09/01 前未手動設定者預設 90%；後台設定會優先套用。9 月後預設
-                    80%，累積接單滿 10,000 後下個月 85%，年度薪資達標後隔年 90%。
-                  </p>
-                </div>
+              <div className="mt-4 flex items-center gap-2 rounded-2xl border border-sky-100 bg-sky-50/60 px-3 py-2">
+                <Search size={17} className="text-sky-500" />
+                <input
+                  value={keyword}
+                  onChange={(event) => setKeyword(event.target.value)}
+                  placeholder="搜尋名稱、Discord ID、頻道 ID、薪資檔位"
+                  className="min-h-0 flex-1 border-none bg-transparent p-0 text-sm outline-none focus:shadow-none"
+                />
               </div>
 
-              <div className="mt-5 space-y-4">
-                <ProgressBar
-                  title="升級 85% 進度"
-                  current={totalOrderAmount}
-                  target={10000}
-                  percent={progress85}
-                />
-
-                <ProgressBar
-                  title="升級隔年 90% 進度"
-                  current={totalYearSalary}
-                  target={100000}
-                  percent={progress90}
-                />
+              <div className="mt-3">
+                <select
+                  value={salarySort}
+                  onChange={(event) => setSalarySort(event.target.value)}
+                  className="w-full rounded-2xl border border-sky-100 bg-white px-3 py-2 text-sm font-bold text-slate-700 outline-none focus:border-sky-300 focus:ring-2 focus:ring-sky-100"
+                >
+                  <option value="created_desc">薪資排序：最新建立</option>
+                  <option value="commission_desc">薪資排序：抽成高到低</option>
+                  <option value="commission_asc">薪資排序：抽成低到高</option>
+                  <option value="name_asc">名稱排序：A 到 Z</option>
+                  <option value="name_desc">名稱排序：Z 到 A</option>
+                  <option value="tier_auto">只看：自動判定</option>
+                  <option value="tier_80">只看：80%</option>
+                  <option value="tier_85">只看：85%</option>
+                  <option value="tier_90">只看：90%</option>
+                  <option value="tier_95">只看：主管津貼 95%</option>
+                </select>
               </div>
             </div>
 
+            <div className="max-h-[720px] overflow-y-auto p-3">
+              {loading ? (
+                <div className="py-12 text-center text-sm font-semibold text-slate-400">
+                  讀取中...
+                </div>
+              ) : filteredStaff.length === 0 ? (
+                <div className="py-12 text-center text-sm font-semibold text-slate-400">
+                  沒有符合的員工
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {filteredStaff.map((staff) => {
+                    const active = selectedStaff?.id === staff.id;
+
+                    return (
+                      <button
+                        key={staff.id}
+                        onClick={() => selectStaff(staff)}
+                        className={`w-full rounded-[20px] border px-4 py-3 text-left transition ${
+                          active
+                            ? "border-sky-300 bg-sky-50 shadow-sm"
+                            : "border-sky-100 bg-white hover:bg-sky-50"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-2xl bg-sky-100 text-sky-600">
+                            {staff.avatar_url ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={staff.avatar_url}
+                                alt="avatar"
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              <UserRound size={22} />
+                            )}
+                          </div>
+
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-black text-slate-900">
+                              {getDisplayName(staff)}
+                            </p>
+
+                            <p className="mt-0.5 truncate text-xs font-semibold text-slate-400">
+                              {staff.discord_id}
+                            </p>
+
+                            <p className="mt-1 truncate text-xs font-bold text-sky-600">
+                              薪資檔位：
+                              {getCommissionTierLabel(staff.commission_tier)}
+                            </p>
+                          </div>
+
+                          <div className="flex flex-col items-end gap-1">
+                            <span
+                              className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${
+                                staff.is_active !== false
+                                  ? "bg-emerald-50 text-emerald-600"
+                                  : "bg-slate-100 text-slate-500"
+                              }`}
+                            >
+                              {staff.is_active !== false ? "啟用" : "停用"}
+                            </span>
+
+                            <span
+                              className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${
+                                staff.is_online
+                                  ? "bg-sky-50 text-sky-600"
+                                  : "bg-slate-100 text-slate-500"
+                              }`}
+                            >
+                              {staff.is_online ? "上線" : "下線"}
+                            </span>
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="space-y-5">
             <div className="rounded-[28px] border border-sky-100 bg-white p-5 shadow-sm shadow-sky-100">
-              <div className="flex items-center justify-between gap-4">
+              <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                 <div>
-                  <h2 className="text-lg font-black text-slate-900">
-                    接單狀態
+                  <h2 className="flex items-center gap-2 text-lg font-black text-slate-900">
+                    <Settings2 size={20} className="text-sky-500" />
+                    員工資料
                   </h2>
 
                   <p className="mt-1 text-sm text-slate-500">
-                    客人選陪陪時會看到你的狀態。
+                    目前選擇：{getDisplayName(selectedStaff)}
                   </p>
                 </div>
 
-                <span
-                  className={`rounded-full px-3 py-1 text-xs font-bold ${
-                    staff.is_online
-                      ? "bg-emerald-50 text-emerald-600"
-                      : "bg-slate-100 text-slate-500"
-                  }`}
-                >
-                  {staff.is_online ? "上線中" : "下線中"}
-                </span>
-              </div>
-
-              <button
-                onClick={toggleOnline}
-                disabled={onlineSaving}
-                className={`mt-5 flex w-full items-center justify-center gap-2 rounded-full px-4 py-3 text-sm font-bold text-white ${
-                  staff.is_online
-                    ? "bg-slate-500 hover:bg-slate-600"
-                    : "bg-emerald-500 hover:bg-emerald-600"
-                }`}
-              >
-                <Power size={16} />
-                {onlineSaving
-                  ? "更新中..."
-                  : staff.is_online
-                    ? "切換為下線"
-                    : "切換為上線"}
-              </button>
-            </div>
-
-            <div className="rounded-[28px] border border-sky-100 bg-white p-5 shadow-sm shadow-sky-100">
-              <h2 className="flex items-center gap-2 text-lg font-black text-slate-900">
-                <UserRound size={20} className="text-sky-500" />
-                個人資料
-              </h2>
-
-              <div className="mt-5 space-y-4">
-                <Field label="顯示名稱">
-                  <input
-                    value={profileForm.display_name}
-                    onChange={(event) =>
-                      setProfileForm((prev) => ({
-                        ...prev,
-                        display_name: event.target.value,
-                      }))
-                    }
-                    placeholder="例如：阿陌"
-                  />
-                </Field>
-
-                <Field label="真實姓名">
-                  <input
-                    value={profileForm.real_name}
-                    onChange={(event) =>
-                      setProfileForm((prev) => ({
-                        ...prev,
-                        real_name: event.target.value,
-                      }))
-                    }
-                    placeholder="用於發薪紀錄"
-                  />
-                </Field>
-
-                <Field label="性別">
-                  <select
-                    value={profileForm.gender}
-                    onChange={(event) =>
-                      setProfileForm((prev) => ({
-                        ...prev,
-                        gender: event.target.value,
-                      }))
-                    }
-                  >
-                    <option value="">未填寫</option>
-                    <option value="男">男</option>
-                    <option value="女">女</option>
-                    <option value="其他">其他</option>
-                  </select>
-                </Field>
-
-                <Field label="生日">
-                  <input
-                    type="date"
-                    value={profileForm.birthday}
-                    onChange={(event) =>
-                      setProfileForm((prev) => ({
-                        ...prev,
-                        birthday: event.target.value,
-                      }))
-                    }
-                  />
-                </Field>
-
-                <Field label="銀行名稱">
-                  <input
-                    value={profileForm.bank_name}
-                    onChange={(event) =>
-                      setProfileForm((prev) => ({
-                        ...prev,
-                        bank_name: event.target.value,
-                      }))
-                    }
-                    placeholder="例如：玉山銀行"
-                  />
-                </Field>
-
-                <Field label="銀行帳號">
-                  <input
-                    value={profileForm.bank_account}
-                    onChange={(event) =>
-                      setProfileForm((prev) => ({
-                        ...prev,
-                        bank_account: event.target.value,
-                      }))
-                    }
-                    placeholder="請輸入薪轉帳號"
-                  />
-                </Field>
-
                 <button
-                  onClick={saveProfile}
-                  disabled={profileSaving}
-                  className="flex w-full items-center justify-center gap-2 rounded-full bg-sky-500 px-4 py-3 text-sm font-bold text-white shadow-sm shadow-sky-200 hover:bg-sky-600 disabled:opacity-60"
+                  onClick={saveStaff}
+                  disabled={!selectedStaff || saving}
+                  className="inline-flex items-center justify-center gap-2 rounded-full bg-sky-500 px-5 py-2.5 text-sm font-bold text-white shadow-sm shadow-sky-200 hover:bg-sky-600 disabled:opacity-60"
                 >
                   <Save size={16} />
-                  {profileSaving ? "儲存中..." : "儲存個人資料"}
+                  {saving ? "儲存中..." : "儲存員工資料"}
                 </button>
               </div>
-            </div>
-          </div>
 
-          <div className="space-y-5">
+              {!selectedStaff ? (
+                <div className="mt-8 rounded-2xl bg-sky-50 px-5 py-8 text-center text-sm font-semibold text-slate-400">
+                  請先選擇一位員工
+                </div>
+              ) : (
+                <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-2">
+                  <Field label="顯示名稱">
+                    <input
+                      value={form.display_name}
+                      onChange={(event) =>
+                        updateForm("display_name", event.target.value)
+                      }
+                      placeholder="顯示於薪資網"
+                    />
+                  </Field>
+
+                  <Field label="真實姓名">
+                    <input
+                      value={form.real_name}
+                      onChange={(event) =>
+                        updateForm("real_name", event.target.value)
+                      }
+                      placeholder="用於發薪紀錄"
+                    />
+                  </Field>
+
+                  <Field label="性別">
+                    <select
+                      value={form.gender}
+                      onChange={(event) =>
+                        updateForm("gender", event.target.value)
+                      }
+                    >
+                      <option value="">未填寫</option>
+                      <option value="男">男</option>
+                      <option value="女">女</option>
+                      <option value="其他">其他</option>
+                    </select>
+                  </Field>
+
+                  <Field label="生日">
+                    <input
+                      type="date"
+                      value={form.birthday}
+                      onChange={(event) =>
+                        updateForm("birthday", event.target.value)
+                      }
+                    />
+                  </Field>
+
+                  <Field label="銀行名稱">
+                    <input
+                      value={form.bank_name}
+                      onChange={(event) =>
+                        updateForm("bank_name", event.target.value)
+                      }
+                      placeholder="例如：玉山銀行"
+                    />
+                  </Field>
+
+                  <Field label="銀行帳號">
+                    <input
+                      value={form.bank_account}
+                      onChange={(event) =>
+                        updateForm("bank_account", event.target.value)
+                      }
+                      placeholder="薪轉帳號"
+                    />
+                  </Field>
+
+                  <Field label="個人薪資頻道 ID">
+                    <input
+                      value={form.salary_channel_id}
+                      onChange={(event) =>
+                        updateForm("salary_channel_id", event.target.value)
+                      }
+                      placeholder="Discord 頻道 ID"
+                    />
+                  </Field>
+
+                  <Field label="抽成檔位">
+                    <select
+                      value={form.commission_tier}
+                      onChange={(event) =>
+                        updateForm("commission_tier", event.target.value)
+                      }
+                    >
+                      <option value="auto">自動判定</option>
+                      <option value="rate_80">80%｜9月後基準</option>
+                      <option value="rate_85">85%｜接單達標</option>
+                      <option value="rate_90">90%｜特別設定</option>
+                      <option value="manager_95">主管津貼 95%</option>
+                    </select>
+                  </Field>
+
+                  <div className="md:col-span-2">
+                    <Field label="抽成備註">
+                      <textarea
+                        value={form.commission_note}
+                        onChange={(event) =>
+                          updateForm("commission_note", event.target.value)
+                        }
+                        placeholder="可填寫後台備註，例如：主管津貼、特殊合約、活動期間"
+                      />
+                    </Field>
+                  </div>
+
+                  <div className="grid gap-3 md:col-span-2 md:grid-cols-3">
+                    <SwitchBox
+                      title="帳號啟用"
+                      desc="關閉後不列入可管理員工"
+                      checked={form.is_active}
+                      onChange={() => updateForm("is_active", !form.is_active)}
+                    />
+
+                    <SwitchBox
+                      title="目前上線"
+                      desc="控制客人選陪陪看到的狀態"
+                      checked={form.is_online}
+                      onChange={() => updateForm("is_online", !form.is_online)}
+                    />
+
+                    <SwitchBox
+                      title="允許接單"
+                      desc="關閉後不列入派單名單"
+                      checked={form.can_take_order}
+                      onChange={() =>
+                        updateForm("can_take_order", !form.can_take_order)
+                      }
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
             <div className="rounded-[28px] border border-sky-100 bg-white p-5 shadow-sm shadow-sky-100">
-              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                 <div>
                   <h2 className="flex items-center gap-2 text-lg font-black text-slate-900">
                     <Gamepad2 size={20} className="text-sky-500" />
-                    可接遊戲 / 服務
+                    可接服務
                   </h2>
 
                   <p className="mt-1 text-sm text-slate-500">
-                    勾選後，機器人派單時會依你的可接服務篩選。
+                    這會同步寫入 players.allowed_services 與 players_services。
                   </p>
                 </div>
 
                 <button
                   onClick={saveServices}
-                  disabled={serviceSaving}
-                  className="rounded-full bg-sky-500 px-5 py-2.5 text-sm font-bold text-white shadow-sm shadow-sky-200 hover:bg-sky-600 disabled:opacity-60"
+                  disabled={!selectedStaff || serviceSaving}
+                  className="inline-flex items-center justify-center gap-2 rounded-full bg-sky-500 px-5 py-2.5 text-sm font-bold text-white shadow-sm shadow-sky-200 hover:bg-sky-600 disabled:opacity-60"
                 >
+                  <CheckCircle2 size={16} />
                   {serviceSaving ? "儲存中..." : "儲存可接服務"}
                 </button>
               </div>
 
-              <div className="mobile-service-grid mt-5 grid grid-cols-1 gap-3 md:grid-cols-2">
-                {Object.entries(SERVICE_GROUPS).map(([groupName, items]) => (
-                  <div
-                    key={groupName}
-                    className="mobile-service-card rounded-[22px] border border-sky-100 bg-sky-50/40 p-4"
-                  >
-                    <h3 className="mobile-service-title font-black text-sky-700">
-                      {groupName}
-                    </h3>
-
-                    <div className="mt-3 space-y-2">
-                      {items.map((item) => {
-                        const checked = allowedServices.includes(item.key);
-
-                        return (
-                          <label
-                            key={item.key}
-                            className="mobile-service-option grid w-full cursor-pointer grid-cols-[32px_1fr] items-center gap-3 rounded-[16px] border border-sky-100 bg-white px-3 py-2.5 text-sm transition hover:bg-sky-50"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={checked}
-                              onChange={() => toggleService(item.key)}
-                            />
-
-                            <span className="min-w-0 break-words font-semibold text-slate-700">
-                              {item.name}
-                            </span>
-                          </label>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="rounded-[28px] border border-sky-100 bg-white shadow-sm shadow-sky-100">
-              <div className="border-b border-sky-100 px-5 py-4">
-                <h2 className="flex items-center gap-2 text-lg font-black text-slate-900">
-                  <WalletCards size={20} className="text-sky-500" />
-                  {formatMonthLabel(selectedMonth)}訂單
-                </h2>
-
-                <p className="mt-1 text-sm text-slate-500">
-                  顯示所選月份的薪資訂單。
-                </p>
-              </div>
-
-              {salaryOrders.length === 0 ? (
-                <div className="px-5 py-12 text-center text-sm font-semibold text-slate-400">
-                  目前沒有這個月份的訂單
+              {!selectedStaff ? (
+                <div className="mt-8 rounded-2xl bg-sky-50 px-5 py-8 text-center text-sm font-semibold text-slate-400">
+                  請先選擇一位員工
                 </div>
               ) : (
-                <div className="mobile-table-card overflow-x-auto">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>完成時間</th>
-                        <th>客人</th>
-                        <th>服務</th>
-                        <th>訂單金額</th>
-                        <th>薪資</th>
-                        <th>獎金</th>
-                        <th>狀態</th>
-                        <th>發薪時間</th>
-                      </tr>
-                    </thead>
+                <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-2">
+                  {Object.entries(SERVICE_GROUPS).map(([groupName, items]) => (
+                    <div
+                      key={groupName}
+                      className="rounded-[22px] border border-sky-100 bg-sky-50/40 p-4"
+                    >
+                      <h3 className="font-black text-sky-700">{groupName}</h3>
 
-                    <tbody>
-                      {salaryOrders.map((order) => (
-                        <tr key={order.id}>
-                          <td data-label="完成時間">
-                            {formatDateTime(
-                              order.order_finished_at ||
-                                order.completed_at ||
-                                order.created_at
-                            )}
-                          </td>
+                      <div className="mt-3 space-y-2">
+                        {items.map((item) => {
+                          const checked = allowedServices.includes(item.key);
 
-                          <td data-label="客人">{getOrderCustomer(order)}</td>
-
-                          <td data-label="服務">{getOrderService(order)}</td>
-
-                          <td
-                            data-label="訂單金額"
-                            className="font-bold text-slate-700"
-                          >
-                            {money(getOrderAmount(order))}
-                          </td>
-
-                          <td
-                            data-label="薪資"
-                            className="font-bold text-sky-600"
-                          >
-                            {money(order.staff_salary)}
-                          </td>
-
-                          <td data-label="獎金">{money(order.bonus_amount)}</td>
-
-                          <td data-label="狀態">
-                            <span
-                              className={`rounded-full px-3 py-1 text-xs font-bold ${
-                                order.status === "已發薪"
-                                  ? "bg-emerald-50 text-emerald-600"
-                                  : "bg-amber-50 text-amber-600"
-                              }`}
+                          return (
+                            <label
+                              key={item.key}
+                              className="grid w-full cursor-pointer grid-cols-[20px_1fr] items-center gap-3 rounded-[16px] border border-sky-100 bg-white px-3 py-2.5 text-sm transition hover:bg-sky-50"
                             >
-                              {order.status || "未發薪"}
-                            </span>
-                          </td>
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={() => toggleService(item.key)}
+                                className="h-[18px] w-[18px] shrink-0 accent-sky-500"
+                              />
 
-                          <td data-label="發薪時間">
-                            {order.status === "已發薪" ? "已發薪" : "-"}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-
-            <div className="rounded-[28px] border border-sky-100 bg-white shadow-sm shadow-sky-100">
-              <div className="border-b border-sky-100 px-5 py-4">
-                <h2 className="flex items-center gap-2 text-lg font-black text-slate-900">
-                  <Gift size={20} className="text-sky-500" />
-                  {formatMonthLabel(selectedMonth)}獎金 / 扣除
-                </h2>
-              </div>
-
-              {bonuses.length === 0 ? (
-                <div className="px-5 py-10 text-center text-sm font-semibold text-slate-400">
-                  目前沒有這個月份的獎金或扣除
-                </div>
-              ) : (
-                <div className="mobile-table-card overflow-x-auto">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>時間</th>
-                        <th>類型</th>
-                        <th>說明</th>
-                        <th>金額</th>
-                      </tr>
-                    </thead>
-
-                    <tbody>
-                      {bonuses.map((bonus) => (
-                        <tr key={bonus.id}>
-                          <td data-label="時間">
-                            {formatDateTime(bonus.created_at)}
-                          </td>
-
-                          <td data-label="類型">{bonus.bonus_type || "-"}</td>
-
-                          <td data-label="說明">{bonus.description || "-"}</td>
-
-                          <td
-                            data-label="金額"
-                            className={`font-bold ${
-                              Number(bonus.amount || 0) < 0
-                                ? "text-red-500"
-                                : "text-sky-600"
-                            }`}
-                          >
-                            {money(bonus.amount)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                              <span className="min-w-0 break-words font-semibold text-slate-700">
+                                {item.name}
+                              </span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
@@ -1253,7 +924,13 @@ function StatCard({ title, value }: { title: string; value: string }) {
   );
 }
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
+function Field({
+  label,
+  children,
+}: {
+  label: string;
+  children: ReactNode;
+}) {
   return (
     <label className="block">
       <span className="mb-2 block text-sm font-bold text-slate-600">
@@ -1265,37 +942,39 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-function ProgressBar({
+function SwitchBox({
   title,
-  current,
-  target,
-  percent,
+  desc,
+  checked,
+  onChange,
 }: {
   title: string;
-  current: number;
-  target: number;
-  percent: number;
+  desc: string;
+  checked: boolean;
+  onChange: () => void;
 }) {
   return (
-    <div className="rounded-[20px] border border-sky-100 bg-sky-50/40 p-4">
-      <div className="flex items-center justify-between gap-4">
-        <p className="text-sm font-black text-slate-700">{title}</p>
-        <p className="text-sm font-bold text-sky-600">{percent}%</p>
-      </div>
+    <button
+      type="button"
+      onClick={onChange}
+      className={`rounded-[20px] border px-4 py-3 text-left transition ${
+        checked
+          ? "border-sky-200 bg-sky-50"
+          : "border-slate-200 bg-white hover:bg-slate-50"
+      }`}
+    >
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-black text-slate-800">{title}</p>
+          <p className="mt-1 text-xs font-semibold text-slate-500">{desc}</p>
+        </div>
 
-      <div className="mt-3 h-3 overflow-hidden rounded-full bg-sky-100">
-        <div
-          className="h-full rounded-full bg-gradient-to-r from-sky-400 to-blue-500"
-          style={{ width: `${percent}%` }}
+        <span
+          className={`h-5 w-5 rounded-full border ${
+            checked ? "border-sky-500 bg-sky-500" : "border-slate-300 bg-white"
+          }`}
         />
       </div>
-
-      <div className="mt-2 flex items-center justify-between text-xs font-semibold text-slate-500">
-        <span>
-          {money(current)} / {money(target)}
-        </span>
-        <span>還差 {money(Math.max(target - current, 0))}</span>
-      </div>
-    </div>
+    </button>
   );
 }

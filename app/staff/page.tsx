@@ -19,8 +19,8 @@ const DEEPNIGHT_GUILD_ID =
   process.env.NEXT_PUBLIC_DEEPNIGHT_GUILD_ID ||
   process.env.NEXT_PUBLIC_GUILD_ID ||
   "1501098191813214312";
-const DEEPNIGHT_PLAY_ORDER_FILTER =
-  `guild_id.eq.${DEEPNIGHT_GUILD_ID},guild_id.is.null`;
+
+const DEEPNIGHT_PLAY_ORDER_FILTER = `guild_id.eq.${DEEPNIGHT_GUILD_ID},guild_id.is.null`;
 
 type Staff = {
   id?: string;
@@ -140,13 +140,21 @@ function getMonthRange(monthText: string) {
   const [yearText, monthValueText] = monthText.split("-");
   const year = Number(yearText);
   const monthValue = Number(monthValueText);
+
   const source =
     Number.isInteger(year) && Number.isInteger(monthValue) && monthValue >= 1
       ? new Date(year, monthValue - 1, 1)
       : new Date();
 
   const start = new Date(source.getFullYear(), source.getMonth(), 1, 0, 0, 0);
-  const end = new Date(source.getFullYear(), source.getMonth() + 1, 0, 23, 59, 59);
+  const end = new Date(
+    source.getFullYear(),
+    source.getMonth() + 1,
+    0,
+    23,
+    59,
+    59
+  );
 
   return {
     startIso: start.toISOString(),
@@ -205,6 +213,7 @@ function getManualRate(tier?: string | null) {
   if (tier === "manager_95") return 95;
   return null;
 }
+
 function getTaipeiMonthText(date = new Date()) {
   const taipeiDate = new Date(date.getTime() + 8 * 60 * 60 * 1000);
   return taipeiDate.toISOString().slice(0, 7);
@@ -227,10 +236,7 @@ function getOrderSourceDate(order: SalaryOrder) {
   return order.order_finished_at || order.completed_at || order.created_at || null;
 }
 
-function getFirstReachAmountDate(
-  orderList: SalaryOrder[],
-  targetAmount: number
-) {
+function getFirstReachAmountDate(orderList: SalaryOrder[], targetAmount: number) {
   const sortedOrders = [...orderList]
     .filter((order) => getOrderSourceDate(order))
     .sort((a, b) => {
@@ -287,6 +293,7 @@ function getCurrentRateByRule(
 
   return 80;
 }
+
 function getDisplayName(staff: Staff | null) {
   if (!staff) return "員工";
 
@@ -411,13 +418,13 @@ export default function StaffPage() {
   const currentRate = useMemo(() => {
     return getCurrentRateByRule(staff, allSalaryOrders, totalYearSalary);
   }, [staff, allSalaryOrders, totalYearSalary]);
-  
 
   const progress85 = Math.min(100, Math.round((totalOrderAmount / 10000) * 100));
   const progress90 = Math.min(100, Math.round((totalYearSalary / 100000) * 100));
 
   useEffect(() => {
     boot();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function boot() {
@@ -445,8 +452,10 @@ export default function StaffPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({
+          access_token: session.access_token,
           discord_id: discordId,
           discord_name: getDiscordNameFromSession(session),
           avatar_url: getAvatarFromSession(session),
@@ -462,7 +471,14 @@ export default function StaffPage() {
         return;
       }
 
-      const staffData = ensureData.staff as Staff;
+      const staffData = (ensureData.staff || ensureData.player) as Staff | null;
+
+      if (!staffData?.discord_id) {
+        alert("員工資料建立失敗，請重新登入。");
+        await supabase.auth.signOut();
+        window.location.href = "/login";
+        return;
+      }
 
       setStaff(staffData);
       setProfileForm({
@@ -858,7 +874,8 @@ export default function StaffPage() {
                   </div>
 
                   <p className="mt-3 text-sm leading-6 text-slate-500">
-                    2026/09/01 前未手動設定者預設 90%；後台設定會優先套用。9 月後預設 80%，累積接單滿 10,000 後下個月 85%，年度薪資達標後隔年 90%。
+                    2026/09/01 前未手動設定者預設 90%；後台設定會優先套用。9 月後預設
+                    80%，累積接單滿 10,000 後下個月 85%，年度薪資達標後隔年 90%。
                   </p>
                 </div>
               </div>
@@ -1013,7 +1030,7 @@ export default function StaffPage() {
                 <button
                   onClick={saveProfile}
                   disabled={profileSaving}
-                  className="flex w-full items-center justify-center gap-2 rounded-full bg-sky-500 px-4 py-3 text-sm font-bold text-white shadow-sm shadow-sky-200 hover:bg-sky-600"
+                  className="flex w-full items-center justify-center gap-2 rounded-full bg-sky-500 px-4 py-3 text-sm font-bold text-white shadow-sm shadow-sky-200 hover:bg-sky-600 disabled:opacity-60"
                 >
                   <Save size={16} />
                   {profileSaving ? "儲存中..." : "儲存個人資料"}
@@ -1039,7 +1056,7 @@ export default function StaffPage() {
                 <button
                   onClick={saveServices}
                   disabled={serviceSaving}
-                  className="rounded-full bg-sky-500 px-5 py-2.5 text-sm font-bold text-white shadow-sm shadow-sky-200 hover:bg-sky-600"
+                  className="rounded-full bg-sky-500 px-5 py-2.5 text-sm font-bold text-white shadow-sm shadow-sky-200 hover:bg-sky-600 disabled:opacity-60"
                 >
                   {serviceSaving ? "儲存中..." : "儲存可接服務"}
                 </button>
@@ -1201,9 +1218,7 @@ export default function StaffPage() {
 
                           <td data-label="類型">{bonus.bonus_type || "-"}</td>
 
-                          <td data-label="說明">
-                            {bonus.description || "-"}
-                          </td>
+                          <td data-label="說明">{bonus.description || "-"}</td>
 
                           <td
                             data-label="金額"
