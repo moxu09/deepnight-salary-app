@@ -1025,7 +1025,7 @@ export default function StaffPage() {
               </button>
 
               <p className="text-xs font-semibold text-slate-400">
-                每月 5 到 10 號可以提領，提領需要三個工作天。
+                每月 2 到 10 號可以提領，提領需要三個工作天。
               </p>
             </div>
           </div>
