@@ -11,6 +11,8 @@ import {
   Loader2,
   RefreshCw,
   Search,
+  CheckCircle2,
+  XCircle,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
@@ -66,6 +68,17 @@ type PayrollRow = {
   bonusCount: number;
 };
 
+type WithdrawRequest = {
+  id: string;
+  discord_id: string;
+  staff_name?: string | null;
+  amount: number | string;
+  status: string;
+  reject_reason?: string | null;
+  reviewed_at?: string | null;
+  requested_at?: string | null;
+};
+
 type SessionLike = {
   user?: {
     user_metadata?: Record<string, unknown>;
@@ -105,6 +118,33 @@ function dateToEndIso(value: string) {
 
 function money(value: number | string | null | undefined) {
   return `$${Number(value || 0).toLocaleString("zh-TW")}`;
+}
+
+function formatDateTime(value?: string | null) {
+  if (!value) return "-";
+
+  return new Date(value).toLocaleString("zh-TW", {
+    hour12: false,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function getRequestStatusText(status: string, rejectReason?: string | null) {
+  if (status === "pending") return "申請中";
+  if (status === "approved") return "申請成功，請稍等三個工作日";
+  if (status === "rejected") return `申請遭駁回${rejectReason ? `：${rejectReason}` : ""}`;
+  return status || "-";
+}
+
+function getRequestStatusClass(status: string) {
+  if (status === "pending") return "bg-amber-50 text-amber-600";
+  if (status === "approved") return "bg-emerald-50 text-emerald-600";
+  if (status === "rejected") return "bg-rose-50 text-rose-600";
+  return "bg-slate-100 text-slate-500";
 }
 
 function getDisplayName(staff?: Staff | null, fallback?: string | null) {
@@ -166,9 +206,11 @@ export default function AdminPayrollPage() {
   const [staffList, setStaffList] = useState<Staff[]>([]);
   const [orders, setOrders] = useState<SalaryOrder[]>([]);
   const [bonuses, setBonuses] = useState<Bonus[]>([]);
+  const [withdrawRequests, setWithdrawRequests] = useState<WithdrawRequest[]>([]);
   const [keyword, setKeyword] = useState("");
   const [startDate, setStartDate] = useState(getMonthStartInput());
   const [endDate, setEndDate] = useState(getTodayInput());
+  const [reviewingId, setReviewingId] = useState<string | null>(null);
 
   const rows = useMemo(() => {
     const staffMap = new Map<string, Staff>();
@@ -309,6 +351,7 @@ export default function AdminPayrollPage() {
 
   async function loadPayrollData() {
     setLoading(true);
+    await loadWithdrawRequests();
 
     const startIso = dateToStartIso(startDate);
     const endIso = dateToEndIso(endDate);
@@ -316,10 +359,11 @@ export default function AdminPayrollPage() {
     let orderQuery = supabase
       .from("play_orders")
       .select(
-        "id, discord_id, staff_name, staff_salary, bonus_amount, status, order_finished_at, is_deleted"
+        "id, discord_id, staff_name, staff_salary, bonus_amount, status, order_finished_at, is_deleted, wallet_settled_at"
       )
       .or(DEEPNIGHT_PLAY_ORDER_FILTER)
       .or("is_deleted.eq.false,is_deleted.is.null")
+      .is("wallet_settled_at", null)
       .or("status.neq.已發薪,status.is.null")
       .order("order_finished_at", { ascending: false });
 
@@ -329,6 +373,7 @@ export default function AdminPayrollPage() {
     let bonusQuery = supabase
       .from("players_bonus")
       .select("id, discord_id, staff_name, bonus_type, description, amount, created_at")
+      .is("wallet_settled_at", null)
       .order("created_at", { ascending: false });
 
     if (startIso) bonusQuery = bonusQuery.gte("created_at", startIso);
@@ -368,6 +413,80 @@ export default function AdminPayrollPage() {
     setStaffList((staffRes.data || []) as Staff[]);
     setOrders((orderRes.data || []) as SalaryOrder[]);
     setBonuses((bonusRes.data || []) as Bonus[]);
+  }
+
+  async function loadWithdrawRequests() {
+    try {
+      const { data } = await supabase.auth.getSession();
+      const session = data.session;
+
+      if (!session) return;
+
+      const res = await fetch("/api/deepnight/salary-wallet/admin", {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      const payload = await res.json();
+
+      if (!res.ok || !payload.ok) {
+        throw new Error(payload.message || "讀取提領申請失敗");
+      }
+
+      setWithdrawRequests((payload.requests || []) as WithdrawRequest[]);
+    } catch (error) {
+      console.error("load withdraw requests error:", error);
+      alert(error instanceof Error ? error.message : "讀取提領申請失敗");
+    }
+  }
+
+  async function reviewWithdrawRequest(id: string, action: "approve" | "reject") {
+    const reason =
+      action === "reject"
+        ? window.prompt("請輸入駁回理由")
+        : "";
+
+    if (action === "reject" && !reason?.trim()) {
+      return;
+    }
+
+    setReviewingId(id);
+
+    try {
+      const { data } = await supabase.auth.getSession();
+      const session = data.session;
+
+      if (!session) {
+        throw new Error("請重新登入");
+      }
+
+      const res = await fetch("/api/deepnight/salary-wallet/admin", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          id,
+          action,
+          reason,
+        }),
+      });
+
+      const payload = await res.json();
+
+      if (!res.ok || !payload.ok) {
+        throw new Error(payload.message || "更新提領申請失敗");
+      }
+
+      await loadWithdrawRequests();
+    } catch (error) {
+      console.error("review withdraw request error:", error);
+      alert(error instanceof Error ? error.message : "更新提領申請失敗");
+    } finally {
+      setReviewingId(null);
+    }
   }
 
   async function copyPayrollList() {
@@ -485,6 +604,98 @@ export default function AdminPayrollPage() {
               </button>
             </div>
           </div>
+        </section>
+
+        <section className="rounded-[28px] border border-sky-100 bg-white shadow-sm shadow-sky-100">
+          <div className="border-b border-sky-100 px-5 py-4">
+            <h2 className="flex items-center gap-2 text-lg font-black text-slate-900">
+              <Banknote size={20} className="text-sky-500" />
+              薪資錢包提領申請
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">
+              員工按下提領後會出現在這裡；同意後員工端會顯示申請成功，駁回會顯示理由。
+            </p>
+          </div>
+
+          {withdrawRequests.length === 0 ? (
+            <div className="px-5 py-10 text-center text-sm font-semibold text-slate-400">
+              目前沒有提領申請
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table>
+                <thead>
+                  <tr>
+                    <th>申請時間</th>
+                    <th>員工</th>
+                    <th>金額</th>
+                    <th>狀態</th>
+                    <th>審核時間</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {withdrawRequests.map((request) => (
+                    <tr key={request.id}>
+                      <td>{formatDateTime(request.requested_at)}</td>
+                      <td>
+                        <div className="font-black text-slate-900">
+                          {request.staff_name || request.discord_id}
+                        </div>
+                        <div className="text-xs font-semibold text-slate-400">
+                          {request.discord_id}
+                        </div>
+                      </td>
+                      <td className="font-black text-sky-600">
+                        {money(request.amount)}
+                      </td>
+                      <td>
+                        <span
+                          className={`rounded-full px-3 py-1 text-xs font-bold ${getRequestStatusClass(
+                            request.status
+                          )}`}
+                        >
+                          {getRequestStatusText(
+                            request.status,
+                            request.reject_reason
+                          )}
+                        </span>
+                      </td>
+                      <td>{formatDateTime(request.reviewed_at)}</td>
+                      <td>
+                        {request.status === "pending" ? (
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              onClick={() =>
+                                reviewWithdrawRequest(request.id, "approve")
+                              }
+                              disabled={reviewingId === request.id}
+                              className="inline-flex items-center gap-1 rounded-full bg-emerald-500 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-600 disabled:opacity-60"
+                            >
+                              <CheckCircle2 size={14} />
+                              同意
+                            </button>
+                            <button
+                              onClick={() =>
+                                reviewWithdrawRequest(request.id, "reject")
+                              }
+                              disabled={reviewingId === request.id}
+                              className="inline-flex items-center gap-1 rounded-full bg-rose-500 px-3 py-1.5 text-xs font-bold text-white hover:bg-rose-600 disabled:opacity-60"
+                            >
+                              <XCircle size={14} />
+                              駁回
+                            </button>
+                          </div>
+                        ) : (
+                          "-"
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </section>
 
         <section className="rounded-[28px] border border-sky-100 bg-white shadow-sm shadow-sky-100">

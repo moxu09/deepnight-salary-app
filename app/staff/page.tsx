@@ -13,6 +13,7 @@ import {
   Power,
   Gift,
   Trophy,
+  HandCoins,
 } from "lucide-react";
 
 const DEEPNIGHT_GUILD_ID =
@@ -62,6 +63,7 @@ type SalaryOrder = {
   order_finished_at?: string | null;
   completed_at?: string | null;
   created_at?: string | null;
+  wallet_settled_at?: string | null;
 };
 
 type Bonus = {
@@ -87,6 +89,57 @@ type ServiceItem = {
   key: string;
   name: string;
   category: string;
+};
+
+type AuthSessionLike = {
+  user?: {
+    user_metadata?: Record<string, unknown>;
+    identities?: Array<{
+      identity_data?: Record<string, unknown>;
+    }>;
+  };
+};
+
+type StaffServiceRow = {
+  service_key?: string | null;
+};
+
+type SalaryWalletEntry = {
+  id: string;
+  entry_type: string;
+  amount: number | string;
+  source_label?: string | null;
+  period_key?: string | null;
+  created_at?: string | null;
+};
+
+type SalaryWithdrawRequest = {
+  id: string;
+  amount: number | string;
+  status: string;
+  reject_reason?: string | null;
+  requested_at?: string | null;
+  reviewed_at?: string | null;
+};
+
+type SalaryWalletData = {
+  totals: {
+    orderSalary: number;
+    bonus: number;
+    deposited: number;
+    approvedWithdrawn: number;
+    pendingWithdrawn: number;
+    balance: number;
+    available: number;
+  };
+  entries: SalaryWalletEntry[];
+  requests: SalaryWithdrawRequest[];
+  pendingRequest: SalaryWithdrawRequest | null;
+  latestRequest: SalaryWithdrawRequest | null;
+  withdrawWindow: {
+    isOpen: boolean;
+    note: string;
+  };
 };
 
 const SERVICE_GROUPS: Record<string, ServiceItem[]> = {
@@ -192,6 +245,31 @@ function formatDateTime(value?: string | null) {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+function formatEntryType(type: string) {
+  if (type === "order_salary") return "訂單薪水";
+  if (type === "order_bonus") return "訂單獎金";
+  if (type === "staff_bonus") return "獎金 / 扣除";
+  return "薪資明細";
+}
+
+function getRequestStatusText(request?: SalaryWithdrawRequest | null) {
+  if (!request) return "尚未申請";
+  if (request.status === "pending") return "申請中";
+  if (request.status === "approved") return "申請成功，請稍等三個工作日";
+  if (request.status === "rejected") {
+    return `申請遭駁回${request.reject_reason ? `，原因是${request.reject_reason}` : ""}`;
+  }
+  return request.status || "尚未申請";
+}
+
+function getRequestStatusClass(request?: SalaryWithdrawRequest | null) {
+  if (!request) return "bg-slate-100 text-slate-500";
+  if (request.status === "pending") return "bg-amber-50 text-amber-600";
+  if (request.status === "approved") return "bg-emerald-50 text-emerald-600";
+  if (request.status === "rejected") return "bg-rose-50 text-rose-600";
+  return "bg-slate-100 text-slate-500";
 }
 
 function getOrderAmount(order: SalaryOrder) {
@@ -314,37 +392,49 @@ function getServiceCategory(key: string) {
   return ALL_SERVICES.find((item) => item.key === key)?.category || "其他";
 }
 
-function getDiscordIdFromSession(session: any) {
-  const user = session?.user;
+function stringValue(value: unknown) {
+  if (typeof value === "string" || typeof value === "number") {
+    return String(value);
+  }
+
+  return "";
+}
+
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
+}
+
+function getDiscordIdFromSession(session: unknown) {
+  const user = (session as AuthSessionLike | null)?.user;
   const metadata = user?.user_metadata || {};
 
   return String(
-    metadata.provider_id ||
-      metadata.sub ||
-      metadata.user_id ||
-      user?.identities?.[0]?.identity_data?.sub ||
-      user?.identities?.[0]?.identity_data?.id ||
+    stringValue(metadata.provider_id) ||
+      stringValue(metadata.sub) ||
+      stringValue(metadata.user_id) ||
+      stringValue(user?.identities?.[0]?.identity_data?.sub) ||
+      stringValue(user?.identities?.[0]?.identity_data?.id) ||
       ""
   ).trim();
 }
 
-function getDiscordNameFromSession(session: any) {
-  const metadata = session?.user?.user_metadata || {};
+function getDiscordNameFromSession(session: unknown) {
+  const metadata = (session as AuthSessionLike | null)?.user?.user_metadata || {};
 
   return (
-    metadata.global_name ||
-    metadata.full_name ||
-    metadata.name ||
-    metadata.preferred_username ||
-    metadata.user_name ||
-    metadata.username ||
+    stringValue(metadata.global_name) ||
+    stringValue(metadata.full_name) ||
+    stringValue(metadata.name) ||
+    stringValue(metadata.preferred_username) ||
+    stringValue(metadata.user_name) ||
+    stringValue(metadata.username) ||
     "Discord 使用者"
   );
 }
 
-function getAvatarFromSession(session: any) {
-  const metadata = session?.user?.user_metadata || {};
-  return metadata.avatar_url || metadata.picture || null;
+function getAvatarFromSession(session: unknown) {
+  const metadata = (session as AuthSessionLike | null)?.user?.user_metadata || {};
+  return stringValue(metadata.avatar_url) || stringValue(metadata.picture) || null;
 }
 
 export default function StaffPage() {
@@ -358,6 +448,9 @@ export default function StaffPage() {
   const [serviceSaving, setServiceSaving] = useState(false);
   const [onlineSaving, setOnlineSaving] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [walletLoading, setWalletLoading] = useState(false);
+  const [withdrawing, setWithdrawing] = useState(false);
+  const [salaryWallet, setSalaryWallet] = useState<SalaryWalletData | null>(null);
   const [selectedMonth, setSelectedMonth] = useState(getCurrentMonthInput());
 
   const [profileForm, setProfileForm] = useState<ProfileForm>({
@@ -384,7 +477,7 @@ export default function StaffPage() {
 
   const unpaidAmount = useMemo(() => {
     const orderTotal = salaryOrders
-      .filter((order) => order.status !== "已發薪")
+      .filter((order) => order.status !== "已發薪" && !order.wallet_settled_at)
       .reduce(
         (sum, order) =>
           sum +
@@ -490,6 +583,8 @@ export default function StaffPage() {
         bank_account: staffData.bank_account || "",
       });
 
+      await loadWalletData();
+
       await Promise.all([
         loadSalaryData(staffData.discord_id),
         loadStaffServices(staffData.discord_id, staffData.allowed_services || []),
@@ -567,10 +662,82 @@ export default function StaffPage() {
     }
 
     const services = (data || [])
-      .map((item: any) => String(item.service_key || "").trim())
+      .map((item: StaffServiceRow) => String(item.service_key || "").trim())
       .filter(Boolean);
 
     setAllowedServices(services.length > 0 ? services : fallback || []);
+  }
+
+  async function loadWalletData() {
+    setWalletLoading(true);
+
+    try {
+      const { data } = await supabase.auth.getSession();
+      const session = data.session;
+
+      if (!session) return;
+
+      const res = await fetch("/api/deepnight/salary-wallet", {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      const payload = await res.json();
+
+      if (!res.ok || !payload.ok) {
+        throw new Error(payload.message || "讀取薪資錢包失敗");
+      }
+
+      setSalaryWallet(payload.wallet as SalaryWalletData);
+    } catch (error: unknown) {
+      console.error("load salary wallet error:", error);
+      alert(getErrorMessage(error, "讀取薪資錢包失敗"));
+    } finally {
+      setWalletLoading(false);
+    }
+  }
+
+  async function requestWithdraw() {
+    if (!salaryWallet) return;
+
+    if (!confirm(`確定要申請提領 ${money(salaryWallet.totals.available)}？`)) {
+      return;
+    }
+
+    setWithdrawing(true);
+
+    try {
+      const { data } = await supabase.auth.getSession();
+      const session = data.session;
+
+      if (!session) {
+        throw new Error("請重新登入");
+      }
+
+      const res = await fetch("/api/deepnight/salary-wallet", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({}),
+      });
+
+      const payload = await res.json();
+
+      if (!res.ok || !payload.ok) {
+        throw new Error(payload.message || "送出提領申請失敗");
+      }
+
+      setSalaryWallet(payload.wallet as SalaryWalletData);
+      alert("提領申請已送出");
+    } catch (error: unknown) {
+      console.error("request withdraw error:", error);
+      alert(getErrorMessage(error, "送出提領申請失敗"));
+    } finally {
+      setWithdrawing(false);
+    }
   }
 
   async function refreshAll() {
@@ -580,6 +747,7 @@ export default function StaffPage() {
 
     try {
       await Promise.all([
+        loadWalletData(),
         loadSalaryData(staff.discord_id),
         loadStaffServices(staff.discord_id, staff.allowed_services || []),
       ]);
@@ -824,6 +992,118 @@ export default function StaffPage() {
           <StatCard title="月份薪資" value={money(monthSalary)} />
           <StatCard title="獎金 / 扣除" value={money(monthBonus)} />
           <StatCard title="未發薪" value={money(unpaidAmount)} />
+        </section>
+
+        <section className="rounded-[28px] border border-sky-100 bg-white p-5 shadow-sm shadow-sky-100">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <h2 className="flex items-center gap-2 text-lg font-black text-slate-900">
+                <HandCoins size={20} className="text-sky-500" />
+                薪資錢包
+              </h2>
+
+              <p className="mt-1 text-sm text-slate-500">
+                每月 17 號入帳 1-15 號薪水；每月 2 號入帳上月 16-月底薪水。
+              </p>
+            </div>
+
+            <div className="flex flex-col items-start gap-2 sm:items-end">
+              <button
+                onClick={requestWithdraw}
+                disabled={
+                  withdrawing ||
+                  walletLoading ||
+                  !salaryWallet ||
+                  !salaryWallet.withdrawWindow.isOpen ||
+                  !!salaryWallet.pendingRequest ||
+                  Number(salaryWallet.totals.available || 0) <= 0
+                }
+                className="inline-flex items-center justify-center gap-2 rounded-full bg-sky-500 px-5 py-2.5 text-sm font-bold text-white shadow-sm shadow-sky-200 hover:bg-sky-600 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <WalletCards size={16} />
+                {withdrawing ? "申請中..." : "提領"}
+              </button>
+
+              <p className="text-xs font-semibold text-slate-400">
+                每月 5 到 10 號可以提領，提領需要三個工作天。
+              </p>
+            </div>
+          </div>
+
+          {walletLoading && !salaryWallet ? (
+            <div className="mt-5 rounded-[22px] bg-sky-50 px-4 py-5 text-center text-sm font-semibold text-sky-500">
+              讀取薪資錢包中...
+            </div>
+          ) : salaryWallet ? (
+            <>
+              <div className="mt-5 grid gap-3 md:grid-cols-4">
+                <MiniStat title="錢包餘額" value={money(salaryWallet.totals.balance)} />
+                <MiniStat title="訂單薪水" value={money(salaryWallet.totals.orderSalary)} />
+                <MiniStat title="獎金 / 扣除" value={money(salaryWallet.totals.bonus)} />
+                <MiniStat title="使用的薪水" value={money(salaryWallet.totals.approvedWithdrawn)} />
+              </div>
+
+              <div className="mt-4 flex flex-col gap-3 rounded-[22px] border border-sky-100 bg-sky-50/60 px-4 py-3 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <p className="text-sm font-black text-slate-700">
+                    提領狀態
+                  </p>
+                  <p className="mt-1 text-sm text-slate-500">
+                    可提領：{money(salaryWallet.totals.available)}
+                    {salaryWallet.totals.pendingWithdrawn > 0
+                      ? `，申請中：${money(salaryWallet.totals.pendingWithdrawn)}`
+                      : ""}
+                  </p>
+                </div>
+
+                <span
+                  className={`rounded-full px-3 py-1 text-xs font-bold ${getRequestStatusClass(
+                    salaryWallet.latestRequest
+                  )}`}
+                >
+                  {getRequestStatusText(salaryWallet.latestRequest)}
+                </span>
+              </div>
+
+              <div className="mt-5 overflow-x-auto">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>時間</th>
+                      <th>項目</th>
+                      <th>期別</th>
+                      <th>金額</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {salaryWallet.entries.slice(0, 8).map((entry) => (
+                      <tr key={entry.id}>
+                        <td>{formatDateTime(entry.created_at)}</td>
+                        <td>
+                          <p className="font-bold text-slate-700">
+                            {formatEntryType(entry.entry_type)}
+                          </p>
+                          <p className="text-xs text-slate-400">
+                            {entry.source_label || "-"}
+                          </p>
+                        </td>
+                        <td>{entry.period_key || "-"}</td>
+                        <td
+                          className={
+                            Number(entry.amount || 0) < 0
+                              ? "font-bold text-rose-500"
+                              : "font-bold text-sky-600"
+                          }
+                        >
+                          {money(Number(entry.amount || 0))}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          ) : null}
         </section>
 
         <section className="rounded-[28px] border border-sky-100 bg-white p-5 shadow-sm shadow-sky-100">
@@ -1165,17 +1445,24 @@ export default function StaffPage() {
                           <td data-label="狀態">
                             <span
                               className={`rounded-full px-3 py-1 text-xs font-bold ${
-                                order.status === "已發薪"
+                                order.status === "已發薪" ||
+                                order.wallet_settled_at
                                   ? "bg-emerald-50 text-emerald-600"
                                   : "bg-amber-50 text-amber-600"
                               }`}
                             >
-                              {order.status || "未發薪"}
+                              {order.wallet_settled_at
+                                ? "已入錢包"
+                                : order.status || "未發薪"}
                             </span>
                           </td>
 
                           <td data-label="發薪時間">
-                            {order.status === "已發薪" ? "已發薪" : "-"}
+                            {order.wallet_settled_at
+                              ? formatDateTime(order.wallet_settled_at)
+                              : order.status === "已發薪"
+                                ? "已發薪"
+                                : "-"}
                           </td>
                         </tr>
                       ))}
@@ -1249,6 +1536,15 @@ function StatCard({ title, value }: { title: string; value: string }) {
     <div className="rounded-[24px] border border-sky-100 bg-white p-5 shadow-sm shadow-sky-100">
       <p className="text-sm font-bold text-sky-600">{title}</p>
       <p className="mt-3 text-2xl font-black text-slate-900">{value}</p>
+    </div>
+  );
+}
+
+function MiniStat({ title, value }: { title: string; value: string }) {
+  return (
+    <div className="rounded-[20px] border border-sky-100 bg-sky-50/70 px-4 py-3">
+      <p className="text-xs font-bold text-sky-600">{title}</p>
+      <p className="mt-2 text-xl font-black text-slate-900">{value}</p>
     </div>
   );
 }
