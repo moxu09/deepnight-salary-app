@@ -17,19 +17,27 @@ function splitIds(value) {
     .filter(Boolean);
 }
 
-async function getAccessToken(request) {
+async function getBody(request) {
+  try {
+    return await request.json();
+  } catch {
+    return {};
+  }
+}
+
+function getAccessTokenFromRequest(request, body) {
   const auth = request.headers.get("authorization") || "";
 
   if (auth.toLowerCase().startsWith("bearer ")) {
     return auth.slice(7).trim();
   }
 
-  try {
-    const body = await request.json();
-    return String(body?.access_token || "").trim();
-  } catch {
-    return "";
-  }
+  return String(
+    body?.access_token ||
+      body?.token ||
+      body?.session?.access_token ||
+      ""
+  ).trim();
 }
 
 function getDiscordIdFromUser(user) {
@@ -74,6 +82,8 @@ function getDiscordAvatarUrl(discordUser) {
 }
 
 async function handler(request) {
+  const body = await getBody(request);
+
   const supabaseUrl =
     process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
 
@@ -126,18 +136,6 @@ async function handler(request) {
     );
   }
 
-  const accessToken = await getAccessToken(request);
-
-  if (!accessToken) {
-    return json(
-      {
-        ok: false,
-        message: "沒有收到登入 token，請重新登入。",
-      },
-      401
-    );
-  }
-
   const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
     auth: {
       persistSession: false,
@@ -145,30 +143,35 @@ async function handler(request) {
     },
   });
 
-  const { data: userResult, error: userError } =
-    await supabaseAdmin.auth.getUser(accessToken);
+  const accessToken = getAccessTokenFromRequest(request, body);
 
-  if (userError || !userResult?.user) {
-    return json(
-      {
-        ok: false,
-        message: "Supabase 登入狀態無效，請重新登入。",
-        detail: userError?.message || null,
-      },
-      401
-    );
+  let user = null;
+  let discordId = "";
+  let fallbackMode = false;
+
+  if (accessToken) {
+    const { data: userResult, error: userError } =
+      await supabaseAdmin.auth.getUser(accessToken);
+
+    if (!userError && userResult?.user) {
+      user = userResult.user;
+      discordId = getDiscordIdFromUser(user);
+    }
   }
 
-  const user = userResult.user;
-  const discordId = getDiscordIdFromUser(user);
+  if (!discordId) {
+    discordId = String(body?.discord_id || body?.discordId || "").trim();
+    fallbackMode = true;
+  }
 
   if (!discordId) {
     return json(
       {
         ok: false,
-        message: "無法取得 Discord ID，請重新登入 Discord。",
+        message:
+          "沒有收到登入 token，也沒有收到 Discord ID。請重新登入後再試一次。",
       },
-      400
+      401
     );
   }
 
@@ -231,20 +234,26 @@ async function handler(request) {
   const discordUser = member.user || {};
 
   const discordUsername =
-    discordUser.username || getNameFromSupabaseUser(user) || discordId;
+    discordUser.username ||
+    body?.discord_name ||
+    getNameFromSupabaseUser(user) ||
+    discordId;
 
   const displayName =
     member.nick ||
     discordUser.global_name ||
+    body?.discord_name ||
     getNameFromSupabaseUser(user) ||
     discordUsername ||
     discordId;
 
-  const avatarUrl = getDiscordAvatarUrl(discordUser);
+  const avatarUrl =
+    getDiscordAvatarUrl(discordUser) || body?.avatar_url || null;
+
   const now = new Date().toISOString();
 
   const updatePayload = {
-    auth_user_id: user.id,
+    auth_user_id: user?.id || null,
     guild_id: guildId,
     discord_id: discordId,
     discord_name: discordUsername,
@@ -272,16 +281,14 @@ async function handler(request) {
     );
   }
 
-  let player = null;
+  let staff = null;
 
   if (existingRows && existingRows.length > 0) {
     const { data, error } = await supabaseAdmin
       .from("players")
       .update(updatePayload)
       .eq("id", existingRows[0].id)
-      .select(
-        "id, discord_id, discord_name, display_name, real_name, avatar_url, is_active, can_take_order"
-      )
+      .select("*")
       .single();
 
     if (error) {
@@ -295,7 +302,7 @@ async function handler(request) {
       );
     }
 
-    player = data;
+    staff = data;
   } else {
     const { data, error } = await supabaseAdmin
       .from("players")
@@ -308,9 +315,7 @@ async function handler(request) {
         allowed_services: [],
         created_at: now,
       })
-      .select(
-        "id, discord_id, discord_name, display_name, real_name, avatar_url, is_active, can_take_order"
-      )
+      .select("*")
       .single();
 
     if (error) {
@@ -324,14 +329,16 @@ async function handler(request) {
       );
     }
 
-    player = data;
+    staff = data;
   }
 
   return json({
     ok: true,
     message: "員工身分驗證成功。",
     discord_id: discordId,
-    player,
+    fallback_mode: fallbackMode,
+    staff,
+    player: staff,
   });
 }
 
