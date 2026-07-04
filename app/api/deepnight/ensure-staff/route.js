@@ -1,245 +1,344 @@
 import { NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { createClient } from "@supabase/supabase-js";
 
-function cleanEnv(value) {
-  return String(value || "")
-    .replaceAll('"', "")
-    .replaceAll("'", "")
-    .trim();
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+const DISCORD_API = "https://discord.com/api/v10";
+
+function json(data, status = 200) {
+  return NextResponse.json(data, { status });
 }
 
-function parseRoleIds(value) {
-  return cleanEnv(value)
+function splitIds(value) {
+  return String(value || "")
     .split(",")
-    .map((id) => id.trim())
+    .map((item) => item.trim())
     .filter(Boolean);
 }
 
-export async function POST(req) {
+async function getAccessToken(request) {
+  const auth = request.headers.get("authorization") || "";
+
+  if (auth.toLowerCase().startsWith("bearer ")) {
+    return auth.slice(7).trim();
+  }
+
   try {
-    const body = await req.json();
+    const body = await request.json();
+    return String(body?.access_token || "").trim();
+  } catch {
+    return "";
+  }
+}
 
-    const {
-      discord_id,
-      discord_name,
-      avatar_url
-    } = body;
+function getDiscordIdFromUser(user) {
+  const metadata = user?.user_metadata || {};
+  const identityData = user?.identities?.[0]?.identity_data || {};
 
-    if (!discord_id) {
-      return NextResponse.json(
-        {
-          ok: false,
-          message: "缺少 Discord ID"
-        },
-        {
-          status: 400
-        }
-      );
-    }
+  return String(
+    metadata.provider_id ||
+      metadata.sub ||
+      metadata.user_id ||
+      identityData.sub ||
+      identityData.id ||
+      ""
+  ).trim();
+}
 
-    const guildId =
-      cleanEnv(
-        process.env.DEEP_NIGHT_GUILD_ID ||
-        process.env.QIUNAI_GUILD_ID
-      );
+function getNameFromSupabaseUser(user) {
+  const metadata = user?.user_metadata || {};
+  const identityData = user?.identities?.[0]?.identity_data || {};
 
-    const botToken =
-      cleanEnv(process.env.DISCORD_BOT_TOKEN);
+  return String(
+    metadata.full_name ||
+      metadata.name ||
+      metadata.user_name ||
+      metadata.preferred_username ||
+      identityData.full_name ||
+      identityData.name ||
+      identityData.username ||
+      ""
+  ).trim();
+}
 
-    const allowedRoleIds =
-      parseRoleIds(
-        process.env.DEEP_NIGHT_STAFF_ROLE_IDS ||
-        process.env.QIUNAI_STAFF_ROLE_IDS
-      );
+function getDiscordAvatarUrl(discordUser) {
+  const userId = discordUser?.id;
+  const avatar = discordUser?.avatar;
 
-    const staffTable =
-      cleanEnv(process.env.NEXT_PUBLIC_STAFF_TABLE) ||
-      "players";
+  if (!userId || !avatar) return null;
 
-    if (!guildId || !botToken || allowedRoleIds.length === 0) {
-      console.error("[DEEP_NIGHT_STAFF_CHECK_ENV_MISSING]", {
-        hasGuildId: Boolean(guildId),
-        hasBotToken: Boolean(botToken),
-        allowedRoleIds
-      });
+  const ext = String(avatar).startsWith("a_") ? "gif" : "png";
 
-      return NextResponse.json(
-        {
-          ok: false,
-          message:
-            "深夜不關燈身分組檢查環境變數尚未設定完整，請確認 DISCORD_BOT_TOKEN、DEEP_NIGHT_GUILD_ID、DEEP_NIGHT_STAFF_ROLE_IDS。"
-        },
-        {
-          status: 500
-        }
-      );
-    }
+  return `https://cdn.discordapp.com/avatars/${userId}/${avatar}.${ext}`;
+}
 
-    const memberRes =
-      await fetch(
-        `https://discord.com/api/v10/guilds/${guildId}/members/${discord_id}`,
-        {
-          headers: {
-            Authorization: `Bot ${botToken}`
-          },
-          cache: "no-store"
-        }
-      );
+async function handler(request) {
+  const supabaseUrl =
+    process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
 
-    if (memberRes.status === 404) {
-      console.error("[DEEP_NIGHT_STAFF_CHECK_NOT_IN_GUILD]", {
-        discord_id,
-        guildId
-      });
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-      return NextResponse.json(
-        {
-          ok: false,
-          message: "你目前不在深夜不關燈伺服器內，無法使用薪資網。"
-        },
-        {
-          status: 403
-        }
-      );
-    }
+  const guildId =
+    process.env.DEEPNIGHT_GUILD_ID ||
+    process.env.NEXT_PUBLIC_DEEPNIGHT_GUILD_ID ||
+    process.env.NEXT_PUBLIC_GUILD_ID ||
+    "1501098191813214312";
 
-    if (!memberRes.ok) {
-      const errorText =
-        await memberRes.text();
+  const botToken = process.env.DISCORD_BOT_TOKEN;
 
-      console.error("[DEEP_NIGHT_STAFF_CHECK_DISCORD_FETCH_FAILED]", {
-        status: memberRes.status,
-        errorText,
-        guildId,
-        discord_id
-      });
+  const staffRoleIds = splitIds(
+    process.env.DEEPNIGHT_STAFF_ROLE_IDS ||
+      process.env.DEEPNIGHT_STAFF_ROLE_ID ||
+      process.env.STAFF_ROLE_IDS ||
+      process.env.STAFF_ROLE_ID
+  );
 
-      return NextResponse.json(
-        {
-          ok: false,
-          message:
-            "檢查 Discord 身分組失敗，請確認機器人是否在伺服器內，且 Token 正確。"
-        },
-        {
-          status: 500
-        }
-      );
-    }
-
-    const member =
-      await memberRes.json();
-
-    const userRoleIds =
-      Array.isArray(member.roles)
-        ? member.roles.map((id) => String(id).trim())
-        : [];
-
-    const matchedRoleIds =
-      userRoleIds.filter((roleId) =>
-        allowedRoleIds.includes(roleId)
-      );
-
-    const hasAllowedRole =
-      matchedRoleIds.length > 0;
-
-    console.log("[DEEP_NIGHT_STAFF_CHECK]", {
-      discord_id,
-      discord_name,
-      guildId,
-      allowedRoleIds,
-      userRoleIds,
-      matchedRoleIds,
-      hasAllowedRole
-    });
-
-    if (!hasAllowedRole) {
-      return NextResponse.json(
-        {
-          ok: false,
-          message: "你尚未擁有深夜不關燈員工身分組，無法使用薪資網。"
-        },
-        {
-          status: 403
-        }
-      );
-    }
-
-    const { data: existing, error: findError } =
-      await supabaseAdmin
-        .from(staffTable)
-        .select("*")
-        .eq("discord_id", discord_id)
-        .maybeSingle();
-
-    if (findError) {
-      console.error("[DEEP_NIGHT_ENSURE_STAFF_FIND_ERROR]", findError);
-
-      return NextResponse.json(
-        {
-          ok: false,
-          message: "讀取員工資料失敗"
-        },
-        {
-          status: 500
-        }
-      );
-    }
-
-    if (existing) {
-      return NextResponse.json({
-        ok: true,
-        staff: existing
-      });
-    }
-
-    const { data: created, error: createError } =
-      await supabaseAdmin
-        .from(staffTable)
-        .insert({
-          discord_id,
-          name: discord_name || discord_id,
-          discord_name,
-          avatar_url,
-          display_name: discord_name || discord_id,
-          role_checked: true,
-          is_active: true,
-          is_online: false,
-          can_take_order: true,
-          allowed_services: [],
-          status: "offline"
-        })
-        .select("*")
-        .single();
-
-    if (createError) {
-      console.error("[DEEP_NIGHT_ENSURE_STAFF_CREATE_ERROR]", createError);
-
-      return NextResponse.json(
-        {
-          ok: false,
-          message: "自動建立深夜不關燈員工資料失敗"
-        },
-        {
-          status: 500
-        }
-      );
-    }
-
-    return NextResponse.json({
-      ok: true,
-      staff: created
-    });
-  } catch (error) {
-    console.error("[DEEP_NIGHT_ENSURE_STAFF_ERROR]", error);
-
-    return NextResponse.json(
+  if (!supabaseUrl || !serviceRoleKey) {
+    return json(
       {
         ok: false,
-        message: "系統錯誤，請稍後再試"
+        message:
+          "伺服器缺少 Supabase 設定，請確認 NEXT_PUBLIC_SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY。",
       },
-      {
-        status: 500
-      }
+      500
     );
   }
+
+  if (!botToken) {
+    return json(
+      {
+        ok: false,
+        message: "伺服器缺少 DISCORD_BOT_TOKEN，無法檢查 Discord 身分組。",
+      },
+      500
+    );
+  }
+
+  if (!staffRoleIds.length) {
+    return json(
+      {
+        ok: false,
+        message:
+          "伺服器缺少員工身分組設定，請設定 DEEPNIGHT_STAFF_ROLE_IDS。",
+      },
+      500
+    );
+  }
+
+  const accessToken = await getAccessToken(request);
+
+  if (!accessToken) {
+    return json(
+      {
+        ok: false,
+        message: "沒有收到登入 token，請重新登入。",
+      },
+      401
+    );
+  }
+
+  const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+  });
+
+  const { data: userResult, error: userError } =
+    await supabaseAdmin.auth.getUser(accessToken);
+
+  if (userError || !userResult?.user) {
+    return json(
+      {
+        ok: false,
+        message: "Supabase 登入狀態無效，請重新登入。",
+        detail: userError?.message || null,
+      },
+      401
+    );
+  }
+
+  const user = userResult.user;
+  const discordId = getDiscordIdFromUser(user);
+
+  if (!discordId) {
+    return json(
+      {
+        ok: false,
+        message: "無法取得 Discord ID，請重新登入 Discord。",
+      },
+      400
+    );
+  }
+
+  const memberRes = await fetch(
+    `${DISCORD_API}/guilds/${guildId}/members/${discordId}`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bot ${botToken}`,
+      },
+      cache: "no-store",
+    }
+  );
+
+  if (memberRes.status === 404) {
+    return json(
+      {
+        ok: false,
+        message: "你不在 DeepNight Discord 群組內，無法登入員工端。",
+        discord_id: discordId,
+      },
+      403
+    );
+  }
+
+  if (!memberRes.ok) {
+    const text = await memberRes.text().catch(() => "");
+
+    return json(
+      {
+        ok: false,
+        message: "Discord 身分組檢查失敗，請確認 Bot Token、群組 ID 是否正確。",
+        discord_status: memberRes.status,
+        detail: text,
+      },
+      500
+    );
+  }
+
+  const member = await memberRes.json();
+  const memberRoles = Array.isArray(member.roles) ? member.roles : [];
+
+  const hasStaffRole = staffRoleIds.some((roleId) =>
+    memberRoles.includes(roleId)
+  );
+
+  if (!hasStaffRole) {
+    return json(
+      {
+        ok: false,
+        message: "你沒有 DeepNight 員工身分組，無法登入員工端。",
+        discord_id: discordId,
+        your_roles: memberRoles,
+        required_roles: staffRoleIds,
+      },
+      403
+    );
+  }
+
+  const discordUser = member.user || {};
+
+  const discordUsername =
+    discordUser.username || getNameFromSupabaseUser(user) || discordId;
+
+  const displayName =
+    member.nick ||
+    discordUser.global_name ||
+    getNameFromSupabaseUser(user) ||
+    discordUsername ||
+    discordId;
+
+  const avatarUrl = getDiscordAvatarUrl(discordUser);
+  const now = new Date().toISOString();
+
+  const updatePayload = {
+    auth_user_id: user.id,
+    guild_id: guildId,
+    discord_id: discordId,
+    discord_name: discordUsername,
+    display_name: displayName,
+    avatar_url: avatarUrl,
+    is_active: true,
+    can_take_order: true,
+    updated_at: now,
+  };
+
+  const { data: existingRows, error: findError } = await supabaseAdmin
+    .from("players")
+    .select("id, discord_id")
+    .eq("discord_id", discordId)
+    .limit(1);
+
+  if (findError) {
+    return json(
+      {
+        ok: false,
+        message: "查詢員工資料失敗。",
+        detail: findError.message,
+      },
+      500
+    );
+  }
+
+  let player = null;
+
+  if (existingRows && existingRows.length > 0) {
+    const { data, error } = await supabaseAdmin
+      .from("players")
+      .update(updatePayload)
+      .eq("id", existingRows[0].id)
+      .select(
+        "id, discord_id, discord_name, display_name, real_name, avatar_url, is_active, can_take_order"
+      )
+      .single();
+
+    if (error) {
+      return json(
+        {
+          ok: false,
+          message: "更新員工資料失敗。",
+          detail: error.message,
+        },
+        500
+      );
+    }
+
+    player = data;
+  } else {
+    const { data, error } = await supabaseAdmin
+      .from("players")
+      .insert({
+        ...updatePayload,
+        real_name: null,
+        is_online: false,
+        commission_tier: "auto",
+        commission_note: null,
+        allowed_services: [],
+        created_at: now,
+      })
+      .select(
+        "id, discord_id, discord_name, display_name, real_name, avatar_url, is_active, can_take_order"
+      )
+      .single();
+
+    if (error) {
+      return json(
+        {
+          ok: false,
+          message: "新增員工資料失敗。",
+          detail: error.message,
+        },
+        500
+      );
+    }
+
+    player = data;
+  }
+
+  return json({
+    ok: true,
+    message: "員工身分驗證成功。",
+    discord_id: discordId,
+    player,
+  });
+}
+
+export async function POST(request) {
+  return handler(request);
+}
+
+export async function GET(request) {
+  return handler(request);
 }
