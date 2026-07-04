@@ -24,6 +24,8 @@ const DEEPNIGHT_GUILD_ID =
   process.env.NEXT_PUBLIC_DEEPNIGHT_GUILD_ID ||
   process.env.NEXT_PUBLIC_GUILD_ID ||
   "1501098191813214312";
+const DEEPNIGHT_PLAY_ORDER_FILTER =
+  `guild_id.eq.${DEEPNIGHT_GUILD_ID},guild_id.is.null`;
 
 type Staff = {
   id: string;
@@ -564,7 +566,7 @@ export default function AdminSalaryPage() {
     let orderQuery = supabase
       .from("play_orders")
       .select("*")
-      .eq("guild_id", DEEPNIGHT_GUILD_ID)
+      .or(DEEPNIGHT_PLAY_ORDER_FILTER)
       .or("is_deleted.eq.false,is_deleted.is.null")
       .order("order_finished_at", { ascending: false });
 
@@ -739,7 +741,7 @@ export default function AdminSalaryPage() {
           order_finished_at: finishedAt,
         })
         .eq("id", editingOrderId)
-        .eq("guild_id", DEEPNIGHT_GUILD_ID);
+        .or(DEEPNIGHT_PLAY_ORDER_FILTER);
 
       setSavingOrder(false);
 
@@ -916,7 +918,7 @@ export default function AdminSalaryPage() {
         status: "已發薪",
       })
       .eq("id", order.id)
-      .eq("guild_id", DEEPNIGHT_GUILD_ID);
+      .or(DEEPNIGHT_PLAY_ORDER_FILTER);
 
     if (error) {
       console.error("mark paid error:", error);
@@ -938,7 +940,7 @@ export default function AdminSalaryPage() {
         is_deleted: true,
       })
       .eq("id", order.id)
-      .eq("guild_id", DEEPNIGHT_GUILD_ID);
+      .or(DEEPNIGHT_PLAY_ORDER_FILTER);
 
     if (error) {
       console.error("delete order error:", error);
@@ -976,7 +978,7 @@ export default function AdminSalaryPage() {
       .update({
         status: "已發薪",
       })
-      .eq("guild_id", DEEPNIGHT_GUILD_ID)
+      .or(DEEPNIGHT_PLAY_ORDER_FILTER)
       .gte("order_finished_at", startIso)
       .lte("order_finished_at", endIso)
       .neq("status", "已發薪");

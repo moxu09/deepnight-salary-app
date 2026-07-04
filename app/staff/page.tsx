@@ -19,6 +19,8 @@ const DEEPNIGHT_GUILD_ID =
   process.env.NEXT_PUBLIC_DEEPNIGHT_GUILD_ID ||
   process.env.NEXT_PUBLIC_GUILD_ID ||
   "1501098191813214312";
+const DEEPNIGHT_PLAY_ORDER_FILTER =
+  `guild_id.eq.${DEEPNIGHT_GUILD_ID},guild_id.is.null`;
 
 type Staff = {
   id?: string;
@@ -490,7 +492,7 @@ export default function StaffPage() {
     const { data: monthOrders, error: monthError } = await supabase
       .from("play_orders")
       .select("*")
-      .eq("guild_id", DEEPNIGHT_GUILD_ID)
+      .or(DEEPNIGHT_PLAY_ORDER_FILTER)
       .eq("discord_id", discordId)
       .or("is_deleted.eq.false,is_deleted.is.null")
       .gte("order_finished_at", startIso)
@@ -507,7 +509,7 @@ export default function StaffPage() {
     const { data: allOrders, error: allError } = await supabase
       .from("play_orders")
       .select("*")
-      .eq("guild_id", DEEPNIGHT_GUILD_ID)
+      .or(DEEPNIGHT_PLAY_ORDER_FILTER)
       .eq("discord_id", discordId)
       .or("is_deleted.eq.false,is_deleted.is.null")
       .order("order_finished_at", { ascending: false });

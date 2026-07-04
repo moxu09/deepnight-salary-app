@@ -18,6 +18,8 @@ const DEEPNIGHT_GUILD_ID =
   process.env.NEXT_PUBLIC_DEEPNIGHT_GUILD_ID ||
   process.env.NEXT_PUBLIC_GUILD_ID ||
   "1501098191813214312";
+const DEEPNIGHT_PLAY_ORDER_FILTER =
+  `guild_id.eq.${DEEPNIGHT_GUILD_ID},guild_id.is.null`;
 
 type Staff = {
   id: string;
@@ -379,7 +381,7 @@ export default function SalaryRankPage() {
         .select(
           "id, discord_id, staff_name, order_amount, price, staff_salary, bonus_amount, status, order_finished_at, completed_at, created_at, is_deleted"
         )
-        .eq("guild_id", DEEPNIGHT_GUILD_ID)
+        .or(DEEPNIGHT_PLAY_ORDER_FILTER)
         .or("is_deleted.eq.false,is_deleted.is.null")
         .order("order_finished_at", { ascending: false }),
 
