@@ -21,6 +21,11 @@ const walletConfig = {
   bonusSelect:
     "id, discord_id, staff_name, bonus_type, description, amount, created_at, wallet_settled_at",
 };
+const SALARY_WALLET_START_DATE =
+  process.env.SALARY_WALLET_START_DATE || "2026-07-17";
+const SALARY_WALLET_START_ISO = new Date(
+  `${SALARY_WALLET_START_DATE}T00:00:00+08:00`
+).toISOString();
 
 async function requireAdmin(request) {
   const { discordId } = await getAuthUserFromRequest(supabaseAdmin, request);
@@ -51,6 +56,7 @@ export async function GET(request) {
       .from("salary_withdraw_requests")
       .select("*")
       .eq("app_key", walletConfig.appKey)
+      .gte("requested_at", SALARY_WALLET_START_ISO)
       .order("requested_at", { ascending: false });
 
     if (error) {

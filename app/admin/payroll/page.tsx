@@ -22,6 +22,13 @@ const DEEPNIGHT_GUILD_ID =
   "1501098191813214312";
 const DEEPNIGHT_PLAY_ORDER_FILTER =
   `guild_id.eq.${DEEPNIGHT_GUILD_ID},guild_id.is.null`;
+const SALARY_WALLET_START_DATE =
+  process.env.NEXT_PUBLIC_SALARY_WALLET_START_DATE || "2026-07-17";
+const SALARY_WALLET_START_ISO = new Date(
+  `${SALARY_WALLET_START_DATE}T00:00:00+08:00`
+).toISOString();
+const PAYROLL_WALLET_FILTER =
+  `wallet_settled_at.is.null,wallet_settled_at.lt.${SALARY_WALLET_START_ISO}`;
 
 type Staff = {
   id?: string;
@@ -208,8 +215,8 @@ export default function AdminPayrollPage() {
   const [bonuses, setBonuses] = useState<Bonus[]>([]);
   const [withdrawRequests, setWithdrawRequests] = useState<WithdrawRequest[]>([]);
   const [keyword, setKeyword] = useState("");
-  const [startDate, setStartDate] = useState(getMonthStartInput());
-  const [endDate, setEndDate] = useState(getTodayInput());
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [reviewingId, setReviewingId] = useState<string | null>(null);
 
   const rows = useMemo(() => {
@@ -363,7 +370,7 @@ export default function AdminPayrollPage() {
       )
       .or(DEEPNIGHT_PLAY_ORDER_FILTER)
       .or("is_deleted.eq.false,is_deleted.is.null")
-      .is("wallet_settled_at", null)
+      .or(PAYROLL_WALLET_FILTER)
       .or("status.neq.已發薪,status.is.null")
       .order("order_finished_at", { ascending: false });
 
@@ -373,7 +380,7 @@ export default function AdminPayrollPage() {
     let bonusQuery = supabase
       .from("players_bonus")
       .select("id, discord_id, staff_name, bonus_type, description, amount, created_at")
-      .is("wallet_settled_at", null)
+      .or(PAYROLL_WALLET_FILTER)
       .order("created_at", { ascending: false });
 
     if (startIso) bonusQuery = bonusQuery.gte("created_at", startIso);
@@ -706,7 +713,7 @@ export default function AdminPayrollPage() {
             </h2>
 
             <p className="mt-1 text-sm text-slate-500">
-              只顯示指定區間內應發金額大於 0 的員工。
+              預設顯示所有尚未發薪的員工；日期只在需要縮小查詢範圍時使用。2026/07/17 前被舊錢包標記過的資料仍會列入。
             </p>
           </div>
 
