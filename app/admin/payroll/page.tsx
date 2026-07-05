@@ -45,6 +45,8 @@ type SalaryOrder = {
   id: string;
   discord_id?: string | null;
   staff_name?: string | null;
+  service_name?: string | null;
+  service?: string | null;
   staff_salary?: number | null;
   bonus_amount?: number | null;
   status?: string | null;
@@ -68,11 +70,16 @@ type PayrollRow = {
   accountName: string;
   bankName: string;
   bankAccount: string;
-  salary: number;
+  orderSalary: number;
+  tipSalary: number;
   bonus: number;
+  deduction: number;
   total: number;
   orderCount: number;
+  tipCount: number;
   bonusCount: number;
+  deductionCount: number;
+  recordCount: number;
 };
 
 type WithdrawRequest = {
@@ -169,6 +176,27 @@ function getAccountName(staff?: Staff | null, fallback?: string | null) {
   return staff?.real_name || staff?.display_name || fallback || "-";
 }
 
+function isTipOrder(order: SalaryOrder) {
+  return [order.service_name, order.service]
+    .filter(Boolean)
+    .some((value) => String(value).includes("打賞"));
+}
+
+function addBonusOrDeduction(
+  row: PayrollRow,
+  value: number | string | null | undefined
+) {
+  const amount = Number(value || 0);
+
+  if (amount > 0) {
+    row.bonus += amount;
+    row.bonusCount += 1;
+  } else if (amount < 0) {
+    row.deduction += Math.abs(amount);
+    row.deductionCount += 1;
+  }
+}
+
 function stringValue(value: unknown) {
   if (typeof value === "string" || typeof value === "number") {
     return String(value);
@@ -199,9 +227,12 @@ function buildCopyText(rows: PayrollRow[]) {
         `戶名：${row.accountName}`,
         `銀行：${row.bankName || "-"}`,
         `帳號：${row.bankAccount || "-"}`,
-        `薪水：${money(row.salary)}`,
-        `獎金/扣除：${money(row.bonus)}`,
-        `應發：${money(row.total)}`,
+        `訂單薪水：${money(row.orderSalary)}`,
+        `打賞薪水：${money(row.tipSalary)}`,
+        `獎金：${money(row.bonus)}`,
+        `扣除：${money(row.deduction)}`,
+        `應發總額：${money(row.total)}`,
+        `筆數：${row.recordCount}`,
       ].join("\n");
     })
     .join("\n\n");
@@ -242,11 +273,16 @@ export default function AdminPayrollPage() {
         accountName: getAccountName(staff, fallbackName),
         bankName: staff?.bank_name || "",
         bankAccount: staff?.bank_account || "",
-        salary: 0,
+        orderSalary: 0,
+        tipSalary: 0,
         bonus: 0,
+        deduction: 0,
         total: 0,
         orderCount: 0,
+        tipCount: 0,
         bonusCount: 0,
+        deductionCount: 0,
+        recordCount: 0,
       };
 
       rowMap.set(discordId, row);
@@ -258,9 +294,17 @@ export default function AdminPayrollPage() {
       if (!discordId) continue;
 
       const row = ensureRow(discordId, order.staff_name);
-      row.salary += Number(order.staff_salary || 0);
-      row.bonus += Number(order.bonus_amount || 0);
-      row.orderCount += 1;
+      const salary = Number(order.staff_salary || 0);
+
+      if (isTipOrder(order)) {
+        row.tipSalary += salary;
+        row.tipCount += 1;
+      } else {
+        row.orderSalary += salary;
+        row.orderCount += 1;
+      }
+
+      addBonusOrDeduction(row, order.bonus_amount);
     }
 
     for (const bonus of bonuses) {
@@ -268,14 +312,15 @@ export default function AdminPayrollPage() {
       if (!discordId) continue;
 
       const row = ensureRow(discordId, bonus.staff_name);
-      row.bonus += Number(bonus.amount || 0);
-      row.bonusCount += 1;
+      addBonusOrDeduction(row, bonus.amount);
     }
 
     let result = Array.from(rowMap.values())
       .map((row) => ({
         ...row,
-        total: row.salary + row.bonus,
+        total: row.orderSalary + row.tipSalary + row.bonus - row.deduction,
+        recordCount:
+          row.orderCount + row.tipCount + row.bonusCount + row.deductionCount,
       }))
       .filter((row) => row.total > 0);
 
@@ -302,8 +347,10 @@ export default function AdminPayrollPage() {
   const totals = useMemo(() => {
     return {
       staffCount: rows.length,
-      salary: rows.reduce((sum, row) => sum + row.salary, 0),
+      orderSalary: rows.reduce((sum, row) => sum + row.orderSalary, 0),
+      tipSalary: rows.reduce((sum, row) => sum + row.tipSalary, 0),
       bonus: rows.reduce((sum, row) => sum + row.bonus, 0),
+      deduction: rows.reduce((sum, row) => sum + row.deduction, 0),
       total: rows.reduce((sum, row) => sum + row.total, 0),
     };
   }, [rows]);
@@ -366,7 +413,7 @@ export default function AdminPayrollPage() {
     let orderQuery = supabase
       .from("play_orders")
       .select(
-        "id, discord_id, staff_name, staff_salary, bonus_amount, status, order_finished_at, is_deleted, wallet_settled_at"
+        "id, discord_id, staff_name, service_name, service, staff_salary, bonus_amount, status, order_finished_at, is_deleted, wallet_settled_at"
       )
       .or(DEEPNIGHT_PLAY_ORDER_FILTER)
       .or("is_deleted.eq.false,is_deleted.is.null")
@@ -563,10 +610,12 @@ export default function AdminPayrollPage() {
           </div>
         </header>
 
-        <section className="grid gap-4 md:grid-cols-4">
+        <section className="grid gap-4 md:grid-cols-3 lg:grid-cols-6">
           <StatCard title="待發人數" value={`${totals.staffCount} 人`} />
-          <StatCard title="薪水" value={money(totals.salary)} />
-          <StatCard title="獎金 / 扣除" value={money(totals.bonus)} />
+          <StatCard title="訂單薪水" value={money(totals.orderSalary)} />
+          <StatCard title="打賞薪水" value={money(totals.tipSalary)} />
+          <StatCard title="獎金" value={money(totals.bonus)} />
+          <StatCard title="扣除" value={money(totals.deduction)} />
           <StatCard title="應發總額" value={money(totals.total)} />
         </section>
 
@@ -630,7 +679,7 @@ export default function AdminPayrollPage() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table>
+              <table className="min-w-[1180px]">
                 <thead>
                   <tr>
                     <th>申請時間</th>
@@ -727,16 +776,18 @@ export default function AdminPayrollPage() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table>
+              <table className="min-w-[1180px]">
                 <thead>
                   <tr>
                     <th>名字</th>
                     <th>銀行</th>
                     <th>帳號</th>
                     <th>戶名</th>
-                    <th>薪水</th>
-                    <th>獎金 / 扣除</th>
-                    <th>應發</th>
+                    <th>訂單薪水</th>
+                    <th>打賞薪水</th>
+                    <th>獎金</th>
+                    <th>扣除</th>
+                    <th>應發總額</th>
                     <th>筆數</th>
                   </tr>
                 </thead>
@@ -754,19 +805,23 @@ export default function AdminPayrollPage() {
                       <td>{row.bankName || "-"}</td>
                       <td>{row.bankAccount || "-"}</td>
                       <td>{row.accountName}</td>
-                      <td>{money(row.salary)}</td>
-                      <td
-                        className={
-                          row.bonus < 0 ? "text-rose-500" : "text-emerald-600"
-                        }
-                      >
+                      <td>{money(row.orderSalary)}</td>
+                      <td>{money(row.tipSalary)}</td>
+                      <td className="text-emerald-600">
                         {money(row.bonus)}
                       </td>
+                      <td className="text-rose-500">{money(row.deduction)}</td>
                       <td className="font-black text-sky-600">
                         {money(row.total)}
                       </td>
                       <td>
-                        {row.orderCount} 單 / {row.bonusCount} 筆
+                        <div className="font-bold text-slate-700">
+                          {row.recordCount}
+                        </div>
+                        <div className="text-xs font-semibold text-slate-400">
+                          {row.orderCount} 單 / {row.tipCount} 賞 /{" "}
+                          {row.bonusCount + row.deductionCount} 獎扣
+                        </div>
                       </td>
                     </tr>
                   ))}
