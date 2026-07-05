@@ -7,6 +7,7 @@ import {
   ArrowRight,
   Banknote,
   Loader2,
+  ReceiptText,
   Settings,
   Users,
   WalletCards,
@@ -141,6 +142,13 @@ export default function AdminHomePage() {
             icon={<Banknote size={38} />}
             title="發薪模式"
             description="彙整有薪水要發的員工、薪水、獎金、銀行帳號與戶名。"
+          />
+
+          <AdminCard
+            href="/admin/accounting"
+            icon={<ReceiptText size={38} />}
+            title="會計報表"
+            description="按月份匯出儲值預收、訂單收入、折扣、薪資與月結應收。"
           />
 
           <AdminCard

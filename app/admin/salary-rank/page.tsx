@@ -10,9 +10,9 @@ import {
   RefreshCw,
   Search,
   Trophy,
-  UserRound,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import StaffAvatar from "@/components/StaffAvatar";
 
 const DEEPNIGHT_GUILD_ID =
   process.env.NEXT_PUBLIC_DEEPNIGHT_GUILD_ID ||
@@ -583,16 +583,12 @@ export default function SalaryRankPage() {
                       <td data-label="員工">
                         <div className="flex items-center gap-3">
                           <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-sky-100 text-sky-600">
-                            {row.staff.avatar_url ? (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img
-                                src={row.staff.avatar_url}
-                                alt="avatar"
-                                className="h-full w-full object-cover"
-                              />
-                            ) : (
-                              <UserRound size={20} />
-                            )}
+                            <StaffAvatar
+                              avatarUrl={row.staff.avatar_url}
+                              discordId={row.staff.discord_id}
+                              alt={getDisplayName(row.staff)}
+                              iconSize={20}
+                            />
                           </div>
 
                           <div>

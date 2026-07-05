@@ -12,10 +12,10 @@ import {
   Save,
   Search,
   Settings2,
-  UserRound,
   Users,
 } from "lucide-react";
 import Link from "next/link";
+import StaffAvatar from "@/components/StaffAvatar";
 
 type Staff = {
   id: string;
@@ -628,16 +628,12 @@ export default function AdminStaffPage() {
                       >
                         <div className="flex items-center gap-3">
                           <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-2xl bg-sky-100 text-sky-600">
-                            {staff.avatar_url ? (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img
-                                src={staff.avatar_url}
-                                alt="avatar"
-                                className="h-full w-full object-cover"
-                              />
-                            ) : (
-                              <UserRound size={22} />
-                            )}
+                            <StaffAvatar
+                              avatarUrl={staff.avatar_url}
+                              discordId={staff.discord_id}
+                              alt={getDisplayName(staff)}
+                              iconSize={22}
+                            />
                           </div>
 
                           <div className="min-w-0 flex-1">

@@ -15,6 +15,7 @@ import {
   Trophy,
   HandCoins,
 } from "lucide-react";
+import StaffAvatar from "@/components/StaffAvatar";
 
 const DEEPNIGHT_GUILD_ID =
   process.env.NEXT_PUBLIC_DEEPNIGHT_GUILD_ID ||
@@ -936,16 +937,12 @@ export default function StaffPage() {
           <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
             <div className="flex items-center gap-4">
               <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-3xl bg-sky-100 text-sky-600">
-                {staff.avatar_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={staff.avatar_url}
-                    alt="avatar"
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <UserRound size={30} />
-                )}
+                <StaffAvatar
+                  avatarUrl={staff.avatar_url}
+                  discordId={staff.discord_id}
+                  alt={getDisplayName(staff)}
+                  iconSize={30}
+                />
               </div>
 
               <div>
