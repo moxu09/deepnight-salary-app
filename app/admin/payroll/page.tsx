@@ -665,6 +665,7 @@ export default function AdminPayrollPage() {
     if (!walletModalRow) return;
 
     const types = getSelectedWalletTypes();
+    const scrollTop = window.scrollY;
 
     if (types.length === 0) {
       alert("請至少勾選一個發送項目");
@@ -705,6 +706,10 @@ export default function AdminPayrollPage() {
 
       setWalletModalRow(null);
       await loadPayrollData();
+      window.scrollTo({ top: scrollTop, behavior: "auto" });
+      requestAnimationFrame(() => {
+        window.scrollTo({ top: scrollTop, behavior: "auto" });
+      });
       alert(
         `已發送到員工錢包：${money(payload.result?.amount || 0)}（${
           payload.result?.count || 0
