@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import {
   getAuthUserFromRequest,
+  manuallyDepositSalaryWallet,
   settleSalaryWallet,
 } from "@/lib/salaryWallet";
 
@@ -47,6 +48,12 @@ async function requireAdmin(request) {
   };
 }
 
+function isDeepnightTipOrder(order) {
+  return [order.service_name, order.service]
+    .filter(Boolean)
+    .some((value) => String(value).includes("打賞"));
+}
+
 export async function GET(request) {
   try {
     await requireAdmin(request);
@@ -83,8 +90,33 @@ export async function POST(request) {
   try {
     const { discordId } = await requireAdmin(request);
     const body = await request.json();
-    const id = String(body.id || "").trim();
     const action = String(body.action || "").trim();
+
+    if (action === "deposit-wallet") {
+      const result = await manuallyDepositSalaryWallet(
+        supabaseAdmin,
+        {
+          ...walletConfig,
+          isTipOrder: isDeepnightTipOrder,
+        },
+        {
+          discordId: body.discordId,
+          staffName: body.staffName,
+          types: body.types,
+          startDate: body.startDate,
+          endDate: body.endDate,
+          note: "後台手動新增",
+          adminDiscordId: discordId,
+        }
+      );
+
+      return NextResponse.json({
+        ok: true,
+        result,
+      });
+    }
+
+    const id = String(body.id || "").trim();
 
     if (!id) {
       throw new Error("缺少申請 ID");

@@ -12,6 +12,7 @@ import {
   RefreshCw,
   Search,
   CheckCircle2,
+  WalletCards,
   XCircle,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
@@ -29,6 +30,9 @@ const SALARY_WALLET_START_ISO = new Date(
 ).toISOString();
 const PAYROLL_WALLET_FILTER =
   `wallet_settled_at.is.null,wallet_settled_at.lt.${SALARY_WALLET_START_ISO}`;
+const APP_KEY = "deepnight";
+const ORDER_TABLE = "play_orders";
+const BONUS_TABLE = "players_bonus";
 
 type Staff = {
   id?: string;
@@ -64,6 +68,12 @@ type Bonus = {
   created_at?: string | null;
 };
 
+type WalletEntrySource = {
+  source_table: string | null;
+  source_id: string | null;
+  entry_type: string | null;
+};
+
 type PayrollRow = {
   discordId: string;
   staffName: string;
@@ -91,6 +101,29 @@ type WithdrawRequest = {
   reject_reason?: string | null;
   reviewed_at?: string | null;
   requested_at?: string | null;
+};
+
+type WalletOptionKey = "order" | "tip" | "bonus" | "deduction";
+
+const WALLET_OPTIONS: Array<{
+  key: WalletOptionKey;
+  label: string;
+  amountKey: keyof Pick<
+    PayrollRow,
+    "orderSalary" | "tipSalary" | "bonus" | "deduction"
+  >;
+}> = [
+  { key: "order", label: "訂單", amountKey: "orderSalary" },
+  { key: "tip", label: "打賞", amountKey: "tipSalary" },
+  { key: "bonus", label: "獎金", amountKey: "bonus" },
+  { key: "deduction", label: "扣除", amountKey: "deduction" },
+];
+
+const DEFAULT_WALLET_OPTIONS: Record<WalletOptionKey, boolean> = {
+  order: true,
+  tip: true,
+  bonus: true,
+  deduction: true,
 };
 
 type SessionLike = {
@@ -176,6 +209,14 @@ function getAccountName(staff?: Staff | null, fallback?: string | null) {
   return staff?.real_name || staff?.display_name || fallback || "-";
 }
 
+function walletEntryKey(
+  table?: string | null,
+  id?: string | null,
+  entryType?: string | null
+) {
+  return `${table || ""}:${String(id || "")}:${entryType || ""}`;
+}
+
 function isTipOrder(order: SalaryOrder) {
   return [order.service_name, order.service]
     .filter(Boolean)
@@ -244,14 +285,24 @@ export default function AdminPayrollPage() {
   const [staffList, setStaffList] = useState<Staff[]>([]);
   const [orders, setOrders] = useState<SalaryOrder[]>([]);
   const [bonuses, setBonuses] = useState<Bonus[]>([]);
+  const [walletEntrySources, setWalletEntrySources] = useState<WalletEntrySource[]>([]);
   const [withdrawRequests, setWithdrawRequests] = useState<WithdrawRequest[]>([]);
   const [keyword, setKeyword] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [reviewingId, setReviewingId] = useState<string | null>(null);
+  const [walletModalRow, setWalletModalRow] = useState<PayrollRow | null>(null);
+  const [walletOptions, setWalletOptions] =
+    useState<Record<WalletOptionKey, boolean>>(DEFAULT_WALLET_OPTIONS);
+  const [walletSendingId, setWalletSendingId] = useState<string | null>(null);
 
   const rows = useMemo(() => {
     const staffMap = new Map<string, Staff>();
+    const walletEntryKeySet = new Set(
+      walletEntrySources.map((entry) =>
+        walletEntryKey(entry.source_table, entry.source_id, entry.entry_type)
+      )
+    );
 
     for (const staff of staffList) {
       if (staff.discord_id) {
@@ -295,21 +346,38 @@ export default function AdminPayrollPage() {
 
       const row = ensureRow(discordId, order.staff_name);
       const salary = Number(order.staff_salary || 0);
+      const salarySent = walletEntryKeySet.has(
+        walletEntryKey(ORDER_TABLE, order.id, "order_salary")
+      );
+      const bonusSent = walletEntryKeySet.has(
+        walletEntryKey(ORDER_TABLE, order.id, "order_bonus")
+      );
 
-      if (isTipOrder(order)) {
-        row.tipSalary += salary;
-        row.tipCount += 1;
-      } else {
-        row.orderSalary += salary;
-        row.orderCount += 1;
+      if (!salarySent) {
+        if (isTipOrder(order)) {
+          row.tipSalary += salary;
+          row.tipCount += 1;
+        } else {
+          row.orderSalary += salary;
+          row.orderCount += 1;
+        }
       }
 
-      addBonusOrDeduction(row, order.bonus_amount);
+      if (!bonusSent) {
+        addBonusOrDeduction(row, order.bonus_amount);
+      }
     }
 
     for (const bonus of bonuses) {
       const discordId = String(bonus.discord_id || "").trim();
       if (!discordId) continue;
+      if (
+        walletEntryKeySet.has(
+          walletEntryKey(BONUS_TABLE, bonus.id, "staff_bonus")
+        )
+      ) {
+        continue;
+      }
 
       const row = ensureRow(discordId, bonus.staff_name);
       addBonusOrDeduction(row, bonus.amount);
@@ -342,7 +410,7 @@ export default function AdminPayrollPage() {
     }
 
     return result.sort((a, b) => b.total - a.total);
-  }, [staffList, orders, bonuses, keyword]);
+  }, [staffList, orders, bonuses, walletEntrySources, keyword]);
 
   const totals = useMemo(() => {
     return {
@@ -433,7 +501,7 @@ export default function AdminPayrollPage() {
     if (startIso) bonusQuery = bonusQuery.gte("created_at", startIso);
     if (endIso) bonusQuery = bonusQuery.lte("created_at", endIso);
 
-    const [staffRes, orderRes, bonusRes] = await Promise.all([
+    const [staffRes, orderRes, bonusRes, walletEntryRes] = await Promise.all([
       supabase
         .from("players")
         .select(
@@ -442,6 +510,12 @@ export default function AdminPayrollPage() {
         .order("created_at", { ascending: false }),
       orderQuery,
       bonusQuery,
+      supabase
+        .from("salary_wallet_entries")
+        .select("source_table, source_id, entry_type")
+        .eq("app_key", APP_KEY)
+        .in("source_table", [ORDER_TABLE, BONUS_TABLE])
+        .limit(10000),
     ]);
 
     setLoading(false);
@@ -464,9 +538,16 @@ export default function AdminPayrollPage() {
       return;
     }
 
+    if (walletEntryRes.error) {
+      console.error("load wallet entry sources error:", walletEntryRes.error);
+      alert("讀取錢包入帳來源失敗");
+      return;
+    }
+
     setStaffList((staffRes.data || []) as Staff[]);
     setOrders((orderRes.data || []) as SalaryOrder[]);
     setBonuses((bonusRes.data || []) as Bonus[]);
+    setWalletEntrySources((walletEntryRes.data || []) as WalletEntrySource[]);
   }
 
   async function loadWithdrawRequests() {
@@ -551,6 +632,90 @@ export default function AdminPayrollPage() {
 
     await navigator.clipboard.writeText(buildCopyText(rows));
     alert("已複製發薪清單");
+  }
+
+  function openWalletModal(row: PayrollRow) {
+    setWalletModalRow(row);
+    setWalletOptions(DEFAULT_WALLET_OPTIONS);
+  }
+
+  function toggleWalletOption(key: WalletOptionKey) {
+    setWalletOptions((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
+  }
+
+  function getSelectedWalletTypes() {
+    return WALLET_OPTIONS.filter((option) => walletOptions[option.key]).map(
+      (option) => option.key
+    );
+  }
+
+  function getWalletSelectionTotal(row: PayrollRow) {
+    return WALLET_OPTIONS.reduce((sum, option) => {
+      if (!walletOptions[option.key]) return sum;
+
+      const amount = Number(row[option.amountKey] || 0);
+      return option.key === "deduction" ? sum - amount : sum + amount;
+    }, 0);
+  }
+
+  async function sendWalletToStaff() {
+    if (!walletModalRow) return;
+
+    const types = getSelectedWalletTypes();
+
+    if (types.length === 0) {
+      alert("請至少勾選一個發送項目");
+      return;
+    }
+
+    setWalletSendingId(walletModalRow.discordId);
+
+    try {
+      const { data } = await supabase.auth.getSession();
+      const session = data.session;
+
+      if (!session) {
+        throw new Error("請重新登入");
+      }
+
+      const res = await fetch("/api/deepnight/salary-wallet/admin", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          action: "deposit-wallet",
+          discordId: walletModalRow.discordId,
+          staffName: walletModalRow.staffName,
+          types,
+          startDate,
+          endDate,
+        }),
+      });
+
+      const payload = await res.json();
+
+      if (!res.ok || !payload.ok) {
+        throw new Error(payload.message || "發送到錢包失敗");
+      }
+
+      setWalletModalRow(null);
+      await loadPayrollData();
+      alert(
+        `已發送到員工錢包：${money(payload.result?.amount || 0)}（${
+          payload.result?.count || 0
+        } 筆）`
+      );
+    } catch (error) {
+      console.error("send wallet failed:", error);
+      alert(error instanceof Error ? error.message : "發送到錢包失敗");
+    } finally {
+      setWalletSendingId(null);
+    }
   }
 
   if (checking) {
@@ -679,7 +844,7 @@ export default function AdminPayrollPage() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="min-w-[1180px]">
+              <table className="min-w-[1280px]">
                 <thead>
                   <tr>
                     <th>申請時間</th>
@@ -776,7 +941,7 @@ export default function AdminPayrollPage() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="min-w-[1180px]">
+              <table className="min-w-[1280px]">
                 <thead>
                   <tr>
                     <th>名字</th>
@@ -789,6 +954,7 @@ export default function AdminPayrollPage() {
                     <th>扣除</th>
                     <th>應發總額</th>
                     <th>筆數</th>
+                    <th>錢包</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -823,6 +989,16 @@ export default function AdminPayrollPage() {
                           {row.bonusCount + row.deductionCount} 獎扣
                         </div>
                       </td>
+                      <td>
+                        <button
+                          onClick={() => openWalletModal(row)}
+                          disabled={walletSendingId === row.discordId}
+                          className="inline-flex items-center gap-2 rounded-full bg-sky-500 px-3 py-2 text-xs font-bold text-white hover:bg-sky-600 disabled:opacity-60"
+                        >
+                          <WalletCards size={14} />
+                          發送
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -831,6 +1007,91 @@ export default function AdminPayrollPage() {
           )}
         </section>
       </div>
+
+      {walletModalRow ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 py-6">
+          <div className="w-full max-w-md rounded-[28px] border border-sky-100 bg-white p-5 shadow-2xl">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-black text-sky-600">發送到錢包</p>
+                <h3 className="mt-1 text-xl font-black text-slate-900">
+                  {walletModalRow.staffName}
+                </h3>
+                <p className="mt-1 text-xs font-semibold text-slate-400">
+                  {walletModalRow.discordId}
+                </p>
+              </div>
+
+              <button
+                onClick={() => setWalletModalRow(null)}
+                disabled={walletSendingId === walletModalRow.discordId}
+                className="rounded-full border border-sky-100 px-3 py-2 text-xs font-bold text-slate-500 hover:bg-sky-50 disabled:opacity-60"
+              >
+                關閉
+              </button>
+            </div>
+
+            <div className="mt-5 space-y-3">
+              {WALLET_OPTIONS.map((option) => {
+                const rawAmount = Number(walletModalRow[option.amountKey] || 0);
+                const signedAmount =
+                  option.key === "deduction" ? -rawAmount : rawAmount;
+
+                return (
+                  <label
+                    key={option.key}
+                    className="flex cursor-pointer items-center justify-between gap-4 rounded-[18px] border border-sky-100 bg-sky-50/60 px-4 py-3"
+                  >
+                    <span className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        checked={walletOptions[option.key]}
+                        onChange={() => toggleWalletOption(option.key)}
+                        className="h-4 w-4 accent-sky-500"
+                      />
+                      <span className="font-black text-slate-700">
+                        {option.label}
+                      </span>
+                    </span>
+                    <span
+                      className={
+                        signedAmount < 0
+                          ? "font-black text-rose-500"
+                          : "font-black text-sky-600"
+                      }
+                    >
+                      {money(signedAmount)}
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+
+            <div className="mt-5 rounded-[18px] bg-slate-50 px-4 py-3">
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-sm font-black text-slate-600">總計</span>
+                <span className="text-lg font-black text-sky-600">
+                  {money(getWalletSelectionTotal(walletModalRow))}
+                </span>
+              </div>
+              <p className="mt-1 text-xs font-semibold text-slate-400">
+                備注：後台手動新增
+              </p>
+            </div>
+
+            <button
+              onClick={sendWalletToStaff}
+              disabled={walletSendingId === walletModalRow.discordId}
+              className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-full bg-sky-500 px-4 py-3 text-sm font-black text-white hover:bg-sky-600 disabled:opacity-60"
+            >
+              <WalletCards size={16} />
+              {walletSendingId === walletModalRow.discordId
+                ? "發送中..."
+                : "發送"}
+            </button>
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }
