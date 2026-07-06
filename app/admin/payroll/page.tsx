@@ -471,8 +471,10 @@ export default function AdminPayrollPage() {
     }
   }
 
-  async function loadPayrollData() {
-    setLoading(true);
+  async function loadPayrollData({ silent = false } = {}) {
+    if (!silent) {
+      setLoading(true);
+    }
     await loadWithdrawRequests();
 
     const startIso = dateToStartIso(startDate);
@@ -518,7 +520,9 @@ export default function AdminPayrollPage() {
         .limit(10000),
     ]);
 
-    setLoading(false);
+    if (!silent) {
+      setLoading(false);
+    }
 
     if (staffRes.error) {
       console.error("load staff error:", staffRes.error);
@@ -705,11 +709,14 @@ export default function AdminPayrollPage() {
       }
 
       setWalletModalRow(null);
-      await loadPayrollData();
+      await loadPayrollData({ silent: true });
       window.scrollTo({ top: scrollTop, behavior: "auto" });
       requestAnimationFrame(() => {
         window.scrollTo({ top: scrollTop, behavior: "auto" });
       });
+      setTimeout(() => {
+        window.scrollTo({ top: scrollTop, behavior: "auto" });
+      }, 120);
       alert(
         `已發送到員工錢包：${money(payload.result?.amount || 0)}（${
           payload.result?.count || 0
@@ -769,7 +776,7 @@ export default function AdminPayrollPage() {
               </button>
 
               <button
-                onClick={loadPayrollData}
+                onClick={() => loadPayrollData()}
                 disabled={loading}
                 className="inline-flex items-center justify-center gap-2 rounded-full bg-sky-500 px-5 py-2.5 text-sm font-bold text-white shadow-sm shadow-sky-200 hover:bg-sky-600 disabled:opacity-60"
               >
@@ -821,7 +828,7 @@ export default function AdminPayrollPage() {
 
             <div className="flex items-end">
               <button
-                onClick={loadPayrollData}
+                onClick={() => loadPayrollData()}
                 disabled={loading}
                 className="flex w-full items-center justify-center gap-2 rounded-full bg-sky-500 px-5 py-2.5 text-sm font-bold text-white hover:bg-sky-600 disabled:opacity-60"
               >
