@@ -58,6 +58,7 @@ type SalaryOrder = {
   staff_name?: string | null;
   customer_name?: string | null;
   customer_id?: string | null;
+  order_type?: string | null;
   service_name?: string | null;
   service?: string | null;
   order_amount?: number | null;
@@ -87,6 +88,8 @@ type Bonus = {
 
 type OrderForm = {
   discord_id: string;
+  customer_name: string;
+  entry_type: "order" | "tip";
   service_name: string;
   order_amount: string;
   salary_rate: string;
@@ -336,6 +339,8 @@ export default function AdminSalaryPage() {
 
   const [orderForm, setOrderForm] = useState<OrderForm>({
     discord_id: "",
+    customer_name: "",
+    entry_type: "order",
     service_name: "",
     order_amount: "",
     salary_rate: "90",
@@ -626,6 +631,8 @@ export default function AdminSalaryPage() {
     setEditingOrderId(null);
     setOrderForm({
       discord_id: "",
+      customer_name: "",
+      entry_type: "order",
       service_name: "",
       order_amount: "",
       salary_rate: "90",
@@ -639,6 +646,11 @@ export default function AdminSalaryPage() {
     setEditingOrderId(order.id);
     setOrderForm({
       discord_id: order.discord_id || "",
+      customer_name: order.customer_name || "",
+      entry_type:
+        order.order_type === "打賞" || getOrderService(order).includes("打賞")
+          ? "tip"
+          : "order",
       service_name: getOrderService(order) === "-" ? "" : getOrderService(order),
       order_amount: String(getOrderAmount(order) || ""),
       salary_rate: String(
@@ -680,14 +692,20 @@ export default function AdminSalaryPage() {
       (item) => item.discord_id === orderForm.discord_id
     );
 
-    const salaryRate = getStaffRate(
+    const regularRate = getStaffRate(
       selectedStaff,
       orderForm.order_finished_at,
       orders
     );
+    const salaryRate =
+      orderForm.entry_type === "tip" && regularRate !== 95 ? 90 : regularRate;
 
     const staffName = getStaffNameByDiscordId(staffList, orderForm.discord_id);
     const staffSalary = Math.round(orderAmount * (salaryRate / 100));
+    const serviceName =
+      orderForm.entry_type === "tip" && !orderForm.service_name.includes("打賞")
+        ? `打賞：${orderForm.service_name || "手動打賞"}`
+        : orderForm.service_name;
     const finishedAt = datetimeToIso(orderForm.order_finished_at);
     const manualOrderNo = `MANUAL-${Date.now()}`;
 
@@ -700,15 +718,20 @@ export default function AdminSalaryPage() {
           discord_id: orderForm.discord_id,
           staff_name: staffName,
           assigned_player: orderForm.discord_id,
-          service_name: orderForm.service_name || null,
-          service: orderForm.service_name || null,
+          customer_name: orderForm.customer_name || "手動新增",
+          order_type: orderForm.entry_type === "tip" ? "打賞" : "訂單",
+          service_name: serviceName || null,
+          service: serviceName || null,
           order_amount: orderAmount,
           price: orderAmount,
           completed_at: finishedAt,
           staff_salary: staffSalary,
           bonus_amount: bonusAmount,
           salary_rate: salaryRate,
-          salary_level: `${salaryRate}%`,
+          salary_level:
+            orderForm.entry_type === "tip"
+              ? salaryRate === 95 ? "打賞特別設定 95%" : "打賞固定 90%"
+              : `${salaryRate}%`,
           platform_income: orderAmount,
           platform_expense: staffSalary + bonusAmount,
           status: orderForm.status || "未發薪",
@@ -743,15 +766,19 @@ export default function AdminSalaryPage() {
       staff_name: staffName,
       assigned_player: orderForm.discord_id,
       customer_id: "manual",
-      customer_name: "手動新增",
-      service_name: orderForm.service_name || null,
-      service: orderForm.service_name || null,
+      customer_name: orderForm.customer_name || "手動新增",
+      order_type: orderForm.entry_type === "tip" ? "打賞" : "訂單",
+      service_name: serviceName || null,
+      service: serviceName || null,
       order_amount: orderAmount,
       price: orderAmount,
       staff_salary: staffSalary,
       bonus_amount: bonusAmount,
       salary_rate: salaryRate,
-      salary_level: `${salaryRate}%`,
+      salary_level:
+        orderForm.entry_type === "tip"
+          ? salaryRate === 95 ? "打賞特別設定 95%" : "打賞固定 90%"
+          : `${salaryRate}%`,
       platform_income: orderAmount,
       platform_expense: staffSalary + bonusAmount,
       status: orderForm.status || "未發薪",
@@ -1130,6 +1157,28 @@ export default function AdminSalaryPage() {
                 </select>
               </Field>
 
+              <Field label="老闆">
+                <input
+                  value={orderForm.customer_name}
+                  onChange={(event) =>
+                    updateOrderForm("customer_name", event.target.value)
+                  }
+                  placeholder="輸入老闆名稱或 Discord 暱稱"
+                />
+              </Field>
+
+              <Field label="類型">
+                <select
+                  value={orderForm.entry_type}
+                  onChange={(event) =>
+                    updateOrderForm("entry_type", event.target.value as "order" | "tip")
+                  }
+                >
+                  <option value="order">訂單</option>
+                  <option value="tip">打賞</option>
+                </select>
+              </Field>
+
               <Field label="服務名稱">
                 <input
                   value={orderForm.service_name}
@@ -1154,11 +1203,16 @@ export default function AdminSalaryPage() {
               <Field label="員工抽成">
                 <div className="flex min-h-[40px] items-center rounded-xl border border-sky-100 bg-sky-50/60 px-3 text-sm font-black text-sky-700">
                   {orderForm.discord_id
-                    ? `${getStaffRate(
-                        staffList.find((item) => item.discord_id === orderForm.discord_id),
-                        orderForm.order_finished_at,
-                        orders
-                      )}%`
+                    ? `${(() => {
+                        const regularRate = getStaffRate(
+                          staffList.find((item) => item.discord_id === orderForm.discord_id),
+                          orderForm.order_finished_at,
+                          orders
+                        );
+                        return orderForm.entry_type === "tip" && regularRate !== 95
+                          ? 90
+                          : regularRate;
+                      })()}%`
                     : "請先選擇員工"}
                 </div>
               </Field>

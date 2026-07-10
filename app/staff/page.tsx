@@ -181,6 +181,17 @@ const SERVICE_GROUPS: Record<string, ServiceItem[]> = {
     { key: "steam_horror", name: "恐怖遊戲", category: "Steam" },
     { key: "steam_party", name: "派對遊戲", category: "Steam" },
   ],
+  王者榮耀: [
+    { key: "hok_entertain", name: "娛樂", category: "王者榮耀" },
+    { key: "hok_skill", name: "技術", category: "王者榮耀" },
+  ],
+  第五人格: [
+    { key: "identity_v_entertain", name: "娛樂", category: "第五人格" },
+    { key: "identity_v_rank_4", name: "四階", category: "第五人格" },
+    { key: "identity_v_rank_5", name: "五階", category: "第五人格" },
+    { key: "identity_v_rank_6", name: "六階", category: "第五人格" },
+    { key: "identity_v_rank_7", name: "七階", category: "第五人格" },
+  ],
   其他項目: [
     { key: "pubgm", name: "PUBG M", category: "其他項目" },
     { key: "naraka", name: "NARAKA", category: "其他項目" },
