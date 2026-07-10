@@ -16,6 +16,13 @@ import {
   XCircle,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import {
+  dateInputToTaipeiEndIso,
+  dateInputToTaipeiStartIso,
+  formatTaipeiDateTime,
+  getTaipeiDateInput,
+  getTaipeiMonthStartInput,
+} from "@/lib/taipeiTime";
 
 const DEEPNIGHT_GUILD_ID =
   process.env.NEXT_PUBLIC_DEEPNIGHT_GUILD_ID ||
@@ -139,28 +146,19 @@ type SessionLike = {
 };
 
 function getTodayInput() {
-  const now = new Date();
-  const offset = now.getTimezoneOffset();
-  const local = new Date(now.getTime() - offset * 60 * 1000);
-  return local.toISOString().slice(0, 10);
+  return getTaipeiDateInput();
 }
 
 function getMonthStartInput() {
-  const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth(), 1);
-  const offset = start.getTimezoneOffset();
-  const local = new Date(start.getTime() - offset * 60 * 1000);
-  return local.toISOString().slice(0, 10);
+  return getTaipeiMonthStartInput();
 }
 
 function dateToStartIso(value: string) {
-  if (!value) return null;
-  return new Date(`${value}T00:00:00`).toISOString();
+  return dateInputToTaipeiStartIso(value);
 }
 
 function dateToEndIso(value: string) {
-  if (!value) return null;
-  return new Date(`${value}T23:59:59`).toISOString();
+  return dateInputToTaipeiEndIso(value);
 }
 
 function money(value: number | string | null | undefined) {
@@ -168,15 +166,8 @@ function money(value: number | string | null | undefined) {
 }
 
 function formatDateTime(value?: string | null) {
-  if (!value) return "-";
-
-  return new Date(value).toLocaleString("zh-TW", {
+  return formatTaipeiDateTime(value, {
     hour12: false,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
   });
 }
 
@@ -294,6 +285,7 @@ export default function AdminPayrollPage() {
   const [walletModalRow, setWalletModalRow] = useState<PayrollRow | null>(null);
   const [walletOptions, setWalletOptions] =
     useState<Record<WalletOptionKey, boolean>>(DEFAULT_WALLET_OPTIONS);
+  const [walletManualAmount, setWalletManualAmount] = useState("");
   const [walletSendingId, setWalletSendingId] = useState<string | null>(null);
 
   const rows = useMemo(() => {
@@ -641,6 +633,7 @@ export default function AdminPayrollPage() {
   function openWalletModal(row: PayrollRow) {
     setWalletModalRow(row);
     setWalletOptions(DEFAULT_WALLET_OPTIONS);
+    setWalletManualAmount("");
   }
 
   function toggleWalletOption(key: WalletOptionKey) {
@@ -657,22 +650,30 @@ export default function AdminPayrollPage() {
   }
 
   function getWalletSelectionTotal(row: PayrollRow) {
-    return WALLET_OPTIONS.reduce((sum, option) => {
+    const selectedTotal = WALLET_OPTIONS.reduce((sum, option) => {
       if (!walletOptions[option.key]) return sum;
 
       const amount = Number(row[option.amountKey] || 0);
       return option.key === "deduction" ? sum - amount : sum + amount;
     }, 0);
+
+    return selectedTotal + getWalletManualAmount();
+  }
+
+  function getWalletManualAmount() {
+    const amount = Number(walletManualAmount || 0);
+    return Number.isFinite(amount) ? Math.max(0, amount) : 0;
   }
 
   async function sendWalletToStaff() {
     if (!walletModalRow) return;
 
     const types = getSelectedWalletTypes();
+    const manualAmount = getWalletManualAmount();
     const scrollTop = window.scrollY;
 
-    if (types.length === 0) {
-      alert("請至少勾選一個發送項目");
+    if (types.length === 0 && manualAmount <= 0) {
+      alert("請至少勾選一個發送項目，或輸入手動發送金額");
       return;
     }
 
@@ -697,6 +698,7 @@ export default function AdminPayrollPage() {
           discordId: walletModalRow.discordId,
           staffName: walletModalRow.staffName,
           types,
+          manualAmount,
           startDate,
           endDate,
         }),
@@ -1077,6 +1079,22 @@ export default function AdminPayrollPage() {
                   </label>
                 );
               })}
+            </div>
+
+            <div className="mt-5 rounded-[18px] border border-sky-100 bg-white px-4 py-3">
+              <label className="text-sm font-black text-slate-700">
+                手動發送金額
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="1"
+                inputMode="numeric"
+                value={walletManualAmount}
+                onChange={(event) => setWalletManualAmount(event.target.value)}
+                placeholder="不另外發送可留空"
+                className="mt-2 w-full rounded-2xl border border-sky-100 px-3 py-2 text-sm font-bold text-slate-900 outline-none focus:border-sky-400"
+              />
             </div>
 
             <div className="mt-5 rounded-[18px] bg-slate-50 px-4 py-3">

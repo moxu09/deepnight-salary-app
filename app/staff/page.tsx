@@ -16,6 +16,14 @@ import {
   HandCoins,
 } from "lucide-react";
 import StaffAvatar from "@/components/StaffAvatar";
+import {
+  formatTaipeiDateTime,
+  getNextTaipeiMonthText,
+  getTaipeiMonthInput,
+  getTaipeiMonthText,
+  getTaipeiYear,
+  monthInputToTaipeiRange,
+} from "@/lib/taipeiTime";
 
 const DEEPNIGHT_GUILD_ID =
   process.env.NEXT_PUBLIC_DEEPNIGHT_GUILD_ID ||
@@ -185,35 +193,11 @@ const SERVICE_GROUPS: Record<string, ServiceItem[]> = {
 const ALL_SERVICES = Object.values(SERVICE_GROUPS).flat();
 
 function getCurrentMonthInput() {
-  const now = new Date();
-
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  return getTaipeiMonthInput();
 }
 
 function getMonthRange(monthText: string) {
-  const [yearText, monthValueText] = monthText.split("-");
-  const year = Number(yearText);
-  const monthValue = Number(monthValueText);
-
-  const source =
-    Number.isInteger(year) && Number.isInteger(monthValue) && monthValue >= 1
-      ? new Date(year, monthValue - 1, 1)
-      : new Date();
-
-  const start = new Date(source.getFullYear(), source.getMonth(), 1, 0, 0, 0);
-  const end = new Date(
-    source.getFullYear(),
-    source.getMonth() + 1,
-    0,
-    23,
-    59,
-    59
-  );
-
-  return {
-    startIso: start.toISOString(),
-    endIso: end.toISOString(),
-  };
+  return monthInputToTaipeiRange(monthText);
 }
 
 function formatMonthLabel(monthText: string) {
@@ -232,19 +216,8 @@ function money(value: number | null | undefined) {
 }
 
 function formatDateTime(value?: string | null) {
-  if (!value) return "-";
-
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) return "-";
-
-  return date.toLocaleString("zh-TW", {
+  return formatTaipeiDateTime(value, {
     hour12: true,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
   });
 }
 
@@ -293,22 +266,8 @@ function getManualRate(tier?: string | null) {
   return null;
 }
 
-function getTaipeiMonthText(date = new Date()) {
-  const taipeiDate = new Date(date.getTime() + 8 * 60 * 60 * 1000);
-  return taipeiDate.toISOString().slice(0, 7);
-}
-
 function getNextMonthTextFromIso(isoText?: string | null) {
-  if (!isoText) return "";
-
-  const date = new Date(isoText);
-  const taipeiDate = new Date(date.getTime() + 8 * 60 * 60 * 1000);
-
-  const year = taipeiDate.getUTCFullYear();
-  const month = taipeiDate.getUTCMonth();
-
-  const next = new Date(Date.UTC(year, month + 1, 1));
-  return next.toISOString().slice(0, 7);
+  return isoText ? getNextTaipeiMonthText(isoText) : "";
 }
 
 function getOrderSourceDate(order: SalaryOrder) {
@@ -451,6 +410,7 @@ export default function StaffPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [walletLoading, setWalletLoading] = useState(false);
   const [withdrawing, setWithdrawing] = useState(false);
+  const [withdrawAmount, setWithdrawAmount] = useState("");
   const [salaryWallet, setSalaryWallet] = useState<SalaryWalletData | null>(null);
   const [selectedMonth, setSelectedMonth] = useState(getCurrentMonthInput());
 
@@ -495,7 +455,7 @@ export default function StaffPage() {
   }, [allSalaryOrders]);
 
   const totalYearSalary = useMemo(() => {
-    const year = new Date().getFullYear();
+    const year = getTaipeiYear();
 
     return allSalaryOrders
       .filter((order) => {
@@ -504,7 +464,7 @@ export default function StaffPage() {
 
         if (!sourceDate) return false;
 
-        return new Date(sourceDate).getFullYear() === year;
+        return getTaipeiYear(sourceDate) === year;
       })
       .reduce((sum, order) => sum + Number(order.staff_salary || 0), 0);
   }, [allSalaryOrders]);
@@ -702,7 +662,21 @@ export default function StaffPage() {
   async function requestWithdraw() {
     if (!salaryWallet) return;
 
-    if (!confirm(`確定要申請提領 ${money(salaryWallet.totals.available)}？`)) {
+    const available = Math.floor(Number(salaryWallet.totals.available || 0));
+    const amountNumber = Number(withdrawAmount || 0);
+    const amount = Math.floor(amountNumber);
+
+    if (!Number.isFinite(amountNumber) || amount <= 0) {
+      alert("請輸入要提領的金額");
+      return;
+    }
+
+    if (amount > available) {
+      alert(`提領金額不能超過可提領薪資 ${money(available)}`);
+      return;
+    }
+
+    if (!confirm(`確定要申請提領 ${money(amount)}？`)) {
       return;
     }
 
@@ -722,7 +696,7 @@ export default function StaffPage() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({}),
+        body: JSON.stringify({ amount }),
       });
 
       const payload = await res.json();
@@ -732,6 +706,7 @@ export default function StaffPage() {
       }
 
       setSalaryWallet(payload.wallet as SalaryWalletData);
+      setWithdrawAmount("");
       alert("提領申請已送出");
     } catch (error: unknown) {
       console.error("request withdraw error:", error);
@@ -1004,7 +979,25 @@ export default function StaffPage() {
               </p>
             </div>
 
-            <div className="flex flex-col items-start gap-2 sm:items-end">
+            <div className="flex w-full flex-col items-stretch gap-2 sm:max-w-xs sm:items-end">
+              <label className="w-full text-xs font-bold text-slate-500">
+                提領金額
+                <input
+                  type="number"
+                  min="1"
+                  step="1"
+                  inputMode="numeric"
+                  value={withdrawAmount}
+                  onChange={(event) => setWithdrawAmount(event.target.value)}
+                  placeholder={
+                    salaryWallet
+                      ? `最多 ${money(salaryWallet.totals.available)}`
+                      : "輸入金額"
+                  }
+                  className="mt-1"
+                />
+              </label>
+
               <button
                 onClick={requestWithdraw}
                 disabled={
@@ -1013,16 +1006,17 @@ export default function StaffPage() {
                   !salaryWallet ||
                   !salaryWallet.withdrawWindow.isOpen ||
                   !!salaryWallet.pendingRequest ||
-                  Number(salaryWallet.totals.available || 0) <= 0
+                  Number(salaryWallet.totals.available || 0) <= 0 ||
+                  Number(withdrawAmount || 0) <= 0
                 }
-                className="inline-flex items-center justify-center gap-2 rounded-full bg-sky-500 px-5 py-2.5 text-sm font-bold text-white shadow-sm shadow-sky-200 hover:bg-sky-600 disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-sky-500 px-5 py-2.5 text-sm font-bold text-white shadow-sm shadow-sky-200 hover:bg-sky-600 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <WalletCards size={16} />
                 {withdrawing ? "申請中..." : "提領"}
               </button>
 
               <p className="text-xs font-semibold text-slate-400">
-                每月 2 到 10 號可以提領，提領需要三到五個工作天。
+                每月 2 到 10 號可以提領，提領需要三個工作天。
               </p>
             </div>
           </div>

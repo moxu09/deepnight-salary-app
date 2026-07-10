@@ -510,6 +510,93 @@ tbody tr:hover {
 }
 
 /* =========================================================
+   響應式護欄：避免前後台在手機或窄視窗破版
+   ========================================================= */
+
+main,
+section,
+article,
+header,
+footer,
+nav,
+div,
+form {
+  min-width: 0;
+}
+
+p,
+span,
+td,
+th,
+label,
+button,
+a {
+  overflow-wrap: anywhere;
+}
+
+.grid,
+.flex {
+  min-width: 0;
+}
+
+.overflow-x-auto,
+.overflow-auto {
+  max-width: 100%;
+  -webkit-overflow-scrolling: touch;
+}
+
+.overflow-x-auto > table,
+.overflow-auto > table {
+  min-width: 720px;
+}
+
+@media (max-width: 768px) {
+  header,
+  section,
+  article,
+  form,
+  .rounded-\[28px\],
+  .rounded-\[24px\],
+  .rounded-3xl {
+    max-width: 100% !important;
+  }
+
+  header .flex,
+  section .flex {
+    min-width: 0;
+  }
+
+  button,
+  a[role="button"] {
+    max-width: 100%;
+    white-space: normal;
+  }
+}
+
+@media (max-width: 520px) {
+  main {
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+  }
+
+  .grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  button,
+  a[role="button"] {
+    width: 100%;
+  }
+
+  .overflow-x-auto,
+  .overflow-auto {
+    margin-left: -2px;
+    margin-right: -2px;
+    padding-bottom: 6px;
+  }
+}
+
+/* =========================================================
    Badge / 狀態標籤
    ========================================================= */
 

@@ -13,6 +13,12 @@ import {
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import StaffAvatar from "@/components/StaffAvatar";
+import {
+  dateInputToTaipeiEndIso,
+  dateInputToTaipeiStartIso,
+  getTaipeiDateInput,
+  getTaipeiMonthStartInput,
+} from "@/lib/taipeiTime";
 
 const DEEPNIGHT_GUILD_ID =
   process.env.NEXT_PUBLIC_DEEPNIGHT_GUILD_ID ||
@@ -67,28 +73,19 @@ type StaffSalaryRow = {
 };
 
 function getTodayInput() {
-  const now = new Date();
-  const offset = now.getTimezoneOffset();
-  const local = new Date(now.getTime() - offset * 60 * 1000);
-  return local.toISOString().slice(0, 10);
+  return getTaipeiDateInput();
 }
 
 function getMonthStartInput() {
-  const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth(), 1);
-  const offset = start.getTimezoneOffset();
-  const local = new Date(start.getTime() - offset * 60 * 1000);
-  return local.toISOString().slice(0, 10);
+  return getTaipeiMonthStartInput();
 }
 
 function dateToStartIso(value: string) {
-  if (!value) return null;
-  return new Date(`${value}T00:00:00`).toISOString();
+  return dateInputToTaipeiStartIso(value);
 }
 
 function dateToEndIso(value: string) {
-  if (!value) return null;
-  return new Date(`${value}T23:59:59`).toISOString();
+  return dateInputToTaipeiEndIso(value);
 }
 
 function money(value: number | string | null | undefined) {

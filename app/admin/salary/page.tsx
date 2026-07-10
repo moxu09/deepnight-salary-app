@@ -19,6 +19,18 @@ import {
   WalletCards,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import {
+  dateInputToTaipeiEndIso,
+  dateInputToTaipeiStartIso,
+  dateTimeInputToTaipeiIso,
+  formatTaipeiDateTime,
+  getNextTaipeiMonthText,
+  getTaipeiDateInput,
+  getTaipeiDateTimeInput,
+  getTaipeiMonthStartInput,
+  getTaipeiMonthText,
+  getTaipeiYear,
+} from "@/lib/taipeiTime";
 
 const DEEPNIGHT_GUILD_ID =
   process.env.NEXT_PUBLIC_DEEPNIGHT_GUILD_ID ||
@@ -105,40 +117,27 @@ type PayForm = {
 };
 
 function getTodayInput() {
-  const now = new Date();
-  const offset = now.getTimezoneOffset();
-  const local = new Date(now.getTime() - offset * 60 * 1000);
-  return local.toISOString().slice(0, 10);
+  return getTaipeiDateInput();
 }
 
 function getNowInput() {
-  const now = new Date();
-  const offset = now.getTimezoneOffset();
-  const local = new Date(now.getTime() - offset * 60 * 1000);
-  return local.toISOString().slice(0, 16);
+  return getTaipeiDateTimeInput();
 }
 
 function getMonthStartInput() {
-  const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth(), 1);
-  const offset = start.getTimezoneOffset();
-  const local = new Date(start.getTime() - offset * 60 * 1000);
-  return local.toISOString().slice(0, 10);
+  return getTaipeiMonthStartInput();
 }
 
 function dateToStartIso(value: string) {
-  if (!value) return null;
-  return new Date(`${value}T00:00:00`).toISOString();
+  return dateInputToTaipeiStartIso(value);
 }
 
 function dateToEndIso(value: string) {
-  if (!value) return null;
-  return new Date(`${value}T23:59:59`).toISOString();
+  return dateInputToTaipeiEndIso(value);
 }
 
 function datetimeToIso(value: string) {
-  if (!value) return new Date().toISOString();
-  return new Date(value).toISOString();
+  return dateTimeInputToTaipeiIso(value);
 }
 
 function money(value: number | string | null | undefined) {
@@ -146,19 +145,8 @@ function money(value: number | string | null | undefined) {
 }
 
 function formatDateTime(value?: string | null) {
-  if (!value) return "-";
-
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) return "-";
-
-  return date.toLocaleString("zh-TW", {
+  return formatTaipeiDateTime(value, {
     hour12: true,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
   });
 }
 
@@ -187,22 +175,8 @@ function getManualCommissionRate(tier?: string | null) {
   return null;
 }
 
-function getTaipeiMonthText(date = new Date()) {
-  const taipeiDate = new Date(date.getTime() + 8 * 60 * 60 * 1000);
-  return taipeiDate.toISOString().slice(0, 7);
-}
-
 function getNextMonthTextFromIso(isoText?: string | null) {
-  if (!isoText) return "";
-
-  const date = new Date(isoText);
-  const taipeiDate = new Date(date.getTime() + 8 * 60 * 60 * 1000);
-
-  const year = taipeiDate.getUTCFullYear();
-  const month = taipeiDate.getUTCMonth();
-
-  const next = new Date(Date.UTC(year, month + 1, 1));
-  return next.toISOString().slice(0, 7);
+  return isoText ? getNextTaipeiMonthText(isoText) : "";
 }
 
 function getOrderSourceDate(order: SalaryOrder) {
@@ -236,7 +210,7 @@ function getStaffYearSalaryTotal(
     .filter((order) => {
       const sourceDate = getOrderSourceDate(order);
       if (!sourceDate) return false;
-      return new Date(sourceDate).getFullYear() === year;
+      return getTaipeiYear(sourceDate) === year;
     })
     .reduce((sum, order) => sum + Number(order.staff_salary || 0), 0);
 }
@@ -293,7 +267,7 @@ function getStaffRate(
     return 80;
   }
 
-  const previousYear = finishedDate.getFullYear() - 1;
+  const previousYear = getTaipeiYear(finishedAt) - 1;
   const previousYearSalary = getStaffYearSalaryTotal(
     orderList,
     discordId,
