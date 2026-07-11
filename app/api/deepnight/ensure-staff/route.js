@@ -33,10 +33,7 @@ function getAccessTokenFromRequest(request, body) {
   }
 
   return String(
-    body?.access_token ||
-      body?.token ||
-      body?.session?.access_token ||
-      ""
+    body?.access_token || body?.token || body?.session?.access_token || ""
   ).trim();
 }
 
@@ -129,8 +126,7 @@ async function handler(request) {
     return json(
       {
         ok: false,
-        message:
-          "伺服器缺少員工身分組設定，請設定 DEEPNIGHT_STAFF_ROLE_IDS。",
+        message: "伺服器缺少員工身分組設定，請設定 DEEPNIGHT_STAFF_ROLE_IDS。",
       },
       500
     );

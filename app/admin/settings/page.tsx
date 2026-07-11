@@ -11,6 +11,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { getDiscordIdFromSession } from "@/lib/discordSession";
 import { formatTaipeiDateTime } from "@/lib/taipeiTime";
 
 type SalarySettings = {
@@ -21,20 +22,6 @@ type SalarySettings = {
   payday_note?: string | null;
   updated_at?: string | null;
 };
-
-function getDiscordIdFromSession(session: any) {
-  const user = session?.user;
-  const metadata = user?.user_metadata || {};
-
-  return String(
-    metadata.provider_id ||
-      metadata.sub ||
-      metadata.user_id ||
-      user?.identities?.[0]?.identity_data?.sub ||
-      user?.identities?.[0]?.identity_data?.id ||
-      ""
-  ).trim();
-}
 
 function formatDateTime(value?: string | null) {
   const formatted = formatTaipeiDateTime(value, {

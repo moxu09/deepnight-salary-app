@@ -19,6 +19,7 @@ import {
   WalletCards,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { getDiscordIdFromSession } from "@/lib/discordSession";
 import {
   dateInputToTaipeiEndIso,
   dateInputToTaipeiStartIso,
@@ -36,8 +37,7 @@ const DEEPNIGHT_GUILD_ID =
   process.env.NEXT_PUBLIC_DEEPNIGHT_GUILD_ID ||
   process.env.NEXT_PUBLIC_GUILD_ID ||
   "1501098191813214312";
-const DEEPNIGHT_PLAY_ORDER_FILTER =
-  `guild_id.eq.${DEEPNIGHT_GUILD_ID},guild_id.is.null`;
+const DEEPNIGHT_PLAY_ORDER_FILTER = `guild_id.eq.${DEEPNIGHT_GUILD_ID},guild_id.is.null`;
 
 type Staff = {
   id: string;
@@ -183,7 +183,9 @@ function getNextMonthTextFromIso(isoText?: string | null) {
 }
 
 function getOrderSourceDate(order: SalaryOrder) {
-  return order.order_finished_at || order.completed_at || order.created_at || null;
+  return (
+    order.order_finished_at || order.completed_at || order.created_at || null
+  );
 }
 
 function getStaffTotalOrderAmountBeforeDate(
@@ -281,7 +283,11 @@ function getStaffRate(
     return 90;
   }
 
-  const firstReach10kDate = getFirstReachAmountDate(orderList, discordId, 10000);
+  const firstReach10kDate = getFirstReachAmountDate(
+    orderList,
+    discordId,
+    10000
+  );
 
   if (firstReach10kDate) {
     const reachNextMonth = getNextMonthTextFromIso(firstReach10kDate);
@@ -305,20 +311,6 @@ function getOrderService(order: SalaryOrder) {
 
 function getOrderCustomer(order: SalaryOrder) {
   return order.customer_name || order.customer_id || "-";
-}
-
-function getDiscordIdFromSession(session: any) {
-  const user = session?.user;
-  const metadata = user?.user_metadata || {};
-
-  return String(
-    metadata.provider_id ||
-      metadata.sub ||
-      metadata.user_id ||
-      user?.identities?.[0]?.identity_data?.sub ||
-      user?.identities?.[0]?.identity_data?.id ||
-      ""
-  ).trim();
 }
 
 export default function AdminSalaryPage() {
@@ -420,7 +412,10 @@ export default function AdminSalaryPage() {
   }, [orders]);
 
   const totalSalary = useMemo(() => {
-    return orders.reduce((sum, order) => sum + Number(order.staff_salary || 0), 0);
+    return orders.reduce(
+      (sum, order) => sum + Number(order.staff_salary || 0),
+      0
+    );
   }, [orders]);
 
   const totalBonus = useMemo(() => {
@@ -651,10 +646,13 @@ export default function AdminSalaryPage() {
         order.order_type === "打賞" || getOrderService(order).includes("打賞")
           ? "tip"
           : "order",
-      service_name: getOrderService(order) === "-" ? "" : getOrderService(order),
+      service_name:
+        getOrderService(order) === "-" ? "" : getOrderService(order),
       order_amount: String(getOrderAmount(order) || ""),
       salary_rate: String(
-        getStaffRate(staffList.find((item) => item.discord_id === order.discord_id))
+        getStaffRate(
+          staffList.find((item) => item.discord_id === order.discord_id)
+        )
       ),
       bonus_amount: String(order.bonus_amount || 0),
       order_finished_at: order.order_finished_at
@@ -730,7 +728,9 @@ export default function AdminSalaryPage() {
           salary_rate: salaryRate,
           salary_level:
             orderForm.entry_type === "tip"
-              ? salaryRate === 95 ? "打賞特別設定 95%" : "打賞固定 90%"
+              ? salaryRate === 95
+                ? "打賞特別設定 95%"
+                : "打賞固定 90%"
               : `${salaryRate}%`,
           platform_income: orderAmount,
           platform_expense: staffSalary + bonusAmount,
@@ -758,7 +758,7 @@ export default function AdminSalaryPage() {
       return;
     }
 
-   const payload = {
+    const payload = {
       guild_id: DEEPNIGHT_GUILD_ID,
       order_id: manualOrderNo,
       order_no: manualOrderNo,
@@ -777,7 +777,9 @@ export default function AdminSalaryPage() {
       salary_rate: salaryRate,
       salary_level:
         orderForm.entry_type === "tip"
-          ? salaryRate === 95 ? "打賞特別設定 95%" : "打賞固定 90%"
+          ? salaryRate === 95
+            ? "打賞特別設定 95%"
+            : "打賞固定 90%"
           : `${salaryRate}%`,
       platform_income: orderAmount,
       platform_expense: staffSalary + bonusAmount,
@@ -908,7 +910,9 @@ export default function AdminSalaryPage() {
 
   async function markOrderPaid(order: SalaryOrder) {
     const ok = confirm(
-      `確定要將「${order.staff_name || order.discord_id}」這筆訂單標記為已發薪嗎？`
+      `確定要將「${
+        order.staff_name || order.discord_id
+      }」這筆訂單標記為已發薪嗎？`
     );
 
     if (!ok) return;
@@ -1171,7 +1175,10 @@ export default function AdminSalaryPage() {
                 <select
                   value={orderForm.entry_type}
                   onChange={(event) =>
-                    updateOrderForm("entry_type", event.target.value as "order" | "tip")
+                    updateOrderForm(
+                      "entry_type",
+                      event.target.value as "order" | "tip"
+                    )
                   }
                 >
                   <option value="order">訂單</option>
@@ -1205,11 +1212,14 @@ export default function AdminSalaryPage() {
                   {orderForm.discord_id
                     ? `${(() => {
                         const regularRate = getStaffRate(
-                          staffList.find((item) => item.discord_id === orderForm.discord_id),
+                          staffList.find(
+                            (item) => item.discord_id === orderForm.discord_id
+                          ),
                           orderForm.order_finished_at,
                           orders
                         );
-                        return orderForm.entry_type === "tip" && regularRate !== 95
+                        return orderForm.entry_type === "tip" &&
+                          regularRate !== 95
                           ? 90
                           : regularRate;
                       })()}%`
@@ -1262,8 +1272,8 @@ export default function AdminSalaryPage() {
                   {savingOrder
                     ? "儲存中..."
                     : editingOrderId
-                      ? "更新訂單"
-                      : "新增訂單"}
+                    ? "更新訂單"
+                    : "新增訂單"}
                 </button>
               </div>
             </div>

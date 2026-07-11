@@ -12,6 +12,7 @@ import {
   Trophy,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { getDiscordIdFromSession } from "@/lib/discordSession";
 import StaffAvatar from "@/components/StaffAvatar";
 import {
   dateInputToTaipeiEndIso,
@@ -24,8 +25,7 @@ const DEEPNIGHT_GUILD_ID =
   process.env.NEXT_PUBLIC_DEEPNIGHT_GUILD_ID ||
   process.env.NEXT_PUBLIC_GUILD_ID ||
   "1501098191813214312";
-const DEEPNIGHT_PLAY_ORDER_FILTER =
-  `guild_id.eq.${DEEPNIGHT_GUILD_ID},guild_id.is.null`;
+const DEEPNIGHT_PLAY_ORDER_FILTER = `guild_id.eq.${DEEPNIGHT_GUILD_ID},guild_id.is.null`;
 
 type Staff = {
   id: string;
@@ -109,7 +109,9 @@ function getOrderAmount(order: SalaryOrder) {
 }
 
 function getOrderDate(order: SalaryOrder) {
-  return order.order_finished_at || order.completed_at || order.created_at || null;
+  return (
+    order.order_finished_at || order.completed_at || order.created_at || null
+  );
 }
 
 function isSalaryOrder(order: SalaryOrder) {
@@ -129,7 +131,11 @@ function isSalaryOrder(order: SalaryOrder) {
   );
 }
 
-function isDateInRange(sourceDate: string | null, startIso: string, endIso: string) {
+function isDateInRange(
+  sourceDate: string | null,
+  startIso: string,
+  endIso: string
+) {
   if (!sourceDate) return false;
 
   const time = new Date(sourceDate).getTime();
@@ -147,20 +153,6 @@ function getCommissionTierLabel(value?: string | null) {
   if (value === "rate_90") return "90%";
   if (value === "manager_95") return "95% 主管";
   return "自動";
-}
-
-function getDiscordIdFromSession(session: any) {
-  const user = session?.user;
-  const metadata = user?.user_metadata || {};
-
-  return String(
-    metadata.provider_id ||
-      metadata.sub ||
-      metadata.user_id ||
-      user?.identities?.[0]?.identity_data?.sub ||
-      user?.identities?.[0]?.identity_data?.id ||
-      ""
-  ).trim();
 }
 
 export default function SalaryRankPage() {
@@ -186,7 +178,9 @@ export default function SalaryRankPage() {
       const staffOrders = orders
         .filter((order) => order.discord_id === staff.discord_id)
         .filter((order) => isSalaryOrder(order))
-        .filter((order) => isDateInRange(getOrderDate(order), startIso, endIso));
+        .filter((order) =>
+          isDateInRange(getOrderDate(order), startIso, endIso)
+        );
 
       const staffBonuses = bonuses
         .filter((bonus) => bonus.discord_id === staff.discord_id)
@@ -605,11 +599,17 @@ export default function SalaryRankPage() {
 
                       <td data-label="訂單數">{row.orderCount} 筆</td>
 
-                      <td data-label="接單金額" className="font-bold text-slate-700">
+                      <td
+                        data-label="接單金額"
+                        className="font-bold text-slate-700"
+                      >
                         {money(row.orderAmount)}
                       </td>
 
-                      <td data-label="訂單薪資" className="font-bold text-sky-600">
+                      <td
+                        data-label="訂單薪資"
+                        className="font-bold text-sky-600"
+                      >
                         {money(row.orderSalary)}
                       </td>
 
@@ -617,11 +617,17 @@ export default function SalaryRankPage() {
 
                       <td data-label="額外獎金">{money(row.extraBonus)}</td>
 
-                      <td data-label="總薪水" className="text-base font-black text-sky-700">
+                      <td
+                        data-label="總薪水"
+                        className="text-base font-black text-sky-700"
+                      >
                         {money(row.totalSalary)}
                       </td>
 
-                      <td data-label="未發薪" className="font-bold text-amber-600">
+                      <td
+                        data-label="未發薪"
+                        className="font-bold text-amber-600"
+                      >
                         {money(row.unpaidSalary)}
                       </td>
                     </tr>
@@ -645,13 +651,7 @@ function StatCard({ title, value }: { title: string; value: string }) {
   );
 }
 
-function Field({
-  label,
-  children,
-}: {
-  label: string;
-  children: ReactNode;
-}) {
+function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="block">
       <span className="mb-2 block text-sm font-bold text-slate-600">

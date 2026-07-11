@@ -41,7 +41,10 @@ function addDiscordSize(urlText: string) {
   }
 }
 
-function normalizeAvatarUrl(avatarUrl?: string | null, discordId?: string | null) {
+function normalizeAvatarUrl(
+  avatarUrl?: string | null,
+  discordId?: string | null
+) {
   const value = String(avatarUrl || "").trim();
   const id = String(discordId || "").trim();
 

@@ -16,6 +16,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { getDiscordIdFromSession } from "@/lib/discordSession";
 import {
   dateInputToTaipeiEndIso,
   dateInputToTaipeiStartIso,
@@ -28,15 +29,13 @@ const DEEPNIGHT_GUILD_ID =
   process.env.NEXT_PUBLIC_DEEPNIGHT_GUILD_ID ||
   process.env.NEXT_PUBLIC_GUILD_ID ||
   "1501098191813214312";
-const DEEPNIGHT_PLAY_ORDER_FILTER =
-  `guild_id.eq.${DEEPNIGHT_GUILD_ID},guild_id.is.null`;
+const DEEPNIGHT_PLAY_ORDER_FILTER = `guild_id.eq.${DEEPNIGHT_GUILD_ID},guild_id.is.null`;
 const SALARY_WALLET_START_DATE =
   process.env.NEXT_PUBLIC_SALARY_WALLET_START_DATE || "2026-07-17";
 const SALARY_WALLET_START_ISO = new Date(
   `${SALARY_WALLET_START_DATE}T00:00:00+08:00`
 ).toISOString();
-const PAYROLL_WALLET_FILTER =
-  `wallet_settled_at.is.null,wallet_settled_at.lt.${SALARY_WALLET_START_ISO}`;
+const PAYROLL_WALLET_FILTER = `wallet_settled_at.is.null,wallet_settled_at.lt.${SALARY_WALLET_START_ISO}`;
 const APP_KEY = "deepnight";
 const ORDER_TABLE = "play_orders";
 const BONUS_TABLE = "players_bonus";
@@ -133,18 +132,6 @@ const DEFAULT_WALLET_OPTIONS: Record<WalletOptionKey, boolean> = {
   deduction: true,
 };
 
-type SessionLike = {
-  user?: {
-    user_metadata?: Record<string, unknown>;
-    identities?: Array<{
-      identity_data?: {
-        sub?: unknown;
-        id?: unknown;
-      };
-    }>;
-  };
-};
-
 function getTodayInput() {
   return getTaipeiDateInput();
 }
@@ -174,7 +161,8 @@ function formatDateTime(value?: string | null) {
 function getRequestStatusText(status: string, rejectReason?: string | null) {
   if (status === "pending") return "申請中";
   if (status === "approved") return "申請成功，請稍等三個工作日";
-  if (status === "rejected") return `申請遭駁回${rejectReason ? `：${rejectReason}` : ""}`;
+  if (status === "rejected")
+    return `申請遭駁回${rejectReason ? `：${rejectReason}` : ""}`;
   return status || "-";
 }
 
@@ -229,28 +217,6 @@ function addBonusOrDeduction(
   }
 }
 
-function stringValue(value: unknown) {
-  if (typeof value === "string" || typeof value === "number") {
-    return String(value);
-  }
-
-  return "";
-}
-
-function getDiscordIdFromSession(session: unknown) {
-  const user = (session as SessionLike | null)?.user;
-  const metadata = user?.user_metadata || {};
-
-  return String(
-    stringValue(metadata.provider_id) ||
-      stringValue(metadata.sub) ||
-      stringValue(metadata.user_id) ||
-      stringValue(user?.identities?.[0]?.identity_data?.sub) ||
-      stringValue(user?.identities?.[0]?.identity_data?.id) ||
-      ""
-  ).trim();
-}
-
 function buildCopyText(rows: PayrollRow[]) {
   return rows
     .map((row, index) => {
@@ -276,15 +242,20 @@ export default function AdminPayrollPage() {
   const [staffList, setStaffList] = useState<Staff[]>([]);
   const [orders, setOrders] = useState<SalaryOrder[]>([]);
   const [bonuses, setBonuses] = useState<Bonus[]>([]);
-  const [walletEntrySources, setWalletEntrySources] = useState<WalletEntrySource[]>([]);
-  const [withdrawRequests, setWithdrawRequests] = useState<WithdrawRequest[]>([]);
+  const [walletEntrySources, setWalletEntrySources] = useState<
+    WalletEntrySource[]
+  >([]);
+  const [withdrawRequests, setWithdrawRequests] = useState<WithdrawRequest[]>(
+    []
+  );
   const [keyword, setKeyword] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [reviewingId, setReviewingId] = useState<string | null>(null);
   const [walletModalRow, setWalletModalRow] = useState<PayrollRow | null>(null);
-  const [walletOptions, setWalletOptions] =
-    useState<Record<WalletOptionKey, boolean>>(DEFAULT_WALLET_OPTIONS);
+  const [walletOptions, setWalletOptions] = useState<
+    Record<WalletOptionKey, boolean>
+  >(DEFAULT_WALLET_OPTIONS);
   const [walletManualAmount, setWalletManualAmount] = useState("");
   const [walletSendingId, setWalletSendingId] = useState<string | null>(null);
 
@@ -488,7 +459,9 @@ export default function AdminPayrollPage() {
 
     let bonusQuery = supabase
       .from("players_bonus")
-      .select("id, discord_id, staff_name, bonus_type, description, amount, created_at")
+      .select(
+        "id, discord_id, staff_name, bonus_type, description, amount, created_at"
+      )
       .or(PAYROLL_WALLET_FILTER)
       .order("created_at", { ascending: false });
 
@@ -572,11 +545,11 @@ export default function AdminPayrollPage() {
     }
   }
 
-  async function reviewWithdrawRequest(id: string, action: "approve" | "reject") {
-    const reason =
-      action === "reject"
-        ? window.prompt("請輸入駁回理由")
-        : "";
+  async function reviewWithdrawRequest(
+    id: string,
+    action: "approve" | "reject"
+  ) {
+    const reason = action === "reject" ? window.prompt("請輸入駁回理由") : "";
 
     if (action === "reject" && !reason?.trim()) {
       return;
@@ -782,7 +755,10 @@ export default function AdminPayrollPage() {
                 disabled={loading}
                 className="inline-flex items-center justify-center gap-2 rounded-full bg-sky-500 px-5 py-2.5 text-sm font-bold text-white shadow-sm shadow-sky-200 hover:bg-sky-600 disabled:opacity-60"
               >
-                <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
+                <RefreshCw
+                  size={16}
+                  className={loading ? "animate-spin" : ""}
+                />
                 重新整理
               </button>
             </div>
@@ -941,7 +917,8 @@ export default function AdminPayrollPage() {
             </h2>
 
             <p className="mt-1 text-sm text-slate-500">
-              預設顯示所有尚未發薪的員工；日期只在需要縮小查詢範圍時使用。2026/07/17 前被舊錢包標記過的資料仍會列入。
+              預設顯示所有尚未發薪的員工；日期只在需要縮小查詢範圍時使用。2026/07/17
+              前被舊錢包標記過的資料仍會列入。
             </p>
           </div>
 
@@ -987,9 +964,7 @@ export default function AdminPayrollPage() {
                       <td>{row.accountName}</td>
                       <td>{money(row.orderSalary)}</td>
                       <td>{money(row.tipSalary)}</td>
-                      <td className="text-emerald-600">
-                        {money(row.bonus)}
-                      </td>
+                      <td className="text-emerald-600">{money(row.bonus)}</td>
                       <td className="text-rose-500">{money(row.deduction)}</td>
                       <td className="font-black text-sky-600">
                         {money(row.total)}
@@ -1135,13 +1110,7 @@ function StatCard({ title, value }: { title: string; value: string }) {
   );
 }
 
-function Field({
-  label,
-  children,
-}: {
-  label: string;
-  children: ReactNode;
-}) {
+function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="block">
       <span className="mb-2 block text-sm font-bold text-slate-600">

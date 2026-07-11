@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { getDiscordIdFromSession } from "@/lib/discordSession";
 import {
   RefreshCw,
   LogOut,
@@ -244,7 +245,9 @@ function getRequestStatusText(request?: SalaryWithdrawRequest | null) {
   if (request.status === "pending") return "申請中";
   if (request.status === "approved") return "申請成功，請稍等三個工作日";
   if (request.status === "rejected") {
-    return `申請遭駁回${request.reject_reason ? `，原因是${request.reject_reason}` : ""}`;
+    return `申請遭駁回${
+      request.reject_reason ? `，原因是${request.reject_reason}` : ""
+    }`;
   }
   return request.status || "尚未申請";
 }
@@ -282,10 +285,15 @@ function getNextMonthTextFromIso(isoText?: string | null) {
 }
 
 function getOrderSourceDate(order: SalaryOrder) {
-  return order.order_finished_at || order.completed_at || order.created_at || null;
+  return (
+    order.order_finished_at || order.completed_at || order.created_at || null
+  );
 }
 
-function getFirstReachAmountDate(orderList: SalaryOrder[], targetAmount: number) {
+function getFirstReachAmountDate(
+  orderList: SalaryOrder[],
+  targetAmount: number
+) {
   const sortedOrders = [...orderList]
     .filter((order) => getOrderSourceDate(order))
     .sort((a, b) => {
@@ -375,22 +383,9 @@ function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;
 }
 
-function getDiscordIdFromSession(session: unknown) {
-  const user = (session as AuthSessionLike | null)?.user;
-  const metadata = user?.user_metadata || {};
-
-  return String(
-    stringValue(metadata.provider_id) ||
-      stringValue(metadata.sub) ||
-      stringValue(metadata.user_id) ||
-      stringValue(user?.identities?.[0]?.identity_data?.sub) ||
-      stringValue(user?.identities?.[0]?.identity_data?.id) ||
-      ""
-  ).trim();
-}
-
 function getDiscordNameFromSession(session: unknown) {
-  const metadata = (session as AuthSessionLike | null)?.user?.user_metadata || {};
+  const metadata =
+    (session as AuthSessionLike | null)?.user?.user_metadata || {};
 
   return (
     stringValue(metadata.global_name) ||
@@ -404,8 +399,11 @@ function getDiscordNameFromSession(session: unknown) {
 }
 
 function getAvatarFromSession(session: unknown) {
-  const metadata = (session as AuthSessionLike | null)?.user?.user_metadata || {};
-  return stringValue(metadata.avatar_url) || stringValue(metadata.picture) || null;
+  const metadata =
+    (session as AuthSessionLike | null)?.user?.user_metadata || {};
+  return (
+    stringValue(metadata.avatar_url) || stringValue(metadata.picture) || null
+  );
 }
 
 export default function StaffPage() {
@@ -422,7 +420,9 @@ export default function StaffPage() {
   const [walletLoading, setWalletLoading] = useState(false);
   const [withdrawing, setWithdrawing] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState("");
-  const [salaryWallet, setSalaryWallet] = useState<SalaryWalletData | null>(null);
+  const [salaryWallet, setSalaryWallet] = useState<SalaryWalletData | null>(
+    null
+  );
   const [selectedMonth, setSelectedMonth] = useState(getCurrentMonthInput());
 
   const [profileForm, setProfileForm] = useState<ProfileForm>({
@@ -462,7 +462,10 @@ export default function StaffPage() {
   }, [salaryOrders, monthBonus]);
 
   const totalOrderAmount = useMemo(() => {
-    return allSalaryOrders.reduce((sum, order) => sum + getOrderAmount(order), 0);
+    return allSalaryOrders.reduce(
+      (sum, order) => sum + getOrderAmount(order),
+      0
+    );
   }, [allSalaryOrders]);
 
   const totalYearSalary = useMemo(() => {
@@ -484,8 +487,14 @@ export default function StaffPage() {
     return getCurrentRateByRule(staff, allSalaryOrders, totalYearSalary);
   }, [staff, allSalaryOrders, totalYearSalary]);
 
-  const progress85 = Math.min(100, Math.round((totalOrderAmount / 10000) * 100));
-  const progress90 = Math.min(100, Math.round((totalYearSalary / 100000) * 100));
+  const progress85 = Math.min(
+    100,
+    Math.round((totalOrderAmount / 10000) * 100)
+  );
+  const progress90 = Math.min(
+    100,
+    Math.round((totalYearSalary / 100000) * 100)
+  );
 
   useEffect(() => {
     boot();
@@ -559,7 +568,10 @@ export default function StaffPage() {
 
       await Promise.all([
         loadSalaryData(staffData.discord_id),
-        loadStaffServices(staffData.discord_id, staffData.allowed_services || []),
+        loadStaffServices(
+          staffData.discord_id,
+          staffData.allowed_services || []
+        ),
       ]);
     } catch (error) {
       console.error("staff boot error:", error);
@@ -1039,21 +1051,33 @@ export default function StaffPage() {
           ) : salaryWallet ? (
             <>
               <div className="mt-5 grid gap-3 md:grid-cols-4">
-                <MiniStat title="錢包餘額" value={money(salaryWallet.totals.balance)} />
-                <MiniStat title="訂單薪水" value={money(salaryWallet.totals.orderSalary)} />
-                <MiniStat title="獎金 / 扣除" value={money(salaryWallet.totals.bonus)} />
-                <MiniStat title="使用的薪水" value={money(salaryWallet.totals.approvedWithdrawn)} />
+                <MiniStat
+                  title="錢包餘額"
+                  value={money(salaryWallet.totals.balance)}
+                />
+                <MiniStat
+                  title="訂單薪水"
+                  value={money(salaryWallet.totals.orderSalary)}
+                />
+                <MiniStat
+                  title="獎金 / 扣除"
+                  value={money(salaryWallet.totals.bonus)}
+                />
+                <MiniStat
+                  title="使用的薪水"
+                  value={money(salaryWallet.totals.approvedWithdrawn)}
+                />
               </div>
 
               <div className="mt-4 flex flex-col gap-3 rounded-[22px] border border-sky-100 bg-sky-50/60 px-4 py-3 md:flex-row md:items-center md:justify-between">
                 <div>
-                  <p className="text-sm font-black text-slate-700">
-                    提領狀態
-                  </p>
+                  <p className="text-sm font-black text-slate-700">提領狀態</p>
                   <p className="mt-1 text-sm text-slate-500">
                     可提領：{money(salaryWallet.totals.available)}
                     {salaryWallet.totals.pendingWithdrawn > 0
-                      ? `，申請中：${money(salaryWallet.totals.pendingWithdrawn)}`
+                      ? `，申請中：${money(
+                          salaryWallet.totals.pendingWithdrawn
+                        )}`
                       : ""}
                   </p>
                 </div>
@@ -1156,8 +1180,9 @@ export default function StaffPage() {
                   </div>
 
                   <p className="mt-3 text-sm leading-6 text-slate-500">
-                    2026/09/01 前未手動設定者預設 90%；後台設定會優先套用。9 月後預設
-                    80%，累積接單滿 10,000 後下個月 85%，年度薪資達標後隔年 90%。
+                    2026/09/01 前未手動設定者預設 90%；後台設定會優先套用。9
+                    月後預設 80%，累積接單滿 10,000 後下個月
+                    85%，年度薪資達標後隔年 90%。
                   </p>
                 </div>
               </div>
@@ -1215,8 +1240,8 @@ export default function StaffPage() {
                 {onlineSaving
                   ? "更新中..."
                   : staff.is_online
-                    ? "切換為下線"
-                    : "切換為上線"}
+                  ? "切換為下線"
+                  : "切換為上線"}
               </button>
             </div>
 
@@ -1463,8 +1488,8 @@ export default function StaffPage() {
                             {order.wallet_settled_at
                               ? formatDateTime(order.wallet_settled_at)
                               : order.status === "已發薪"
-                                ? "已發薪"
-                                : "-"}
+                              ? "已發薪"
+                              : "-"}
                           </td>
                         </tr>
                       ))}

@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { getDiscordIdFromSession } from "@/lib/discordSession";
 import {
   ArrowLeft,
   CheckCircle2,
@@ -148,20 +149,6 @@ function getCommissionTierRank(value?: string | null) {
   return 0;
 }
 
-function getDiscordIdFromSession(session: any) {
-  const user = session?.user;
-  const metadata = user?.user_metadata || {};
-
-  return String(
-    metadata.provider_id ||
-      metadata.sub ||
-      metadata.user_id ||
-      user?.identities?.[0]?.identity_data?.sub ||
-      user?.identities?.[0]?.identity_data?.id ||
-      ""
-  ).trim();
-}
-
 function makeForm(staff: Staff | null): StaffForm {
   return {
     display_name: staff?.display_name || "",
@@ -263,7 +250,9 @@ export default function AdminStaffPage() {
     return list;
   }, [staffList, keyword, salarySort]);
 
-  const activeCount = staffList.filter((staff) => staff.is_active !== false).length;
+  const activeCount = staffList.filter(
+    (staff) => staff.is_active !== false
+  ).length;
   const onlineCount = staffList.filter((staff) => staff.is_online).length;
 
   useEffect(() => {
@@ -931,13 +920,7 @@ function StatCard({ title, value }: { title: string; value: string }) {
   );
 }
 
-function Field({
-  label,
-  children,
-}: {
-  label: string;
-  children: ReactNode;
-}) {
+function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="block">
       <span className="mb-2 block text-sm font-bold text-slate-600">

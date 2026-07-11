@@ -27,7 +27,9 @@ const walletConfig = {
 async function getStaff(discordId) {
   const { data, error } = await supabaseAdmin
     .from(walletConfig.staffTable)
-    .select("discord_id, discord_name, display_name, real_name, bank_name, bank_account")
+    .select(
+      "discord_id, discord_name, display_name, real_name, bank_name, bank_account"
+    )
     .eq("discord_id", discordId)
     .maybeSingle();
 
@@ -147,7 +149,9 @@ export async function POST(request) {
       return NextResponse.json(
         {
           ok: false,
-          message: `提領金額不能超過可提領薪資 ${available.toLocaleString("zh-TW")}。`,
+          message: `提領金額不能超過可提領薪資 ${available.toLocaleString(
+            "zh-TW"
+          )}。`,
         },
         { status: 400 }
       );
@@ -166,6 +170,9 @@ export async function POST(request) {
 
     if (error) {
       console.error("[deepnight salary wallet] create withdraw failed", error);
+      if (error.code === "23505") {
+        throw new Error("你已經有提領申請在處理中。");
+      }
       throw new Error("建立提領申請失敗");
     }
 

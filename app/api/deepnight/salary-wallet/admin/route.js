@@ -67,7 +67,10 @@ export async function GET(request) {
       .order("requested_at", { ascending: false });
 
     if (error) {
-      console.error("[deepnight salary wallet admin] load requests failed", error);
+      console.error(
+        "[deepnight salary wallet admin] load requests failed",
+        error
+      );
       throw new Error("讀取提領申請失敗");
     }
 
@@ -148,16 +151,24 @@ export async function POST(request) {
       throw new Error("駁回需要填寫理由");
     }
 
-    const { error } = await supabaseAdmin
+    const { data: updatedRequest, error } = await supabaseAdmin
       .from("salary_withdraw_requests")
       .update(payload)
       .eq("id", id)
       .eq("app_key", walletConfig.appKey)
-      .eq("status", "pending");
+      .eq("status", "pending")
+      .select("id")
+      .maybeSingle();
 
     if (error) {
-      console.error("[deepnight salary wallet admin] update request failed", error);
+      console.error(
+        "[deepnight salary wallet admin] update request failed",
+        error
+      );
       throw new Error("更新提領申請失敗");
+    }
+    if (!updatedRequest) {
+      throw new Error("這筆提領申請已由其他管理員處理。");
     }
 
     return NextResponse.json({

@@ -14,20 +14,7 @@ import {
   Trophy,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-
-function getDiscordIdFromSession(session: any) {
-  const user = session?.user;
-  const metadata = user?.user_metadata || {};
-
-  return String(
-    metadata.provider_id ||
-      metadata.sub ||
-      metadata.user_id ||
-      user?.identities?.[0]?.identity_data?.sub ||
-      user?.identities?.[0]?.identity_data?.id ||
-      ""
-  ).trim();
-}
+import { getDiscordIdFromSession } from "@/lib/discordSession";
 
 export default function AdminHomePage() {
   const [checking, setChecking] = useState(true);
