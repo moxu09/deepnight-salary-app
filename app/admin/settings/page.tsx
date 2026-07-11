@@ -13,6 +13,7 @@ import {
 import { supabase } from "@/lib/supabase";
 import { getDiscordIdFromSession } from "@/lib/discordSession";
 import { formatTaipeiDateTime } from "@/lib/taipeiTime";
+import ActivityCommissionPanel from "@/components/ActivityCommissionPanel";
 
 type SalarySettings = {
   id: string;
@@ -343,6 +344,8 @@ export default function AdminSettingsPage() {
             </Field>
           </div>
         </section>
+
+        <ActivityCommissionPanel appKey="deepnight" accent="sky" />
       </div>
     </main>
   );
