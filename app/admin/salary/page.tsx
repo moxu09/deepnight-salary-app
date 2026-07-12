@@ -20,6 +20,9 @@ import {
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { getDiscordIdFromSession } from "@/lib/discordSession";
+import WorkReportReviewPanel, {
+  WorkReport,
+} from "@/components/WorkReportReviewPanel";
 import {
   dateInputToTaipeiEndIso,
   dateInputToTaipeiStartIso,
@@ -141,6 +144,20 @@ function dateToEndIso(value: string) {
 
 function datetimeToIso(value: string) {
   return dateTimeInputToTaipeiIso(value);
+}
+
+function isoToTaipeiInput(value: string) {
+  return new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "Asia/Taipei",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  })
+    .format(new Date(value))
+    .replace(" ", "T");
 }
 
 function money(value: number | string | null | undefined) {
@@ -1006,6 +1023,59 @@ export default function AdminSalaryPage() {
     await loadSalaryData();
   }
 
+  async function approveWorkReport(report: WorkReport) {
+    const staff = staffList.find((item) => item.discord_id === report.staff_id);
+    const regularRate = getStaffRate(
+      staff,
+      isoToTaipeiInput(report.ended_at),
+      orders
+    );
+    const isTip =
+      report.order_type.includes("打賞") ||
+      report.service_name.includes("打賞");
+    const salaryRate = isTip && regularRate !== 95 ? 90 : regularRate;
+    const staffSalary = Math.round(
+      (Number(report.order_amount) * salaryRate) / 100
+    );
+    const { data, error } = await supabase
+      .from("play_orders")
+      .update({
+        customer_name: report.customer_name || report.customer_id || "手動報單",
+        service: report.service_name,
+        service_name: report.service_name,
+        order_type: isTip ? "打賞" : "訂單",
+        discord_id: report.staff_id,
+        assigned_player: report.staff_id,
+        staff_name: report.staff_name,
+        order_amount: report.order_amount,
+        price: report.order_amount,
+        final_price: report.order_amount,
+        staff_salary: staffSalary,
+        bonus_amount: 0,
+        salary_rate: salaryRate,
+        salary_level: isTip
+          ? salaryRate === 95
+            ? "打賞特別設定 95%"
+            : "打賞固定 90%"
+          : `工時申報 ${salaryRate}%`,
+        platform_income: report.order_amount,
+        platform_expense: staffSalary,
+        status: "completed",
+        quote_status: "completed",
+        order_finished_at: report.ended_at,
+        completed_at: report.ended_at,
+        duration_minutes: report.duration_minutes,
+        is_deleted: false,
+      })
+      .eq("id", report.id)
+      .eq("status", "work_pending")
+      .select("id")
+      .single();
+    if (error) throw error;
+    await loadSalaryData();
+    return data.id;
+  }
+
   if (checking) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-[#eef7fd]">
@@ -1056,6 +1126,12 @@ export default function AdminSalaryPage() {
             </button>
           </div>
         </header>
+
+        <WorkReportReviewPanel
+          appKey="deepnight"
+          accent="sky"
+          onApprove={approveWorkReport}
+        />
 
         <section className="grid gap-4 md:grid-cols-4">
           <StatCard title="總收入" value={money(totalIncome)} />
