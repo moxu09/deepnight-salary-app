@@ -673,7 +673,13 @@ export default function AdminSalaryPage() {
       ),
       bonus_amount: String(order.bonus_amount || 0),
       order_finished_at: order.order_finished_at
-        ? new Date(order.order_finished_at).toISOString().slice(0, 16)
+        ? getTaipeiDateTimeInput(
+            new Date(
+              /(?:Z|[+-]\d{2}:?\d{2})$/i.test(order.order_finished_at)
+                ? order.order_finished_at
+                : `${order.order_finished_at}Z`
+            )
+          )
         : getNowInput(),
       status: order.status || "未發薪",
     });
