@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { getDiscordIdFromSession } from "@/lib/discordSession";
 import {
@@ -74,6 +75,11 @@ type SalaryOrder = {
   completed_at?: string | null;
   created_at?: string | null;
   wallet_settled_at?: string | null;
+  review_decision?: "approved" | "rejected" | null;
+  reviewer_discord_id?: string | null;
+  reviewer_name?: string | null;
+  review_reason?: string | null;
+  reviewed_at?: string | null;
 };
 
 type Bonus = {
@@ -407,10 +413,12 @@ function getAvatarFromSession(session: unknown) {
 }
 
 export default function StaffPage() {
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [staff, setStaff] = useState<Staff | null>(null);
   const [salaryOrders, setSalaryOrders] = useState<SalaryOrder[]>([]);
   const [allSalaryOrders, setAllSalaryOrders] = useState<SalaryOrder[]>([]);
+  const [reviewedOrders, setReviewedOrders] = useState<SalaryOrder[]>([]);
   const [bonuses, setBonuses] = useState<Bonus[]>([]);
   const [allowedServices, setAllowedServices] = useState<string[]>([]);
   const [profileSaving, setProfileSaving] = useState(false);
@@ -497,6 +505,8 @@ export default function StaffPage() {
   );
 
   useEffect(() => {
+    // boot is intentionally run once after the client router is ready.
+    // eslint-disable-next-line react-hooks/immutability
     boot();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -509,7 +519,7 @@ export default function StaffPage() {
       const session = data.session;
 
       if (!session) {
-        window.location.href = "/login";
+        router.replace("/login");
         return;
       }
 
@@ -518,7 +528,7 @@ export default function StaffPage() {
       if (!discordId) {
         alert("無法取得 Discord ID，請重新登入。");
         await supabase.auth.signOut();
-        window.location.href = "/login";
+        router.replace("/login");
         return;
       }
 
@@ -541,7 +551,7 @@ export default function StaffPage() {
       if (!ensureRes.ok || !ensureData.ok) {
         alert(ensureData.message || "員工身分驗證失敗");
         await supabase.auth.signOut();
-        window.location.href = "/login";
+        router.replace("/login");
         return;
       }
 
@@ -550,7 +560,7 @@ export default function StaffPage() {
       if (!staffData?.discord_id) {
         alert("員工資料建立失敗，請重新登入。");
         await supabase.auth.signOut();
-        window.location.href = "/login";
+        router.replace("/login");
         return;
       }
 
@@ -599,6 +609,23 @@ export default function StaffPage() {
       setSalaryOrders([]);
     } else {
       setSalaryOrders((monthOrders || []) as SalaryOrder[]);
+    }
+
+    const { data: reviewData, error: reviewError } = await supabase
+      .from("play_orders")
+      .select("*")
+      .or(DEEPNIGHT_PLAY_ORDER_FILTER)
+      .eq("discord_id", discordId)
+      .not("reviewed_at", "is", null)
+      .gte("reviewed_at", startIso)
+      .lte("reviewed_at", endIso)
+      .order("reviewed_at", { ascending: false });
+
+    if (reviewError) {
+      console.error("load order reviews error:", reviewError);
+      setReviewedOrders([]);
+    } else {
+      setReviewedOrders((reviewData || []) as SalaryOrder[]);
     }
 
     const { data: allOrders, error: allError } = await supabase
@@ -1404,6 +1431,71 @@ export default function StaffPage() {
                   </div>
                 ))}
               </div>
+            </div>
+
+            <div className="rounded-[28px] border border-sky-100 bg-white shadow-sm shadow-sky-100">
+              <div className="border-b border-sky-100 px-5 py-4">
+                <h2 className="text-lg font-black text-slate-900">訂單審核紀錄</h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  核准與駁回都會顯示審核人及審核時間。
+                </p>
+              </div>
+
+              {reviewedOrders.length === 0 ? (
+                <div className="px-5 py-10 text-center text-sm font-semibold text-slate-400">
+                  這個月份尚無審核紀錄
+                </div>
+              ) : (
+                <div className="mobile-table-card overflow-x-auto">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>審核時間</th>
+                        <th>服務</th>
+                        <th>結果</th>
+                        <th>審核人</th>
+                        <th>原因</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {reviewedOrders.map((order) => (
+                        <tr key={`review-${order.id}`}>
+                          <td data-label="審核時間">
+                            {formatDateTime(order.reviewed_at)}
+                          </td>
+                          <td data-label="服務">{getOrderService(order)}</td>
+                          <td data-label="結果">
+                            <span
+                              className={`rounded-full px-3 py-1 text-xs font-bold ${
+                                order.review_decision === "approved"
+                                  ? "bg-emerald-50 text-emerald-600"
+                                  : "bg-rose-50 text-rose-600"
+                              }`}
+                            >
+                              {order.review_decision === "approved"
+                                ? "已核准"
+                                : "已駁回"}
+                            </span>
+                          </td>
+                          <td data-label="審核人">
+                            <p className="font-bold text-slate-700">
+                              {order.reviewer_name || "未知審核人"}
+                            </p>
+                            {order.reviewer_discord_id ? (
+                              <p className="mt-1 text-xs text-slate-400">
+                                {order.reviewer_discord_id}
+                              </p>
+                            ) : null}
+                          </td>
+                          <td data-label="原因">
+                            {order.review_reason || "-"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
 
             <div className="rounded-[28px] border border-sky-100 bg-white shadow-sm shadow-sky-100">
