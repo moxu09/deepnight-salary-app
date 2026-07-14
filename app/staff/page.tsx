@@ -94,6 +94,9 @@ type Bonus = {
 
 type ProfileForm = {
   display_name: string;
+  avatar_url: string;
+  intro: string;
+  invite_url: string;
   real_name: string;
   gender: string;
   birthday: string;
@@ -435,6 +438,9 @@ export default function StaffPage() {
 
   const [profileForm, setProfileForm] = useState<ProfileForm>({
     display_name: "",
+    avatar_url: "",
+    intro: "",
+    invite_url: "",
     real_name: "",
     gender: "",
     birthday: "",
@@ -567,12 +573,29 @@ export default function StaffPage() {
       setStaff(staffData);
       setProfileForm({
         display_name: staffData.display_name || "",
+        avatar_url: staffData.avatar_url || "",
+        intro: "",
+        invite_url: "",
         real_name: staffData.real_name || "",
         gender: staffData.gender || "",
         birthday: staffData.birthday || "",
         bank_name: staffData.bank_name || "",
         bank_account: staffData.bank_account || "",
       });
+
+      const publicProfileRes = await fetch("/api/deepnight/public-profile", {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+        cache: "no-store",
+      });
+      const publicProfileData = await publicProfileRes.json().catch(() => ({}));
+      if (publicProfileRes.ok && publicProfileData.profile) {
+        setProfileForm((current) => ({
+          ...current,
+          avatar_url: publicProfileData.profile.avatar_url || current.avatar_url,
+          intro: publicProfileData.profile.intro || "",
+          invite_url: publicProfileData.profile.invite_url || "",
+        }));
+      }
 
       await loadWalletData();
 
@@ -791,6 +814,7 @@ export default function StaffPage() {
       .from("players")
       .update({
         display_name: profileForm.display_name || null,
+        avatar_url: profileForm.avatar_url || null,
         real_name: profileForm.real_name || null,
         gender: profileForm.gender || null,
         birthday: profileForm.birthday || null,
@@ -810,8 +834,41 @@ export default function StaffPage() {
       return;
     }
 
+    try {
+      await syncPublicProfile({
+        displayName: profileForm.display_name,
+        avatarUrl: profileForm.avatar_url,
+        intro: profileForm.intro,
+        inviteUrl: profileForm.invite_url,
+      });
+    } catch (syncError) {
+      console.error("sync public profile error:", syncError);
+      setStaff(data as Staff);
+      alert("薪資資料已儲存，但官網介紹同步失敗，請稍後再試");
+      return;
+    }
+
     setStaff(data as Staff);
     alert("個人資料已儲存");
+  }
+
+  async function syncPublicProfile(payload: Record<string, unknown>) {
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
+    if (!token) throw new Error("登入已過期");
+    const response = await fetch("/api/deepnight/public-profile", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || !result.ok) {
+      throw new Error(result.message || "官網同步失敗");
+    }
+    return result.profile;
   }
 
   async function toggleOnline() {
@@ -839,6 +896,9 @@ export default function StaffPage() {
     }
 
     setStaff(data as Staff);
+    await syncPublicProfile({ isOnline: nextOnline }).catch((syncError) => {
+      console.error("sync online status error:", syncError);
+    });
   }
 
   function toggleService(serviceKey: string) {
@@ -915,6 +975,13 @@ export default function StaffPage() {
     );
 
     setServiceSaving(false);
+    await syncPublicProfile({
+      games: Array.from(
+        new Set(allowedServices.map((key) => getServiceCategory(key)))
+      ),
+    }).catch((syncError) => {
+      console.error("sync public games error:", syncError);
+    });
     alert("可接遊戲已儲存");
   }
 
@@ -956,9 +1023,36 @@ export default function StaffPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#eef7fd] px-5 py-6 text-slate-900">
-      <div className="mx-auto max-w-7xl space-y-5">
-        <header className="rounded-[30px] border border-sky-100 bg-white px-6 py-5 shadow-sm shadow-sky-100">
+    <main className="min-h-screen bg-[#f7f4ff] px-4 py-5 text-slate-900 sm:px-5 sm:py-6">
+      <div className="mx-auto grid max-w-[1500px] gap-5 lg:grid-cols-[250px_minmax(0,1fr)]">
+        <aside className="sticky top-4 z-20 self-start overflow-x-auto rounded-[28px] bg-[#35127c] p-3 text-white shadow-xl shadow-violet-200/60 lg:h-[calc(100vh-2rem)] lg:p-5">
+          <div className="hidden lg:block">
+            <p className="text-xs font-semibold text-violet-200">PLAYER CENTER</p>
+            <p className="mt-2 text-xl font-black">深夜陪玩師</p>
+            <p className="mt-1 truncate text-sm text-violet-200">{getDisplayName(staff)}</p>
+          </div>
+          <nav className="flex min-w-max gap-2 lg:mt-8 lg:min-w-0 lg:flex-col">
+            {[
+              ["#overview", "首頁總覽", Trophy],
+              ["#profile", "個人資料", UserRound],
+              ["#wallet", "薪資錢包", WalletCards],
+              ["#games", "可接遊戲", Gamepad2],
+            ].map(([href, label, Icon]) => {
+              const NavIcon = Icon as typeof Trophy;
+              return (
+                <a key={href as string} href={href as string} className="flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-bold text-violet-100 transition hover:bg-white/15 hover:text-white">
+                  <NavIcon size={18} /> {label as string}
+                </a>
+              );
+            })}
+          </nav>
+          <p className="mt-auto hidden rounded-2xl bg-white/10 p-4 text-xs leading-6 text-violet-200 lg:block">
+            個人資料與可接遊戲儲存後，會同步更新官網陪陪介紹。
+          </p>
+        </aside>
+
+        <div className="min-w-0 space-y-5">
+        <header id="overview" className="scroll-mt-24 rounded-[30px] border border-violet-100 bg-white px-6 py-5 shadow-sm shadow-violet-100">
           <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
             <div className="flex items-center gap-4">
               <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-3xl bg-sky-100 text-sky-600">
@@ -1016,7 +1110,7 @@ export default function StaffPage() {
           <StatCard title="未發薪" value={money(unpaidAmount)} />
         </section>
 
-        <section className="rounded-[28px] border border-sky-100 bg-white p-5 shadow-sm shadow-sky-100">
+        <section id="wallet" className="scroll-mt-24 rounded-[28px] border border-sky-100 bg-white p-5 shadow-sm shadow-sky-100">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <h2 className="flex items-center gap-2 text-lg font-black text-slate-900">
@@ -1272,7 +1366,7 @@ export default function StaffPage() {
               </button>
             </div>
 
-            <div className="rounded-[28px] border border-sky-100 bg-white p-5 shadow-sm shadow-sky-100">
+            <div id="profile" className="scroll-mt-24 rounded-[28px] border border-sky-100 bg-white p-5 shadow-sm shadow-sky-100">
               <h2 className="flex items-center gap-2 text-lg font-black text-slate-900">
                 <UserRound size={20} className="text-sky-500" />
                 個人資料
@@ -1289,6 +1383,48 @@ export default function StaffPage() {
                       }))
                     }
                     placeholder="例如：阿陌"
+                  />
+                </Field>
+
+                <Field label="官網頭像網址">
+                  <input
+                    type="url"
+                    value={profileForm.avatar_url}
+                    onChange={(event) =>
+                      setProfileForm((prev) => ({
+                        ...prev,
+                        avatar_url: event.target.value,
+                      }))
+                    }
+                    placeholder="https://..."
+                  />
+                </Field>
+
+                <Field label="官網自我介紹">
+                  <textarea
+                    rows={4}
+                    value={profileForm.intro}
+                    onChange={(event) =>
+                      setProfileForm((prev) => ({
+                        ...prev,
+                        intro: event.target.value,
+                      }))
+                    }
+                    placeholder="介紹你的個性、擅長遊戲與陪玩風格"
+                  />
+                </Field>
+
+                <Field label="專屬邀請連結">
+                  <input
+                    type="url"
+                    value={profileForm.invite_url}
+                    onChange={(event) =>
+                      setProfileForm((prev) => ({
+                        ...prev,
+                        invite_url: event.target.value,
+                      }))
+                    }
+                    placeholder="Discord 邀請或預約連結"
                   />
                 </Field>
 
@@ -1374,7 +1510,7 @@ export default function StaffPage() {
           </div>
 
           <div className="space-y-5">
-            <div className="rounded-[28px] border border-sky-100 bg-white p-5 shadow-sm shadow-sky-100">
+            <div id="games" className="scroll-mt-24 rounded-[28px] border border-sky-100 bg-white p-5 shadow-sm shadow-sky-100">
               <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
                   <h2 className="flex items-center gap-2 text-lg font-black text-slate-900">
@@ -1645,6 +1781,7 @@ export default function StaffPage() {
             </div>
           </div>
         </section>
+        </div>
       </div>
     </main>
   );

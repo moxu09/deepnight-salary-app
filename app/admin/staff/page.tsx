@@ -13,6 +13,7 @@ import {
   Save,
   Search,
   Settings2,
+  Trophy,
   Users,
 } from "lucide-react";
 import Link from "next/link";
@@ -177,6 +178,8 @@ export default function AdminStaffPage() {
   const [salarySort, setSalarySort] = useState("created_desc");
   const [saving, setSaving] = useState(false);
   const [serviceSaving, setServiceSaving] = useState(false);
+  const [featuredIds, setFeaturedIds] = useState<string[]>([]);
+  const [featuredSaving, setFeaturedSaving] = useState(false);
 
   const filteredStaff = useMemo(() => {
     const key = keyword.trim().toLowerCase();
@@ -300,7 +303,7 @@ export default function AdminStaffPage() {
         return;
       }
 
-      await loadStaff();
+      await Promise.all([loadStaff(), loadFeatured()]);
     } catch (error) {
       console.error("admin staff boot error:", error);
       alert("檢查後台權限失敗");
@@ -335,6 +338,61 @@ export default function AdminStaffPage() {
       const updated = list.find((item) => item.id === selectedStaff.id);
       if (updated) selectStaff(updated);
     }
+  }
+
+  async function loadFeatured() {
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
+    if (!token) return;
+    const response = await fetch("/api/deepnight/public-profile?admin=1", {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    });
+    const result = await response.json().catch(() => ({}));
+    if (response.ok && Array.isArray(result.profiles)) {
+      const month = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Asia/Taipei",
+        year: "numeric",
+        month: "2-digit",
+      }).format(new Date());
+      setFeaturedIds(
+        result.profiles
+          .filter((profile: { is_featured?: boolean; featured_month?: string }) =>
+            profile.is_featured && String(profile.featured_month || "").startsWith(month)
+          )
+          .map((profile: { discord_id: string }) => profile.discord_id)
+      );
+    }
+  }
+
+  function toggleFeatured(discordId: string) {
+    setFeaturedIds((current) =>
+      current.includes(discordId)
+        ? current.filter((id) => id !== discordId)
+        : [...current, discordId]
+    );
+  }
+
+  async function saveFeatured() {
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
+    if (!token) return;
+    setFeaturedSaving(true);
+    const response = await fetch("/api/deepnight/public-profile", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ action: "set-featured", discordIds: featuredIds }),
+    });
+    const result = await response.json().catch(() => ({}));
+    setFeaturedSaving(false);
+    if (!response.ok || !result.ok) {
+      alert(result.message || "儲存金榜名單失敗");
+      return;
+    }
+    alert("本月金榜陪陪已更新");
   }
 
   async function selectStaff(staff: Staff) {
@@ -562,6 +620,35 @@ export default function AdminStaffPage() {
           <StatCard title="員工總數" value={`${staffList.length} 人`} />
           <StatCard title="啟用中" value={`${activeCount} 人`} />
           <StatCard title="目前上線" value={`${onlineCount} 人`} />
+        </section>
+
+        <section className="rounded-[28px] border border-violet-100 bg-white p-5 shadow-sm shadow-violet-100">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h2 className="flex items-center gap-2 text-lg font-black text-slate-900">
+                <Trophy size={20} className="text-amber-500" />
+                本月金榜陪陪
+              </h2>
+              <p className="mt-1 text-sm text-slate-500">
+                可複選；儲存後這些陪陪會優先顯示在官網。
+              </p>
+            </div>
+            <button onClick={saveFeatured} disabled={featuredSaving} className="rounded-full bg-violet-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-violet-700 disabled:opacity-60">
+              {featuredSaving ? "儲存中..." : "儲存金榜名單"}
+            </button>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {staffList.filter((staff) => staff.is_active !== false).map((staff) => (
+              <label key={staff.discord_id} className={`flex cursor-pointer items-center gap-2 rounded-full border px-3 py-2 text-sm font-semibold transition ${
+                featuredIds.includes(staff.discord_id)
+                  ? "border-amber-300 bg-amber-50 text-amber-800"
+                  : "border-slate-200 bg-slate-50 text-slate-600"
+              }`}>
+                <input type="checkbox" checked={featuredIds.includes(staff.discord_id)} onChange={() => toggleFeatured(staff.discord_id)} />
+                {getDisplayName(staff)}
+              </label>
+            ))}
+          </div>
         </section>
 
         <section className="grid gap-5 xl:grid-cols-[0.85fr_1.4fr]">
