@@ -56,7 +56,9 @@ function CallbackInner() {
           return;
         }
 
-        router.replace("/staff");
+        const destination =
+          searchParams.get("next") === "/admin" ? "/admin" : "/staff";
+        router.replace(destination);
       } catch (err) {
         console.error("callback unexpected error:", err);
         setErrorText(err?.message || "未知登入錯誤");

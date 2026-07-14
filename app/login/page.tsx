@@ -5,7 +5,7 @@ import { Sparkles, Heart, Gamepad2 } from "lucide-react";
 
 export default function LoginPage() {
   async function loginWithDiscord() {
-    const redirectTo = `${window.location.origin}/auth/callback`;
+    const redirectTo = `${window.location.origin}/auth/callback?next=/staff`;
 
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "discord",

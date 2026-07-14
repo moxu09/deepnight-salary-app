@@ -5,7 +5,7 @@ import { ShieldCheck, Sparkles, LockKeyhole } from "lucide-react";
 
 export default function AdminLoginPage() {
   async function loginWithDiscord() {
-    const redirectTo = `${window.location.origin}/auth/callback`;
+    const redirectTo = `${window.location.origin}/auth/callback?next=/admin`;
 
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "discord",
