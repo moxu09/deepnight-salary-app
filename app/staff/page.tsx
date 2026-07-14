@@ -435,6 +435,9 @@ export default function StaffPage() {
     null
   );
   const [selectedMonth, setSelectedMonth] = useState(getCurrentMonthInput());
+  const [activeTab, setActiveTab] = useState<
+    "overview" | "profile" | "wallet" | "games"
+  >("overview");
 
   const [profileForm, setProfileForm] = useState<ProfileForm>({
     display_name: "",
@@ -1033,16 +1036,28 @@ export default function StaffPage() {
           </div>
           <nav className="flex min-w-max gap-2 lg:mt-8 lg:min-w-0 lg:flex-col">
             {[
-              ["#overview", "首頁總覽", Trophy],
-              ["#profile", "個人資料", UserRound],
-              ["#wallet", "薪資錢包", WalletCards],
-              ["#games", "可接遊戲", Gamepad2],
-            ].map(([href, label, Icon]) => {
+              ["overview", "首頁總覽", Trophy],
+              ["profile", "個人資料", UserRound],
+              ["wallet", "薪資錢包", WalletCards],
+              ["games", "可接遊戲", Gamepad2],
+            ].map(([tab, label, Icon]) => {
               const NavIcon = Icon as typeof Trophy;
               return (
-                <a key={href as string} href={href as string} className="flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-bold text-violet-100 transition hover:bg-white/15 hover:text-white">
+                <button
+                  key={tab as string}
+                  type="button"
+                  onClick={() => {
+                    setActiveTab(tab as typeof activeTab);
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }}
+                  className={`flex items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm font-bold transition ${
+                    activeTab === tab
+                      ? "bg-violet-500 text-white shadow-lg shadow-violet-950/20"
+                      : "text-violet-100 hover:bg-white/15 hover:text-white"
+                  }`}
+                >
                   <NavIcon size={18} /> {label as string}
-                </a>
+                </button>
               );
             })}
           </nav>
@@ -1103,14 +1118,14 @@ export default function StaffPage() {
           </div>
         </header>
 
-        <section className="grid gap-4 md:grid-cols-4">
+        <section className={activeTab === "overview" ? "grid gap-4 md:grid-cols-4" : "hidden"}>
           <StatCard title="月份訂單" value={`${monthOrderCount} 筆`} />
           <StatCard title="月份薪資" value={money(monthSalary)} />
           <StatCard title="獎金 / 扣除" value={money(monthBonus)} />
           <StatCard title="未發薪" value={money(unpaidAmount)} />
         </section>
 
-        <section id="wallet" className="scroll-mt-24 rounded-[28px] border border-sky-100 bg-white p-5 shadow-sm shadow-sky-100">
+        <section id="wallet" className={`${activeTab === "wallet" ? "block" : "hidden"} rounded-[28px] border border-sky-100 bg-white p-5 shadow-sm shadow-sky-100`}>
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <h2 className="flex items-center gap-2 text-lg font-black text-slate-900">
@@ -1253,7 +1268,7 @@ export default function StaffPage() {
           ) : null}
         </section>
 
-        <section className="rounded-[28px] border border-sky-100 bg-white p-5 shadow-sm shadow-sky-100">
+        <section className={`${activeTab === "overview" ? "block" : "hidden"} rounded-[28px] border border-sky-100 bg-white p-5 shadow-sm shadow-sky-100`}>
           <div className="grid gap-4 md:grid-cols-[1fr_auto] md:items-end">
             <Field label="薪資月份">
               <input
@@ -1277,9 +1292,9 @@ export default function StaffPage() {
           </div>
         </section>
 
-        <section className="grid gap-5 xl:grid-cols-[0.9fr_1.4fr]">
+        <section className={activeTab === "overview" ? "grid gap-5 xl:grid-cols-[0.9fr_1.4fr]" : "block"}>
           <div className="space-y-5">
-            <div className="rounded-[28px] border border-sky-100 bg-white p-5 shadow-sm shadow-sky-100">
+            <div className={`${activeTab === "overview" ? "block" : "hidden"} rounded-[28px] border border-sky-100 bg-white p-5 shadow-sm shadow-sky-100`}>
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <p className="flex items-center gap-2 text-sm font-bold text-sky-600">
@@ -1325,7 +1340,7 @@ export default function StaffPage() {
               </div>
             </div>
 
-            <div className="rounded-[28px] border border-sky-100 bg-white p-5 shadow-sm shadow-sky-100">
+            <div className={`${activeTab === "overview" ? "block" : "hidden"} rounded-[28px] border border-sky-100 bg-white p-5 shadow-sm shadow-sky-100`}>
               <div className="flex items-center justify-between gap-4">
                 <div>
                   <h2 className="text-lg font-black text-slate-900">
@@ -1366,7 +1381,7 @@ export default function StaffPage() {
               </button>
             </div>
 
-            <div id="profile" className="scroll-mt-24 rounded-[28px] border border-sky-100 bg-white p-5 shadow-sm shadow-sky-100">
+            <div id="profile" className={`${activeTab === "profile" ? "block" : "hidden"} rounded-[28px] border border-sky-100 bg-white p-5 shadow-sm shadow-sky-100`}>
               <h2 className="flex items-center gap-2 text-lg font-black text-slate-900">
                 <UserRound size={20} className="text-sky-500" />
                 個人資料
@@ -1510,7 +1525,7 @@ export default function StaffPage() {
           </div>
 
           <div className="space-y-5">
-            <div id="games" className="scroll-mt-24 rounded-[28px] border border-sky-100 bg-white p-5 shadow-sm shadow-sky-100">
+            <div id="games" className={`${activeTab === "games" ? "block" : "hidden"} rounded-[28px] border border-sky-100 bg-white p-5 shadow-sm shadow-sky-100`}>
               <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
                   <h2 className="flex items-center gap-2 text-lg font-black text-slate-900">
@@ -1569,7 +1584,7 @@ export default function StaffPage() {
               </div>
             </div>
 
-            <div className="rounded-[28px] border border-sky-100 bg-white shadow-sm shadow-sky-100">
+            <div className={`${activeTab === "overview" ? "block" : "hidden"} rounded-[28px] border border-sky-100 bg-white shadow-sm shadow-sky-100`}>
               <div className="border-b border-sky-100 px-5 py-4">
                 <h2 className="text-lg font-black text-slate-900">訂單審核紀錄</h2>
                 <p className="mt-1 text-sm text-slate-500">
@@ -1634,7 +1649,7 @@ export default function StaffPage() {
               )}
             </div>
 
-            <div className="rounded-[28px] border border-sky-100 bg-white shadow-sm shadow-sky-100">
+            <div className={`${activeTab === "overview" ? "block" : "hidden"} rounded-[28px] border border-sky-100 bg-white shadow-sm shadow-sky-100`}>
               <div className="border-b border-sky-100 px-5 py-4">
                 <h2 className="flex items-center gap-2 text-lg font-black text-slate-900">
                   <WalletCards size={20} className="text-sky-500" />
@@ -1727,7 +1742,7 @@ export default function StaffPage() {
               )}
             </div>
 
-            <div className="rounded-[28px] border border-sky-100 bg-white shadow-sm shadow-sky-100">
+            <div className={`${activeTab === "overview" ? "block" : "hidden"} rounded-[28px] border border-sky-100 bg-white shadow-sm shadow-sky-100`}>
               <div className="border-b border-sky-100 px-5 py-4">
                 <h2 className="flex items-center gap-2 text-lg font-black text-slate-900">
                   <Gift size={20} className="text-sky-500" />
