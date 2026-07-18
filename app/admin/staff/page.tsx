@@ -17,6 +17,7 @@ import {
   Users,
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import StaffAvatar from "@/components/StaffAvatar";
 
 type Staff = {
@@ -168,6 +169,7 @@ function makeForm(staff: Staff | null): StaffForm {
 }
 
 export default function AdminStaffPage() {
+  const router = useRouter();
   const [checking, setChecking] = useState(true);
   const [loading, setLoading] = useState(true);
   const [staffList, setStaffList] = useState<Staff[]>([]);
@@ -258,10 +260,6 @@ export default function AdminStaffPage() {
   ).length;
   const onlineCount = staffList.filter((staff) => staff.is_online).length;
 
-  useEffect(() => {
-    boot();
-  }, []);
-
   async function boot() {
     setChecking(true);
 
@@ -270,7 +268,7 @@ export default function AdminStaffPage() {
       const session = data.session;
 
       if (!session) {
-        window.location.href = "/admin-login";
+        router.replace("/admin-login");
         return;
       }
 
@@ -279,7 +277,7 @@ export default function AdminStaffPage() {
       if (!discordId) {
         alert("無法取得 Discord ID，請重新登入。");
         await supabase.auth.signOut();
-        window.location.href = "/admin-login";
+        router.replace("/admin-login");
         return;
       }
 
@@ -293,13 +291,13 @@ export default function AdminStaffPage() {
       if (error) {
         console.error("check admin error:", error);
         alert("檢查後台權限失敗");
-        window.location.href = "/staff";
+        router.replace("/staff");
         return;
       }
 
       if (!admin) {
         alert("你沒有後台管理權限");
-        window.location.href = "/staff";
+        router.replace("/staff");
         return;
       }
 
@@ -307,7 +305,7 @@ export default function AdminStaffPage() {
     } catch (error) {
       console.error("admin staff boot error:", error);
       alert("檢查後台權限失敗");
-      window.location.href = "/staff";
+      router.replace("/staff");
     } finally {
       setChecking(false);
     }
@@ -416,7 +414,9 @@ export default function AdminStaffPage() {
     }
 
     const serviceKeys = (data || [])
-      .map((item: any) => String(item.service_key || "").trim())
+      .map((item: { service_key?: string | null }) =>
+        String(item.service_key || "").trim()
+      )
       .filter(Boolean);
 
     setAllowedServices(serviceKeys.length > 0 ? serviceKeys : services);
@@ -564,6 +564,11 @@ export default function AdminStaffPage() {
   async function refresh() {
     await loadStaff();
   }
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => void boot(), 0);
+    return () => window.clearTimeout(timeoutId);
+  }, []);
 
   if (checking) {
     return (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { UserRound } from "lucide-react";
 
 type StaffAvatarProps = {
@@ -76,13 +76,11 @@ export default function StaffAvatar({
     () => normalizeAvatarUrl(avatarUrl, discordId),
     [avatarUrl, discordId]
   );
-  const [useFallback, setUseFallback] = useState(false);
-  const [hideImage, setHideImage] = useState(false);
-
-  useEffect(() => {
-    setUseFallback(false);
-    setHideImage(false);
-  }, [primaryUrl, fallbackUrl]);
+  const [failedPrimaryUrl, setFailedPrimaryUrl] = useState("");
+  const [failedFallbackUrl, setFailedFallbackUrl] = useState("");
+  const useFallback = failedPrimaryUrl === primaryUrl;
+  const hideImage =
+    useFallback && (!fallbackUrl || failedFallbackUrl === fallbackUrl);
 
   const src = useFallback ? fallbackUrl : primaryUrl;
 
@@ -102,11 +100,11 @@ export default function StaffAvatar({
       referrerPolicy="no-referrer"
       onError={() => {
         if (!useFallback && fallbackUrl && fallbackUrl !== src) {
-          setUseFallback(true);
+          setFailedPrimaryUrl(primaryUrl);
           return;
         }
 
-        setHideImage(true);
+        setFailedFallbackUrl(fallbackUrl);
       }}
     />
   );

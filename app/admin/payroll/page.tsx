@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   Banknote,
@@ -237,6 +238,7 @@ function buildCopyText(rows: PayrollRow[]) {
 }
 
 export default function AdminPayrollPage() {
+  const router = useRouter();
   const [checking, setChecking] = useState(true);
   const [loading, setLoading] = useState(true);
   const [staffList, setStaffList] = useState<Staff[]>([]);
@@ -258,6 +260,7 @@ export default function AdminPayrollPage() {
   >(DEFAULT_WALLET_OPTIONS);
   const [walletManualAmount, setWalletManualAmount] = useState("");
   const [walletSendingId, setWalletSendingId] = useState<string | null>(null);
+  const [markingPaidId, setMarkingPaidId] = useState<string | null>(null);
 
   const rows = useMemo(() => {
     const staffMap = new Map<string, Staff>();
@@ -386,10 +389,6 @@ export default function AdminPayrollPage() {
     };
   }, [rows]);
 
-  useEffect(() => {
-    boot();
-  }, []);
-
   async function boot() {
     setChecking(true);
 
@@ -398,7 +397,7 @@ export default function AdminPayrollPage() {
       const session = data.session;
 
       if (!session) {
-        window.location.href = "/admin-login";
+        router.replace("/admin-login");
         return;
       }
 
@@ -407,7 +406,7 @@ export default function AdminPayrollPage() {
       if (!discordId) {
         alert("無法取得 Discord ID，請重新登入。");
         await supabase.auth.signOut();
-        window.location.href = "/admin-login";
+        router.replace("/admin-login");
         return;
       }
 
@@ -420,7 +419,7 @@ export default function AdminPayrollPage() {
 
       if (error || !admin) {
         alert(error ? "檢查後台權限失敗" : "你沒有後台管理權限");
-        window.location.href = "/staff";
+        router.replace("/staff");
         return;
       }
 
@@ -428,7 +427,7 @@ export default function AdminPayrollPage() {
     } catch (error) {
       console.error("admin payroll boot error:", error);
       alert("檢查後台權限失敗");
-      window.location.href = "/staff";
+      router.replace("/staff");
     } finally {
       setChecking(false);
     }
@@ -705,6 +704,54 @@ export default function AdminPayrollPage() {
     }
   }
 
+  async function markStaffPaid(row: PayrollRow) {
+    const ok = confirm(
+      `確定要將「${row.staffName}」目前查詢範圍內的未發薪訂單標記為已發薪嗎？`
+    );
+    if (!ok) return;
+
+    setMarkingPaidId(row.discordId);
+    const settledAt = new Date().toISOString();
+    const orderIds = orders
+      .filter((order) => order.discord_id === row.discordId)
+      .map((order) => order.id);
+    const bonusIds = bonuses
+      .filter((bonus) => bonus.discord_id === row.discordId)
+      .map((bonus) => bonus.id);
+    const [orderResult, bonusResult] = await Promise.all([
+      orderIds.length
+        ? supabase
+            .from(ORDER_TABLE)
+            .update({ status: "已發薪", wallet_settled_at: settledAt })
+            .in("id", orderIds)
+        : Promise.resolve({ error: null }),
+      bonusIds.length
+        ? supabase
+            .from(BONUS_TABLE)
+            .update({ wallet_settled_at: settledAt })
+            .in("id", bonusIds)
+        : Promise.resolve({ error: null }),
+    ]);
+    setMarkingPaidId(null);
+
+    if (orderResult.error || bonusResult.error) {
+      console.error(
+        "mark staff paid failed:",
+        orderResult.error || bonusResult.error
+      );
+      alert("標記發薪失敗");
+      return;
+    }
+
+    alert(`已將 ${row.staffName} 的薪資項目標記為已發薪`);
+    await loadPayrollData({ silent: true });
+  }
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => void boot(), 0);
+    return () => window.clearTimeout(timeoutId);
+  }, []);
+
   if (checking) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-[#eef7fd]">
@@ -979,14 +1026,24 @@ export default function AdminPayrollPage() {
                         </div>
                       </td>
                       <td>
-                        <button
-                          onClick={() => openWalletModal(row)}
-                          disabled={walletSendingId === row.discordId}
-                          className="inline-flex items-center gap-2 rounded-full bg-sky-500 px-3 py-2 text-xs font-bold text-white hover:bg-sky-600 disabled:opacity-60"
-                        >
-                          <WalletCards size={14} />
-                          發送
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => openWalletModal(row)}
+                            disabled={walletSendingId === row.discordId}
+                            className="inline-flex items-center gap-2 rounded-full bg-sky-500 px-3 py-2 text-xs font-bold text-white hover:bg-sky-600 disabled:opacity-60"
+                          >
+                            <WalletCards size={14} />
+                            發送
+                          </button>
+                          <button
+                            onClick={() => markStaffPaid(row)}
+                            disabled={markingPaidId === row.discordId}
+                            className="inline-flex items-center gap-2 rounded-full bg-emerald-500 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-600 disabled:opacity-60"
+                          >
+                            <CheckCircle2 size={14} />
+                            標記發薪
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}

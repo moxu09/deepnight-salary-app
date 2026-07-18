@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   BellRing,
@@ -32,6 +33,7 @@ function formatDateTime(value?: string | null) {
 }
 
 export default function AdminSettingsPage() {
+  const router = useRouter();
   const [checking, setChecking] = useState(true);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -44,10 +46,6 @@ export default function AdminSettingsPage() {
     payday_note: "",
   });
 
-  useEffect(() => {
-    boot();
-  }, []);
-
   async function boot() {
     setChecking(true);
 
@@ -56,7 +54,7 @@ export default function AdminSettingsPage() {
       const session = data.session;
 
       if (!session) {
-        window.location.href = "/admin-login";
+        router.replace("/admin-login");
         return;
       }
 
@@ -65,7 +63,7 @@ export default function AdminSettingsPage() {
       if (!discordId) {
         alert("無法取得 Discord ID，請重新登入。");
         await supabase.auth.signOut();
-        window.location.href = "/admin-login";
+        router.replace("/admin-login");
         return;
       }
 
@@ -79,13 +77,13 @@ export default function AdminSettingsPage() {
       if (error) {
         console.error("check admin error:", error);
         alert("檢查後台權限失敗");
-        window.location.href = "/staff";
+        router.replace("/staff");
         return;
       }
 
       if (!admin) {
         alert("你沒有後台管理權限");
-        window.location.href = "/staff";
+        router.replace("/staff");
         return;
       }
 
@@ -93,7 +91,7 @@ export default function AdminSettingsPage() {
     } catch (error) {
       console.error("admin settings boot error:", error);
       alert("檢查後台權限失敗");
-      window.location.href = "/staff";
+      router.replace("/staff");
     } finally {
       setChecking(false);
     }
@@ -185,6 +183,11 @@ export default function AdminSettingsPage() {
     setSettings(data as SalarySettings);
     alert("系統設定已儲存");
   }
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => void boot(), 0);
+    return () => window.clearTimeout(timeoutId);
+  }, []);
 
   if (checking || loading) {
     return (

@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   ArrowRight,
   Banknote,
@@ -17,11 +18,8 @@ import { supabase } from "@/lib/supabase";
 import { getDiscordIdFromSession } from "@/lib/discordSession";
 
 export default function AdminHomePage() {
+  const router = useRouter();
   const [checking, setChecking] = useState(true);
-
-  useEffect(() => {
-    boot();
-  }, []);
 
   async function boot() {
     setChecking(true);
@@ -31,7 +29,7 @@ export default function AdminHomePage() {
       const session = data.session;
 
       if (!session) {
-        window.location.href = "/admin-login";
+        router.replace("/admin-login");
         return;
       }
 
@@ -40,7 +38,7 @@ export default function AdminHomePage() {
       if (!discordId) {
         alert("無法取得 Discord ID，請重新登入。");
         await supabase.auth.signOut();
-        window.location.href = "/admin-login";
+        router.replace("/admin-login");
         return;
       }
 
@@ -54,23 +52,28 @@ export default function AdminHomePage() {
       if (error) {
         console.error("check admin error:", error);
         alert("檢查後台權限失敗");
-        window.location.href = "/staff";
+        router.replace("/staff");
         return;
       }
 
       if (!admin) {
         alert("你沒有後台管理權限");
-        window.location.href = "/staff";
+        router.replace("/staff");
         return;
       }
     } catch (error) {
       console.error("admin boot error:", error);
       alert("檢查後台權限失敗");
-      window.location.href = "/staff";
+      router.replace("/staff");
     } finally {
       setChecking(false);
     }
   }
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => void boot(), 0);
+    return () => window.clearTimeout(timeoutId);
+  }, []);
 
   if (checking) {
     return (

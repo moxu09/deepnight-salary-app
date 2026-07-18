@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   BadgeDollarSign,
@@ -331,6 +332,7 @@ function getOrderCustomer(order: SalaryOrder) {
 }
 
 export default function AdminSalaryPage() {
+  const router = useRouter();
   const [checking, setChecking] = useState(true);
   const [loading, setLoading] = useState(true);
   const [staffList, setStaffList] = useState<Staff[]>([]);
@@ -470,10 +472,6 @@ export default function AdminSalaryPage() {
     return orderUnpaid + bonusTotal;
   }, [orders, bonuses]);
 
-  useEffect(() => {
-    boot();
-  }, []);
-
   async function boot() {
     setChecking(true);
 
@@ -482,7 +480,7 @@ export default function AdminSalaryPage() {
       const session = data.session;
 
       if (!session) {
-        window.location.href = "/admin-login";
+        router.replace("/admin-login");
         return;
       }
 
@@ -491,7 +489,7 @@ export default function AdminSalaryPage() {
       if (!discordId) {
         alert("無法取得 Discord ID，請重新登入。");
         await supabase.auth.signOut();
-        window.location.href = "/admin-login";
+        router.replace("/admin-login");
         return;
       }
 
@@ -505,13 +503,13 @@ export default function AdminSalaryPage() {
       if (error) {
         console.error("check admin error:", error);
         alert("檢查後台權限失敗");
-        window.location.href = "/staff";
+        router.replace("/staff");
         return;
       }
 
       if (!admin) {
         alert("你沒有後台管理權限");
-        window.location.href = "/staff";
+        router.replace("/staff");
         return;
       }
 
@@ -519,7 +517,7 @@ export default function AdminSalaryPage() {
     } catch (error) {
       console.error("admin salary boot error:", error);
       alert("檢查後台權限失敗");
-      window.location.href = "/staff";
+      router.replace("/staff");
     } finally {
       setChecking(false);
     }
@@ -728,7 +726,7 @@ export default function AdminSalaryPage() {
         ? `打賞：${orderForm.service_name || "手動打賞"}`
         : orderForm.service_name;
     const finishedAt = datetimeToIso(orderForm.order_finished_at);
-    const manualOrderNo = `MANUAL-${Date.now()}`;
+    const manualOrderNo = `MANUAL-${new Date(finishedAt).getTime()}-${orderForm.discord_id}`;
 
     setSavingOrder(true);
 
@@ -979,6 +977,28 @@ export default function AdminSalaryPage() {
     await loadSalaryData();
   }
 
+  async function deleteDeduction(bonus: Bonus) {
+    const ok = confirm(
+      `確定要刪除「${bonus.description || bonus.bonus_type || "薪水扣除"}」這筆扣薪嗎？`
+    );
+    if (!ok) return;
+
+    const { error } = await supabase
+      .from("players_bonus")
+      .delete()
+      .eq("id", bonus.id)
+      .lt("amount", 0);
+
+    if (error) {
+      console.error("delete salary deduction error:", error);
+      alert("刪除扣薪失敗");
+      return;
+    }
+
+    alert("扣薪已刪除");
+    await loadSalaryData();
+  }
+
   async function bulkMarkPaid() {
     const startIso = dateToStartIso(payForm.start_date);
     const endIso = dateToEndIso(payForm.end_date);
@@ -1081,6 +1101,11 @@ export default function AdminSalaryPage() {
     await loadSalaryData();
     return data.id;
   }
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => void boot(), 0);
+    return () => window.clearTimeout(timeoutId);
+  }, []);
 
   if (checking) {
     return (
@@ -1717,6 +1742,7 @@ export default function AdminSalaryPage() {
                     <th>類型</th>
                     <th>說明</th>
                     <th>金額</th>
+                    <th>操作</th>
                   </tr>
                 </thead>
 
@@ -1742,6 +1768,19 @@ export default function AdminSalaryPage() {
                         }`}
                       >
                         {money(bonus.amount)}
+                      </td>
+                      <td>
+                        {Number(bonus.amount || 0) < 0 ? (
+                          <button
+                            onClick={() => deleteDeduction(bonus)}
+                            className="inline-flex items-center gap-2 rounded-full border border-red-100 bg-red-50 px-3 py-1.5 text-xs font-bold text-red-600 hover:bg-red-100"
+                          >
+                            <Trash2 size={14} />
+                            刪除扣薪
+                          </button>
+                        ) : (
+                          "-"
+                        )}
                       </td>
                     </tr>
                   ))}
