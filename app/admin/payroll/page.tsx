@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useEffectEvent, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -22,8 +22,6 @@ import {
   dateInputToTaipeiEndIso,
   dateInputToTaipeiStartIso,
   formatTaipeiDateTime,
-  getTaipeiDateInput,
-  getTaipeiMonthStartInput,
 } from "@/lib/taipeiTime";
 
 const DEEPNIGHT_GUILD_ID =
@@ -132,14 +130,6 @@ const DEFAULT_WALLET_OPTIONS: Record<WalletOptionKey, boolean> = {
   bonus: true,
   deduction: true,
 };
-
-function getTodayInput() {
-  return getTaipeiDateInput();
-}
-
-function getMonthStartInput() {
-  return getTaipeiMonthStartInput();
-}
 
 function dateToStartIso(value: string) {
   return dateInputToTaipeiStartIso(value);
@@ -747,8 +737,10 @@ export default function AdminPayrollPage() {
     await loadPayrollData({ silent: true });
   }
 
+  const bootEffect = useEffectEvent(boot);
+
   useEffect(() => {
-    const timeoutId = window.setTimeout(() => void boot(), 0);
+    const timeoutId = window.setTimeout(() => void bootEffect(), 0);
     return () => window.clearTimeout(timeoutId);
   }, []);
 

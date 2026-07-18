@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -184,8 +184,10 @@ export default function AdminSettingsPage() {
     alert("系統設定已儲存");
   }
 
+  const bootEffect = useEffectEvent(boot);
+
   useEffect(() => {
-    const timeoutId = window.setTimeout(() => void boot(), 0);
+    const timeoutId = window.setTimeout(() => void bootEffect(), 0);
     return () => window.clearTimeout(timeoutId);
   }, []);
 

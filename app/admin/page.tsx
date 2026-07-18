@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -70,8 +70,10 @@ export default function AdminHomePage() {
     }
   }
 
+  const bootEffect = useEffectEvent(boot);
+
   useEffect(() => {
-    const timeoutId = window.setTimeout(() => void boot(), 0);
+    const timeoutId = window.setTimeout(() => void bootEffect(), 0);
     return () => window.clearTimeout(timeoutId);
   }, []);
 

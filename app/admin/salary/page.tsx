@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useEffectEvent, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -204,23 +204,6 @@ function getOrderSourceDate(order: SalaryOrder) {
   return (
     order.order_finished_at || order.completed_at || order.created_at || null
   );
-}
-
-function getStaffTotalOrderAmountBeforeDate(
-  orderList: SalaryOrder[],
-  discordId: string,
-  beforeIso: string
-) {
-  const beforeDate = new Date(beforeIso);
-
-  return orderList
-    .filter((order) => order.discord_id === discordId)
-    .filter((order) => {
-      const sourceDate = getOrderSourceDate(order);
-      if (!sourceDate) return false;
-      return new Date(sourceDate) < beforeDate;
-    })
-    .reduce((sum, order) => sum + getOrderAmount(order), 0);
 }
 
 function getStaffYearSalaryTotal(
@@ -450,8 +433,6 @@ export default function AdminSalaryPage() {
 
     return orderBonus + extraBonus;
   }, [orders, bonuses]);
-
-  const totalExpense = totalSalary + totalBonus;
 
   const unpaidTotal = useMemo(() => {
     const orderUnpaid = orders
@@ -1130,8 +1111,10 @@ export default function AdminSalaryPage() {
     return data.id;
   }
 
+  const bootEffect = useEffectEvent(boot);
+
   useEffect(() => {
-    const timeoutId = window.setTimeout(() => void boot(), 0);
+    const timeoutId = window.setTimeout(() => void bootEffect(), 0);
     return () => window.clearTimeout(timeoutId);
   }, []);
 

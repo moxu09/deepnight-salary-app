@@ -1,8 +1,9 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useEffectEvent, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   CalendarDays,
@@ -156,6 +157,7 @@ function getCommissionTierLabel(value?: string | null) {
 }
 
 export default function SalaryRankPage() {
+  const router = useRouter();
   const [checking, setChecking] = useState(true);
   const [loading, setLoading] = useState(true);
   const [staffList, setStaffList] = useState<Staff[]>([]);
@@ -301,8 +303,10 @@ export default function SalaryRankPage() {
     return rows.reduce((sum, row) => sum + row.orderCount, 0);
   }, [rows]);
 
+  const bootEffect = useEffectEvent(boot);
+
   useEffect(() => {
-    boot();
+    bootEffect();
   }, []);
 
   async function boot() {
@@ -313,7 +317,7 @@ export default function SalaryRankPage() {
       const session = data.session;
 
       if (!session) {
-        window.location.href = "/admin-login";
+        router.replace("/admin-login");
         return;
       }
 
@@ -322,7 +326,7 @@ export default function SalaryRankPage() {
       if (!discordId) {
         alert("無法取得 Discord ID，請重新登入。");
         await supabase.auth.signOut();
-        window.location.href = "/admin-login";
+        router.replace("/admin-login");
         return;
       }
 
@@ -336,13 +340,13 @@ export default function SalaryRankPage() {
       if (error) {
         console.error("check admin error:", error);
         alert("檢查後台權限失敗");
-        window.location.href = "/staff";
+        router.replace("/staff");
         return;
       }
 
       if (!admin) {
         alert("你沒有後台管理權限");
-        window.location.href = "/staff";
+        router.replace("/staff");
         return;
       }
 
@@ -350,7 +354,7 @@ export default function SalaryRankPage() {
     } catch (error) {
       console.error("salary rank boot error:", error);
       alert("檢查後台權限失敗");
-      window.location.href = "/staff";
+      router.replace("/staff");
     } finally {
       setChecking(false);
     }

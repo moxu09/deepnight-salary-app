@@ -515,7 +515,6 @@ export default function StaffPage() {
 
   useEffect(() => {
     // boot is intentionally run once after the client router is ready.
-    // eslint-disable-next-line react-hooks/immutability
     boot();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

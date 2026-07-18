@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useEffectEvent, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { getDiscordIdFromSession } from "@/lib/discordSession";
 import {
@@ -565,8 +565,10 @@ export default function AdminStaffPage() {
     await loadStaff();
   }
 
+  const bootEffect = useEffectEvent(boot);
+
   useEffect(() => {
-    const timeoutId = window.setTimeout(() => void boot(), 0);
+    const timeoutId = window.setTimeout(() => void bootEffect(), 0);
     return () => window.clearTimeout(timeoutId);
   }, []);
 
