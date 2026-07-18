@@ -548,7 +548,7 @@ export default function AdminSalaryPage() {
     setStaffList((data || []) as Staff[]);
   }
 
-  async function loadSalaryData() {
+  async function loadSalaryData(staffId = filterStaffId) {
     const startIso = dateToStartIso(startDate);
     const endIso = dateToEndIso(endDate);
 
@@ -567,8 +567,8 @@ export default function AdminSalaryPage() {
       orderQuery = orderQuery.lte("order_finished_at", endIso);
     }
 
-    if (filterStaffId !== "all") {
-      orderQuery = orderQuery.eq("discord_id", filterStaffId);
+    if (staffId !== "all") {
+      orderQuery = orderQuery.eq("discord_id", staffId);
     }
 
     const { data: orderData, error: orderError } = await orderQuery;
@@ -593,8 +593,8 @@ export default function AdminSalaryPage() {
       bonusQuery = bonusQuery.lte("created_at", endIso);
     }
 
-    if (filterStaffId !== "all") {
-      bonusQuery = bonusQuery.eq("discord_id", filterStaffId);
+    if (staffId !== "all") {
+      bonusQuery = bonusQuery.eq("discord_id", staffId);
     }
 
     const { data: bonusData, error: bonusError } = await bonusQuery;
@@ -615,6 +615,20 @@ export default function AdminSalaryPage() {
       ...prev,
       [key]: value,
     }));
+  }
+
+  function getDefaultOrderRate(
+    discordId: string,
+    entryType: OrderForm["entry_type"],
+    finishedAt: string
+  ) {
+    const regularRate = getStaffRate(
+      staffList.find((item) => item.discord_id === discordId),
+      finishedAt,
+      orders
+    );
+
+    return entryType === "tip" && regularRate !== 95 ? 90 : regularRate;
   }
 
   function updateBonusForm<K extends keyof BonusForm>(
@@ -665,9 +679,10 @@ export default function AdminSalaryPage() {
         getOrderService(order) === "-" ? "" : getOrderService(order),
       order_amount: String(getOrderAmount(order) || ""),
       salary_rate: String(
-        getStaffRate(
-          staffList.find((item) => item.discord_id === order.discord_id)
-        )
+        order.salary_rate ??
+          getStaffRate(
+            staffList.find((item) => item.discord_id === order.discord_id)
+          )
       ),
       bonus_amount: String(order.bonus_amount || 0),
       order_finished_at: order.order_finished_at
@@ -711,13 +726,26 @@ export default function AdminSalaryPage() {
       (item) => item.discord_id === orderForm.discord_id
     );
 
-    const regularRate = getStaffRate(
+    const defaultRate = getStaffRate(
       selectedStaff,
       orderForm.order_finished_at,
       orders
     );
     const salaryRate =
-      orderForm.entry_type === "tip" && regularRate !== 95 ? 90 : regularRate;
+      orderForm.entry_type === "tip"
+        ? defaultRate === 95
+          ? 95
+          : 90
+        : Number(orderForm.salary_rate);
+
+    if (
+      Number.isNaN(salaryRate) ||
+      salaryRate <= 0 ||
+      salaryRate > 100
+    ) {
+      alert("請輸入 1 到 100 之間的員工抽成");
+      return;
+    }
 
     const staffName = getStaffNameByDiscordId(staffList, orderForm.discord_id);
     const staffSalary = Math.round(orderAmount * (salaryRate / 100));
@@ -1189,19 +1217,15 @@ export default function AdminSalaryPage() {
               />
             </Field>
 
-            <Field label="員工">
-              <select
-                value={filterStaffId}
-                onChange={(event) => setFilterStaffId(event.target.value)}
-              >
-                <option value="all">全部員工</option>
-                {staffList.map((staff) => (
-                  <option key={staff.id} value={staff.discord_id}>
-                    {getDisplayStaffName(staff)}
-                  </option>
-                ))}
-              </select>
-            </Field>
+            <SearchableStaffFilter
+              label="搜尋單一員工"
+              value={filterStaffId}
+              staffList={staffList}
+              onChange={(value) => {
+                setFilterStaffId(value);
+                void loadSalaryData(value);
+              }}
+            />
 
             <Field label="搜尋">
               <div className="flex items-center gap-2 rounded-xl border border-sky-100 bg-sky-50/60 px-3">
@@ -1217,7 +1241,7 @@ export default function AdminSalaryPage() {
 
             <div className="flex items-end">
               <button
-                onClick={loadSalaryData}
+                onClick={() => void loadSalaryData()}
                 className="flex w-full items-center justify-center gap-2 rounded-full bg-sky-500 px-5 py-2.5 text-sm font-bold text-white hover:bg-sky-600"
               >
                 <CalendarDays size={16} />
@@ -1255,9 +1279,22 @@ export default function AdminSalaryPage() {
               <Field label="員工">
                 <select
                   value={orderForm.discord_id}
-                  onChange={(event) =>
-                    updateOrderForm("discord_id", event.target.value)
-                  }
+                  onChange={(event) => {
+                    const discordId = event.target.value;
+                    setOrderForm((prev) => ({
+                      ...prev,
+                      discord_id: discordId,
+                      salary_rate: discordId
+                        ? String(
+                            getDefaultOrderRate(
+                              discordId,
+                              prev.entry_type,
+                              prev.order_finished_at
+                            )
+                          )
+                        : "",
+                    }));
+                  }}
                 >
                   <option value="">選擇員工</option>
                   {staffList.map((staff) => (
@@ -1281,12 +1318,22 @@ export default function AdminSalaryPage() {
               <Field label="類型">
                 <select
                   value={orderForm.entry_type}
-                  onChange={(event) =>
-                    updateOrderForm(
-                      "entry_type",
-                      event.target.value as "order" | "tip"
-                    )
-                  }
+                  onChange={(event) => {
+                    const entryType = event.target.value as "order" | "tip";
+                    setOrderForm((prev) => ({
+                      ...prev,
+                      entry_type: entryType,
+                      salary_rate: prev.discord_id
+                        ? String(
+                            getDefaultOrderRate(
+                              prev.discord_id,
+                              entryType,
+                              prev.order_finished_at
+                            )
+                          )
+                        : prev.salary_rate,
+                    }));
+                  }}
                 >
                   <option value="order">訂單</option>
                   <option value="tip">打賞</option>
@@ -1315,23 +1362,31 @@ export default function AdminSalaryPage() {
               </Field>
 
               <Field label="員工抽成">
-                <div className="flex min-h-[40px] items-center rounded-xl border border-sky-100 bg-sky-50/60 px-3 text-sm font-black text-sky-700">
-                  {orderForm.discord_id
-                    ? `${(() => {
-                        const regularRate = getStaffRate(
-                          staffList.find(
-                            (item) => item.discord_id === orderForm.discord_id
-                          ),
-                          orderForm.order_finished_at,
-                          orders
-                        );
-                        return orderForm.entry_type === "tip" &&
-                          regularRate !== 95
-                          ? 90
-                          : regularRate;
-                      })()}%`
-                    : "請先選擇員工"}
-                </div>
+                {orderForm.entry_type === "order" ? (
+                  <div className="relative">
+                    <input
+                      type="number"
+                      min="1"
+                      max="100"
+                      step="0.1"
+                      value={orderForm.salary_rate}
+                      onChange={(event) =>
+                        updateOrderForm("salary_rate", event.target.value)
+                      }
+                      placeholder="選擇員工後自動帶入"
+                      className="pr-9"
+                    />
+                    <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm font-bold text-sky-600">
+                      %
+                    </span>
+                  </div>
+                ) : (
+                  <div className="flex min-h-[40px] items-center rounded-xl border border-sky-100 bg-sky-50/60 px-3 text-sm font-black text-sky-700">
+                    {orderForm.discord_id
+                      ? `${orderForm.salary_rate}%（打賞固定）`
+                      : "請先選擇員工"}
+                  </div>
+                )}
               </Field>
 
               <Field label="訂單獎金">
@@ -1349,9 +1404,22 @@ export default function AdminSalaryPage() {
                 <input
                   type="datetime-local"
                   value={orderForm.order_finished_at}
-                  onChange={(event) =>
-                    updateOrderForm("order_finished_at", event.target.value)
-                  }
+                  onChange={(event) => {
+                    const finishedAt = event.target.value;
+                    setOrderForm((prev) => ({
+                      ...prev,
+                      order_finished_at: finishedAt,
+                      salary_rate: prev.discord_id
+                        ? String(
+                            getDefaultOrderRate(
+                              prev.discord_id,
+                              prev.entry_type,
+                              finishedAt
+                            )
+                          )
+                        : prev.salary_rate,
+                    }));
+                  }}
                 />
               </Field>
 
@@ -1818,5 +1886,95 @@ function Field({
 
       {children}
     </label>
+  );
+}
+
+function SearchableStaffFilter({
+  label,
+  value,
+  onChange,
+  staffList,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  staffList: Staff[];
+}) {
+  const selectedStaff =
+    staffList.find((staff) => staff.discord_id === value) || null;
+  const [searchText, setSearchText] = useState("");
+  const key = searchText.trim().toLowerCase();
+  const matches = staffList
+    .filter((staff) =>
+      [
+        staff.discord_id,
+        staff.discord_name,
+        staff.display_name,
+        staff.real_name,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+        .includes(key)
+    )
+    .slice(0, 8);
+
+  return (
+    <div className="relative">
+      <span className="mb-2 block text-sm font-bold text-slate-600">
+        {label}
+      </span>
+      <div className="flex items-center gap-2 rounded-xl border border-sky-100 bg-sky-50/60 px-3">
+        <Search size={16} className="text-sky-500" />
+        <input
+          value={searchText}
+          onChange={(event) => setSearchText(event.target.value)}
+          placeholder={
+            selectedStaff
+              ? `已選擇：${getDisplayStaffName(selectedStaff)}`
+              : "輸入名字或 Discord ID"
+          }
+          className="min-h-0 flex-1 border-none bg-transparent p-0 focus:shadow-none"
+        />
+      </div>
+      {selectedStaff ? (
+        <button
+          type="button"
+          onClick={() => {
+            onChange("all");
+            setSearchText("");
+          }}
+          className="mt-2 text-xs font-bold text-sky-600"
+        >
+          清除，顯示全部員工
+        </button>
+      ) : null}
+      {searchText ? (
+        <div className="absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-xl border border-sky-100 bg-white p-1 shadow-lg">
+          {matches.length ? (
+            matches.map((staff) => (
+              <button
+                key={staff.id}
+                type="button"
+                onClick={() => {
+                  onChange(staff.discord_id);
+                  setSearchText("");
+                }}
+                className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-sky-50"
+              >
+                <span className="block font-bold text-slate-700">
+                  {getDisplayStaffName(staff)}
+                </span>
+                <span className="block text-xs text-slate-400">
+                  {staff.discord_id}
+                </span>
+              </button>
+            ))
+          ) : (
+            <p className="px-3 py-2 text-sm text-slate-400">找不到員工</p>
+          )}
+        </div>
+      ) : null}
+    </div>
   );
 }
