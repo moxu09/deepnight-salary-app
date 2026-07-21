@@ -245,13 +245,6 @@ function formatDateTime(value?: string | null) {
   });
 }
 
-function formatEntryType(type: string) {
-  if (type === "order_salary") return "訂單薪水";
-  if (type === "order_bonus") return "訂單獎金";
-  if (type === "staff_bonus") return "獎金 / 扣除";
-  return "薪資明細";
-}
-
 function getRequestStatusText(request?: SalaryWithdrawRequest | null) {
   if (!request) return "尚未申請";
   if (request.status === "pending") return "申請中";
@@ -1204,43 +1197,6 @@ export default function StaffPage() {
                 </span>
               </div>
 
-              <div className="mt-5 overflow-x-auto">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>時間</th>
-                      <th>項目</th>
-                      <th>期別</th>
-                      <th>金額</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {salaryWallet.entries.slice(0, 8).map((entry) => (
-                      <tr key={entry.id}>
-                        <td>{formatDateTime(entry.created_at)}</td>
-                        <td>
-                          <p className="font-bold text-slate-700">
-                            {formatEntryType(entry.entry_type)}
-                          </p>
-                          <p className="text-xs text-slate-400">
-                            {entry.source_label || "-"}
-                          </p>
-                        </td>
-                        <td>{entry.period_key || "-"}</td>
-                        <td
-                          className={
-                            Number(entry.amount || 0) < 0
-                              ? "font-bold text-rose-500"
-                              : "font-bold text-sky-600"
-                          }
-                        >
-                          {money(Number(entry.amount || 0))}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
             </>
           ) : null}
         </section>
