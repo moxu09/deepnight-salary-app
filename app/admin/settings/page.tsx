@@ -15,6 +15,7 @@ import { supabase } from "@/lib/supabase";
 import { getDiscordIdFromSession } from "@/lib/discordSession";
 import { formatTaipeiDateTime } from "@/lib/taipeiTime";
 import ActivityCommissionPanel from "@/components/ActivityCommissionPanel";
+import AnnouncementManager from "@/components/AnnouncementManager";
 
 type SalarySettings = {
   id: string;
@@ -350,6 +351,7 @@ export default function AdminSettingsPage() {
           </div>
         </section>
 
+        <AnnouncementManager apiPath="/api/deepnight/announcements" accent="sky" />
         <ActivityCommissionPanel appKey="deepnight" accent="sky" />
       </div>
     </main>
