@@ -1037,11 +1037,11 @@ export default function StaffPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#f7f4ff] px-4 py-5 text-slate-900 sm:px-5 sm:py-6">
-      <div className="mx-auto grid max-w-[1500px] gap-5 lg:grid-cols-[250px_minmax(0,1fr)]">
+    <main className="staff-portal-page min-h-screen bg-[#f3f7fa] text-slate-900">
+      <div className="staff-portal-shell grid lg:grid-cols-[240px_minmax(0,1fr)]">
         <StaffPortalNav activeTab={activeTab} onSelect={setActiveTab} employeeName={getDisplayName(staff)} company="深夜不關燈" />
 
-        <div className="min-w-0 space-y-5">
+        <div className="staff-portal-content min-w-0 space-y-5">
         <header id="overview" className="scroll-mt-24 rounded-[30px] border border-violet-100 bg-white px-6 py-5 shadow-sm shadow-violet-100">
           <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
             <div className="flex items-center gap-4">

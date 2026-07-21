@@ -550,6 +550,165 @@ a {
   min-width: 720px;
 }
 
+/* =========================================================
+   SAP-like portal shell：全高側欄、橫向工作區與清楚對比
+   ========================================================= */
+
+.staff-portal-page {
+  padding: 0 !important;
+  overflow: visible !important;
+  background: #f3f7fa !important;
+}
+
+.staff-portal-shell,
+.admin-portal-shell {
+  width: 100%;
+  max-width: none !important;
+  min-height: 100vh;
+  gap: 0 !important;
+}
+
+.staff-portal-sidebar,
+.admin-portal-sidebar {
+  padding: 0 !important;
+  border-radius: 0 !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  background: #17202d !important;
+  box-shadow: 8px 0 22px rgba(15, 23, 42, 0.08) !important;
+}
+
+.staff-portal-brand,
+.admin-portal-brand {
+  padding: 24px 22px 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0 !important;
+  color: #fff !important;
+}
+
+.staff-portal-brand p:first-child,
+.admin-portal-brand p:first-child {
+  color: #9fb3c8 !important;
+}
+
+.staff-portal-brand p:last-child {
+  color: #d8e4ef !important;
+}
+
+.staff-portal-nav,
+.admin-portal-nav {
+  padding: 12px 0 28px;
+  gap: 0 !important;
+}
+
+.staff-portal-group {
+  padding: 9px 0 5px !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+
+.staff-portal-group-title {
+  margin: 0 18px 5px !important;
+  padding: 8px 4px !important;
+  color: #9fb3c8 !important;
+}
+
+.staff-portal-link,
+.admin-portal-link {
+  width: 100%;
+  min-height: 44px !important;
+  padding: 11px 22px !important;
+  border-radius: 0 !important;
+  border-left: 3px solid transparent;
+  color: #d8e4ef !important;
+  white-space: nowrap !important;
+}
+
+.staff-portal-link:hover,
+.admin-portal-link:hover {
+  transform: none !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: #fff !important;
+}
+
+.staff-portal-link.is-active,
+.admin-portal-link.is-active {
+  border-left-color: #58b9ef;
+  background: #243b53 !important;
+  color: #fff !important;
+  box-shadow: inset 0 0 0 1px rgba(88, 185, 239, 0.08) !important;
+}
+
+.staff-portal-content,
+.admin-portal-content {
+  width: 100%;
+  padding: 22px clamp(16px, 2.2vw, 34px) 40px;
+}
+
+.staff-portal-content > *,
+.admin-portal-content > * {
+  max-width: 100%;
+}
+
+.staff-portal-content table,
+.admin-portal-content table {
+  table-layout: auto;
+}
+
+.staff-portal-content img,
+.admin-portal-content img {
+  max-width: 100%;
+  height: auto;
+  object-fit: cover;
+}
+
+@media (max-width: 1023px) {
+  .staff-portal-sidebar,
+  .admin-portal-sidebar {
+    position: sticky;
+    top: 0;
+    height: auto;
+    border-right: 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.12) !important;
+  }
+
+  .staff-portal-nav,
+  .admin-portal-nav {
+    padding: 0;
+  }
+
+  .staff-portal-group {
+    display: flex;
+    align-items: stretch;
+    padding: 0 !important;
+  }
+
+  .staff-portal-group-title {
+    margin: 0 !important;
+    padding: 12px 14px !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .staff-portal-link,
+  .admin-portal-link {
+    width: auto;
+    padding: 11px 15px !important;
+    border-left: 0;
+    border-bottom: 3px solid transparent;
+  }
+
+  .staff-portal-link.is-active,
+  .admin-portal-link.is-active {
+    border-left-color: transparent;
+    border-bottom-color: #58b9ef;
+  }
+
+  .staff-portal-content,
+  .admin-portal-content {
+    padding: 16px 14px 32px;
+  }
+}
+
 @media (max-width: 768px) {
   header,
   section,
