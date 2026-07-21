@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import {
+  bulkDepositSalaryWallet,
   getAuthUserFromRequest,
   manuallyDepositSalaryWallet,
   settleSalaryWallet,
@@ -94,6 +95,26 @@ export async function POST(request) {
     const { discordId } = await requireAdmin(request);
     const body = await request.json();
     const action = String(body.action || "").trim();
+
+    if (action === "bulk-deposit-wallet") {
+      const result = await bulkDepositSalaryWallet(
+        supabaseAdmin,
+        {
+          ...walletConfig,
+          isTipOrder: isDeepnightTipOrder,
+        },
+        {
+          startDate: body.startDate,
+          endDate: body.endDate,
+          adminDiscordId: discordId,
+        }
+      );
+
+      return NextResponse.json({
+        ok: true,
+        result,
+      });
+    }
 
     if (action === "deposit-wallet") {
       const result = await manuallyDepositSalaryWallet(
