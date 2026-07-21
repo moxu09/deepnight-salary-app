@@ -138,6 +138,9 @@ type SalaryWalletEntry = {
 type SalaryWithdrawRequest = {
   id: string;
   amount: number | string;
+  service_fee?: number | string | null;
+  welfare_fee?: number | string | null;
+  payout_amount?: number | string | null;
   status: string;
   reject_reason?: string | null;
   requested_at?: string | null;
@@ -161,6 +164,15 @@ type SalaryWalletData = {
   withdrawWindow: {
     isOpen: boolean;
     note: string;
+    opensAt: string;
+    closesAt: string;
+  };
+  withdrawPolicy: {
+    minimumAmount: number;
+    welfareFundRate: number;
+    monthlyWithdrawalCount: number;
+    nextServiceFee: number;
+    processingNote: string;
   };
 };
 
@@ -248,7 +260,7 @@ function formatDateTime(value?: string | null) {
 function getRequestStatusText(request?: SalaryWithdrawRequest | null) {
   if (!request) return "尚未申請";
   if (request.status === "pending") return "申請中";
-  if (request.status === "approved") return "申請成功，請稍等三個工作日";
+  if (request.status === "approved") return "申請成功，請稍等 0 到 3 個工作日";
   if (request.status === "rejected") {
     return `申請遭駁回${
       request.reject_reason ? `，原因是${request.reject_reason}` : ""
@@ -746,8 +758,11 @@ export default function StaffPage() {
     const amountNumber = Number(withdrawAmount || 0);
     const amount = Math.floor(amountNumber);
 
-    if (!Number.isFinite(amountNumber) || amount <= 0) {
-      alert("請輸入要提領的金額");
+    if (
+      !Number.isFinite(amountNumber) ||
+      amount < salaryWallet.withdrawPolicy.minimumAmount
+    ) {
+      alert("提領金額必須高於 1,000 元");
       return;
     }
 
@@ -756,7 +771,20 @@ export default function StaffPage() {
       return;
     }
 
-    if (!confirm(`確定要申請提領 ${money(amount)}？`)) {
+    const serviceFee = salaryWallet.withdrawPolicy.nextServiceFee;
+    const welfareFee =
+      Math.round(
+        amount * salaryWallet.withdrawPolicy.welfareFundRate * 100
+      ) / 100;
+    const payoutAmount = amount - serviceFee - welfareFee;
+
+    if (
+      !confirm(
+        `確定要申請提領 ${money(amount)}？\n福利金：${money(
+          welfareFee
+        )}\n手續費：${money(serviceFee)}\n實際匯款：${money(payoutAmount)}`
+      )
+    ) {
       return;
     }
 
@@ -1104,7 +1132,7 @@ export default function StaffPage() {
               </h2>
 
               <p className="mt-1 text-sm text-slate-500">
-                每月 17 號入帳 1-15 號薪水；每月 2 號入帳上月 16-月底薪水。
+                每月 5 日 00:00 入帳上月 16 日至月底薪資；每月 20 日 00:00 入帳當月 1 日至 15 日薪資。
               </p>
             </div>
 
@@ -1113,7 +1141,7 @@ export default function StaffPage() {
                 提領金額
                 <input
                   type="number"
-                  min="1"
+                  min="1001"
                   step="1"
                   inputMode="numeric"
                   value={withdrawAmount}
@@ -1136,7 +1164,7 @@ export default function StaffPage() {
                   !salaryWallet.withdrawWindow.isOpen ||
                   !!salaryWallet.pendingRequest ||
                   Number(salaryWallet.totals.available || 0) <= 0 ||
-                  Number(withdrawAmount || 0) <= 0
+                  Number(withdrawAmount || 0) < 1001
                 }
                 className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-sky-500 px-5 py-2.5 text-sm font-bold text-white shadow-sm shadow-sky-200 hover:bg-sky-600 disabled:cursor-not-allowed disabled:opacity-50"
               >
@@ -1144,9 +1172,16 @@ export default function StaffPage() {
                 {withdrawing ? "申請中..." : "提領"}
               </button>
 
-              <p className="text-xs font-semibold text-slate-400">
-                每月 2 到 10 號可以提領，提領需要三個工作天。
-              </p>
+              <div className="space-y-1 text-xs font-semibold text-slate-500">
+                <p>每月 5 日 09:00 至 25 日 15:30 開放提領。</p>
+                <p>金額須高於 $1,000；本月首次免手續費，第二次起每次 $15。</p>
+                <p>依法扣除提領金額 0.2% 福利金，銀行作業需 0 到 3 個工作日。</p>
+                {salaryWallet ? (
+                  <p className="font-black text-sky-600">
+                    本月下一次提領手續費：{money(salaryWallet.withdrawPolicy.nextServiceFee)}
+                  </p>
+                ) : null}
+              </div>
             </div>
           </div>
 

@@ -104,6 +104,9 @@ type WithdrawRequest = {
   discord_id: string;
   staff_name?: string | null;
   amount: number | string;
+  service_fee?: number | string | null;
+  welfare_fee?: number | string | null;
+  payout_amount?: number | string | null;
   status: string;
   reject_reason?: string | null;
   reviewed_at?: string | null;
@@ -145,6 +148,18 @@ function money(value: number | string | null | undefined) {
   return `$${Number(value || 0).toLocaleString("zh-TW")}`;
 }
 
+function getWithdrawPayout(request: WithdrawRequest) {
+  if (request.payout_amount !== null && request.payout_amount !== undefined) {
+    return Number(request.payout_amount || 0);
+  }
+
+  return (
+    Number(request.amount || 0) -
+    Number(request.service_fee || 0) -
+    Number(request.welfare_fee || 0)
+  );
+}
+
 function formatDateTime(value?: string | null) {
   return formatTaipeiDateTime(value, {
     hour12: false,
@@ -153,7 +168,7 @@ function formatDateTime(value?: string | null) {
 
 function getRequestStatusText(status: string, rejectReason?: string | null) {
   if (status === "pending") return "申請中";
-  if (status === "approved") return "申請成功，請稍等三個工作日";
+  if (status === "approved") return "申請成功，請稍等 0 到 3 個工作日";
   if (status === "rejected")
     return `申請遭駁回${rejectReason ? `：${rejectReason}` : ""}`;
   return status || "-";
@@ -962,7 +977,9 @@ export default function AdminPayrollPage() {
                   <tr>
                     <th>申請時間</th>
                     <th>員工</th>
-                    <th>金額</th>
+                    <th>申請金額</th>
+                    <th>扣除費用</th>
+                    <th>實際匯款</th>
                     <th>狀態</th>
                     <th>審核時間</th>
                     <th>操作</th>
@@ -982,6 +999,15 @@ export default function AdminPayrollPage() {
                       </td>
                       <td className="font-black text-sky-600">
                         {money(request.amount)}
+                      </td>
+                      <td>
+                        <div>福利金 {money(request.welfare_fee)}</div>
+                        <div className="text-xs text-slate-400">
+                          手續費 {money(request.service_fee)}
+                        </div>
+                      </td>
+                      <td className="font-black text-emerald-600">
+                        {money(getWithdrawPayout(request))}
                       </td>
                       <td>
                         <span
