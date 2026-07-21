@@ -751,6 +751,64 @@ a {
   }
 }
 
+@media (max-width: 640px) {
+  .staff-portal-page,
+  .admin-portal-shell {
+    width: 100%;
+    max-width: 100vw;
+    overflow-x: hidden;
+  }
+
+  .staff-portal-sidebar,
+  .admin-portal-sidebar {
+    width: 100%;
+    max-width: 100vw;
+    overflow-x: auto !important;
+    overscroll-behavior-inline: contain;
+  }
+
+  .staff-portal-group-title {
+    display: none !important;
+  }
+
+  .staff-portal-nav,
+  .admin-portal-nav {
+    min-width: max-content !important;
+  }
+
+  .staff-portal-content,
+  .admin-portal-content {
+    min-width: 0;
+    padding: 12px 10px 28px !important;
+  }
+
+  .staff-portal-content section,
+  .staff-portal-content article,
+  .admin-portal-content section,
+  .admin-portal-content article {
+    min-width: 0;
+    max-width: 100%;
+    border-radius: 18px !important;
+  }
+
+  .staff-portal-content input,
+  .staff-portal-content select,
+  .staff-portal-content textarea,
+  .admin-portal-content input,
+  .admin-portal-content select,
+  .admin-portal-content textarea {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .staff-portal-content .overflow-x-auto,
+  .admin-portal-content .overflow-x-auto {
+    max-width: calc(100vw - 20px);
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
 @media (max-width: 520px) {
   main {
     padding-left: 10px !important;
