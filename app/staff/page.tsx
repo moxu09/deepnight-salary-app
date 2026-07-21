@@ -18,6 +18,8 @@ import {
   HandCoins,
 } from "lucide-react";
 import StaffAvatar from "@/components/StaffAvatar";
+import StaffPortalNav, { type PortalTab } from "@/components/StaffPortalNav";
+import HrPortalPanel from "@/components/HrPortalPanel";
 import {
   formatTaipeiDateTime,
   getNextTaipeiMonthText,
@@ -75,6 +77,7 @@ type SalaryOrder = {
   completed_at?: string | null;
   created_at?: string | null;
   wallet_settled_at?: string | null;
+  order_type?: string | null;
   review_decision?: "approved" | "rejected" | null;
   reviewer_discord_id?: string | null;
   reviewer_name?: string | null;
@@ -435,9 +438,7 @@ export default function StaffPage() {
     null
   );
   const [selectedMonth, setSelectedMonth] = useState(getCurrentMonthInput());
-  const [activeTab, setActiveTab] = useState<
-    "overview" | "profile" | "wallet" | "games"
-  >("overview");
+  const [activeTab, setActiveTab] = useState<PortalTab>("profile");
 
   const [profileForm, setProfileForm] = useState<ProfileForm>({
     display_name: "",
@@ -463,6 +464,17 @@ export default function StaffPage() {
   const monthBonus = useMemo(() => {
     return bonuses.reduce((sum, bonus) => sum + Number(bonus.amount || 0), 0);
   }, [bonuses]);
+
+  const visibleOrders = useMemo(() => salaryOrders.filter((order) => {
+    const isTip = order.order_type === "打賞" || getOrderService(order).includes("打賞");
+    return activeTab === "tips" ? isTip : !isTip;
+  }), [activeTab, salaryOrders]);
+
+  const visibleBonuses = useMemo(() => bonuses.filter((bonus) =>
+    activeTab === "deductions" ? Number(bonus.amount || 0) < 0 : Number(bonus.amount || 0) >= 0
+  ), [activeTab, bonuses]);
+
+  const isOrderTab = activeTab === "orders" || activeTab === "tips" || activeTab === "bonuses" || activeTab === "deductions";
 
   const unpaidAmount = useMemo(() => {
     const orderTotal = salaryOrders
@@ -1027,43 +1039,7 @@ export default function StaffPage() {
   return (
     <main className="min-h-screen bg-[#f7f4ff] px-4 py-5 text-slate-900 sm:px-5 sm:py-6">
       <div className="mx-auto grid max-w-[1500px] gap-5 lg:grid-cols-[250px_minmax(0,1fr)]">
-        <aside className="sticky top-4 z-20 self-start overflow-x-auto rounded-[28px] bg-[#35127c] p-3 text-white shadow-xl shadow-violet-200/60 lg:h-[calc(100vh-2rem)] lg:p-5">
-          <div className="hidden lg:block">
-            <p className="text-xs font-semibold text-violet-200">PLAYER CENTER</p>
-            <p className="mt-2 text-xl font-black">深夜陪玩師</p>
-            <p className="mt-1 truncate text-sm text-violet-200">{getDisplayName(staff)}</p>
-          </div>
-          <nav className="flex min-w-max gap-2 lg:mt-8 lg:min-w-0 lg:flex-col">
-            {[
-              ["overview", "首頁總覽", Trophy],
-              ["profile", "個人資料", UserRound],
-              ["wallet", "薪資錢包", WalletCards],
-              ["games", "可接遊戲", Gamepad2],
-            ].map(([tab, label, Icon]) => {
-              const NavIcon = Icon as typeof Trophy;
-              return (
-                <button
-                  key={tab as string}
-                  type="button"
-                  onClick={() => {
-                    setActiveTab(tab as typeof activeTab);
-                    window.scrollTo({ top: 0, behavior: "smooth" });
-                  }}
-                  className={`flex items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm font-bold transition ${
-                    activeTab === tab
-                      ? "bg-violet-500 text-white shadow-lg shadow-violet-950/20"
-                      : "text-violet-100 hover:bg-white/15 hover:text-white"
-                  }`}
-                >
-                  <NavIcon size={18} /> {label as string}
-                </button>
-              );
-            })}
-          </nav>
-          <p className="mt-auto hidden rounded-2xl bg-white/10 p-4 text-xs leading-6 text-violet-200 lg:block">
-            個人資料與可接遊戲儲存後，會同步更新官網陪陪介紹。
-          </p>
-        </aside>
+        <StaffPortalNav activeTab={activeTab} onSelect={setActiveTab} employeeName={getDisplayName(staff)} company="深夜不關燈" />
 
         <div className="min-w-0 space-y-5">
         <header id="overview" className="scroll-mt-24 rounded-[30px] border border-violet-100 bg-white px-6 py-5 shadow-sm shadow-violet-100">
@@ -1117,14 +1093,16 @@ export default function StaffPage() {
           </div>
         </header>
 
-        <section className={activeTab === "overview" ? "grid gap-4 md:grid-cols-4" : "hidden"}>
+        <HrPortalPanel activeTab={activeTab} apiPath="/api/deepnight/hr" department="深夜不關燈" staffName={getDisplayName(staff)} selectedMonth={selectedMonth} onMonthChange={setSelectedMonth} />
+
+        <section className={activeTab === "profile" ? "grid gap-4 md:grid-cols-4" : "hidden"}>
           <StatCard title="月份訂單" value={`${monthOrderCount} 筆`} />
           <StatCard title="月份薪資" value={money(monthSalary)} />
           <StatCard title="獎金 / 扣除" value={money(monthBonus)} />
           <StatCard title="未發薪" value={money(unpaidAmount)} />
         </section>
 
-        <section id="wallet" className={`${activeTab === "wallet" ? "block" : "hidden"} rounded-[28px] border border-sky-100 bg-white p-5 shadow-sm shadow-sky-100`}>
+        <section id="wallet" className={`${activeTab === "profile" ? "block" : "hidden"} rounded-[28px] border border-sky-100 bg-white p-5 shadow-sm shadow-sky-100`}>
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <h2 className="flex items-center gap-2 text-lg font-black text-slate-900">
@@ -1267,7 +1245,7 @@ export default function StaffPage() {
           ) : null}
         </section>
 
-        <section className={`${activeTab === "overview" ? "block" : "hidden"} rounded-[28px] border border-sky-100 bg-white p-5 shadow-sm shadow-sky-100`}>
+        <section className={`${isOrderTab ? "block" : "hidden"} rounded-[28px] border border-sky-100 bg-white p-5 shadow-sm shadow-sky-100`}>
           <div className="grid gap-4 md:grid-cols-[1fr_auto] md:items-end">
             <Field label="薪資月份">
               <input
@@ -1291,9 +1269,9 @@ export default function StaffPage() {
           </div>
         </section>
 
-        <section className={activeTab === "overview" ? "grid gap-5 xl:grid-cols-[0.9fr_1.4fr]" : "block"}>
+        <section className={activeTab === "profile" ? "grid gap-5 xl:grid-cols-[0.9fr_1.4fr]" : "block"}>
           <div className="space-y-5">
-            <div className={`${activeTab === "overview" ? "block" : "hidden"} rounded-[28px] border border-sky-100 bg-white p-5 shadow-sm shadow-sky-100`}>
+            <div className={`${activeTab === "profile" ? "block" : "hidden"} rounded-[28px] border border-sky-100 bg-white p-5 shadow-sm shadow-sky-100`}>
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <p className="flex items-center gap-2 text-sm font-bold text-sky-600">
@@ -1339,7 +1317,7 @@ export default function StaffPage() {
               </div>
             </div>
 
-            <div className={`${activeTab === "overview" ? "block" : "hidden"} rounded-[28px] border border-sky-100 bg-white p-5 shadow-sm shadow-sky-100`}>
+            <div className={`${activeTab === "profile" ? "block" : "hidden"} rounded-[28px] border border-sky-100 bg-white p-5 shadow-sm shadow-sky-100`}>
               <div className="flex items-center justify-between gap-4">
                 <div>
                   <h2 className="text-lg font-black text-slate-900">
@@ -1524,7 +1502,7 @@ export default function StaffPage() {
           </div>
 
           <div className="space-y-5">
-            <div id="games" className={`${activeTab === "games" ? "block" : "hidden"} rounded-[28px] border border-sky-100 bg-white p-5 shadow-sm shadow-sky-100`}>
+            <div id="games" className={`${activeTab === "profile" ? "block" : "hidden"} rounded-[28px] border border-sky-100 bg-white p-5 shadow-sm shadow-sky-100`}>
               <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
                   <h2 className="flex items-center gap-2 text-lg font-black text-slate-900">
@@ -1583,7 +1561,7 @@ export default function StaffPage() {
               </div>
             </div>
 
-            <div className={`${activeTab === "overview" ? "block" : "hidden"} rounded-[28px] border border-sky-100 bg-white shadow-sm shadow-sky-100`}>
+            <div className="hidden">
               <div className="border-b border-sky-100 px-5 py-4">
                 <h2 className="text-lg font-black text-slate-900">訂單審核紀錄</h2>
                 <p className="mt-1 text-sm text-slate-500">
@@ -1648,7 +1626,7 @@ export default function StaffPage() {
               )}
             </div>
 
-            <div className={`${activeTab === "overview" ? "block" : "hidden"} rounded-[28px] border border-sky-100 bg-white shadow-sm shadow-sky-100`}>
+            <div className={`${activeTab === "orders" || activeTab === "tips" ? "block" : "hidden"} rounded-[28px] border border-sky-100 bg-white shadow-sm shadow-sky-100`}>
               <div className="border-b border-sky-100 px-5 py-4">
                 <h2 className="flex items-center gap-2 text-lg font-black text-slate-900">
                   <WalletCards size={20} className="text-sky-500" />
@@ -1660,7 +1638,7 @@ export default function StaffPage() {
                 </p>
               </div>
 
-              {salaryOrders.length === 0 ? (
+              {visibleOrders.length === 0 ? (
                 <div className="px-5 py-12 text-center text-sm font-semibold text-slate-400">
                   目前沒有這個月份的訂單
                 </div>
@@ -1681,7 +1659,7 @@ export default function StaffPage() {
                     </thead>
 
                     <tbody>
-                      {salaryOrders.map((order) => (
+                      {visibleOrders.map((order) => (
                         <tr key={order.id}>
                           <td data-label="完成時間">
                             {formatDateTime(
@@ -1741,7 +1719,7 @@ export default function StaffPage() {
               )}
             </div>
 
-            <div className={`${activeTab === "overview" ? "block" : "hidden"} rounded-[28px] border border-sky-100 bg-white shadow-sm shadow-sky-100`}>
+            <div className={`${activeTab === "bonuses" || activeTab === "deductions" ? "block" : "hidden"} rounded-[28px] border border-sky-100 bg-white shadow-sm shadow-sky-100`}>
               <div className="border-b border-sky-100 px-5 py-4">
                 <h2 className="flex items-center gap-2 text-lg font-black text-slate-900">
                   <Gift size={20} className="text-sky-500" />
@@ -1749,7 +1727,7 @@ export default function StaffPage() {
                 </h2>
               </div>
 
-              {bonuses.length === 0 ? (
+              {visibleBonuses.length === 0 ? (
                 <div className="px-5 py-10 text-center text-sm font-semibold text-slate-400">
                   目前沒有這個月份的獎金或扣除
                 </div>
@@ -1766,7 +1744,7 @@ export default function StaffPage() {
                     </thead>
 
                     <tbody>
-                      {bonuses.map((bonus) => (
+                      {visibleBonuses.map((bonus) => (
                         <tr key={bonus.id}>
                           <td data-label="時間">
                             {formatDateTime(bonus.created_at)}
