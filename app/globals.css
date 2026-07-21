@@ -661,6 +661,25 @@ a {
   object-fit: cover;
 }
 
+@media (min-width: 1024px) {
+  .staff-portal-sidebar,
+  .admin-portal-sidebar {
+    position: fixed !important;
+    inset: 0 auto 0 0;
+    width: 240px;
+    height: 100dvh !important;
+    max-height: 100dvh;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+  }
+
+  .staff-portal-content,
+  .admin-portal-content {
+    grid-column: 2;
+    min-width: 0;
+  }
+}
+
 @media (max-width: 1023px) {
   .staff-portal-sidebar,
   .admin-portal-sidebar {
