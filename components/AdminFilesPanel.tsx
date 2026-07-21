@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import {
+  ArrowDown,
+  ArrowUp,
   Download,
   FileArchive,
   FileText,
@@ -34,6 +36,7 @@ export default function AdminFilesPanel({ apiPath }: { apiPath: string }) {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [downloading, setDownloading] = useState<string | null>(null);
+  const [sorting, setSorting] = useState(false);
   const [fileInputKey, setFileInputKey] = useState(0);
 
   const getToken = useCallback(async () => {
@@ -113,12 +116,47 @@ export default function AdminFilesPanel({ apiPath }: { apiPath: string }) {
       if (!response.ok || !payload.url) {
         throw new Error(payload.message || "建立下載連結失敗");
       }
-      window.location.assign(payload.url);
+      const fileResponse = await fetch(payload.url);
+      if (!fileResponse.ok) throw new Error("下載檔案失敗");
+      const objectUrl = URL.createObjectURL(await fileResponse.blob());
+      const link = document.createElement("a");
+      link.href = objectUrl;
+      link.download = payload.name || file.name;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
     } catch (error) {
       console.error("download admin file failed", error);
       alert(error instanceof Error ? error.message : "檔案下載失敗");
     } finally {
       setDownloading(null);
+    }
+  }
+
+  async function moveFile(index: number, offset: -1 | 1) {
+    const targetIndex = index + offset;
+    if (targetIndex < 0 || targetIndex >= files.length || sorting) return;
+    const previous = files;
+    const next = [...files];
+    [next[index], next[targetIndex]] = [next[targetIndex], next[index]];
+    setFiles(next);
+    setSorting(true);
+    try {
+      const token = await getToken();
+      const response = await fetch(apiPath, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ category, orderedPaths: next.map((file) => file.path) }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.message || "調整檔案排序失敗");
+      setFiles(payload.files || next);
+    } catch (error) {
+      setFiles(previous);
+      alert(error instanceof Error ? error.message : "調整檔案排序失敗");
+    } finally {
+      setSorting(false);
     }
   }
 
@@ -160,20 +198,24 @@ export default function AdminFilesPanel({ apiPath }: { apiPath: string }) {
         <section className="overflow-hidden rounded-3xl bg-white shadow-sm">
           <div className="border-b border-slate-100 px-6 py-5">
             <h2 className="text-lg font-black text-slate-800">{category === "operations" ? "營運相關" : "員工相關"}檔案</h2>
+            {canUpload ? <p className="mt-1 text-xs font-semibold text-violet-500">使用上下箭頭調整顯示順序，排序會自動儲存。</p> : null}
           </div>
           {loading ? (
             <p className="flex items-center justify-center gap-2 p-12 text-sm text-slate-400"><Loader2 size={18} className="animate-spin" />讀取中…</p>
           ) : files.length ? (
             <div className="divide-y divide-slate-100">
-              {files.map((file) => (
+              {files.map((file, index) => (
                 <article key={file.path} className="flex flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex min-w-0 items-center gap-3">
                     <span className="shrink-0 rounded-xl bg-slate-100 p-2.5 text-slate-500"><FileText size={20} /></span>
                     <div className="min-w-0"><p className="truncate font-bold text-slate-800">{file.name}</p><p className="mt-1 text-xs text-slate-400">{formatBytes(file.size)} · {formatDate(file.createdAt)}</p></div>
                   </div>
-                  <button type="button" onClick={() => downloadFile(file)} disabled={downloading === file.path} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-sm font-black text-white hover:bg-violet-600 disabled:opacity-50">
-                    {downloading === file.path ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}下載
-                  </button>
+                  <div className="flex shrink-0 items-center gap-2">
+                    {canUpload ? <><button type="button" aria-label={`上移 ${file.name}`} onClick={() => moveFile(index, -1)} disabled={sorting || index === 0} className="rounded-xl border border-slate-200 p-2.5 text-slate-500 hover:border-violet-300 hover:text-violet-600 disabled:opacity-30"><ArrowUp size={16}/></button><button type="button" aria-label={`下移 ${file.name}`} onClick={() => moveFile(index, 1)} disabled={sorting || index === files.length - 1} className="rounded-xl border border-slate-200 p-2.5 text-slate-500 hover:border-violet-300 hover:text-violet-600 disabled:opacity-30"><ArrowDown size={16}/></button></> : null}
+                    <button type="button" onClick={() => downloadFile(file)} disabled={downloading === file.path} className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-sm font-black text-white hover:bg-violet-600 disabled:opacity-50">
+                      {downloading === file.path ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}下載
+                    </button>
+                  </div>
                 </article>
               ))}
             </div>
