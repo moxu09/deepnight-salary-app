@@ -1,13 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  ArrowDown,
-  ArrowUp,
   Download,
   FileArchive,
   FileText,
   FolderKanban,
+  GripVertical,
   Loader2,
   Upload,
   UsersRound,
@@ -37,6 +36,9 @@ export default function AdminFilesPanel({ apiPath }: { apiPath: string }) {
   const [uploading, setUploading] = useState(false);
   const [downloading, setDownloading] = useState<string | null>(null);
   const [sorting, setSorting] = useState(false);
+  const [draggedPath, setDraggedPath] = useState<string | null>(null);
+  const [dragOverPath, setDragOverPath] = useState<string | null>(null);
+  const draggedPathRef = useRef<string | null>(null);
   const [fileInputKey, setFileInputKey] = useState(0);
 
   const getToken = useCallback(async () => {
@@ -134,12 +136,14 @@ export default function AdminFilesPanel({ apiPath }: { apiPath: string }) {
     }
   }
 
-  async function moveFile(index: number, offset: -1 | 1) {
-    const targetIndex = index + offset;
-    if (targetIndex < 0 || targetIndex >= files.length || sorting) return;
+  async function reorderFile(sourcePath: string, targetPath: string) {
+    const sourceIndex = files.findIndex((file) => file.path === sourcePath);
+    const targetIndex = files.findIndex((file) => file.path === targetPath);
+    if (sourceIndex < 0 || targetIndex < 0 || sourceIndex === targetIndex || sorting) return;
     const previous = files;
     const next = [...files];
-    [next[index], next[targetIndex]] = [next[targetIndex], next[index]];
+    const [movedFile] = next.splice(sourceIndex, 1);
+    next.splice(targetIndex, 0, movedFile);
     setFiles(next);
     setSorting(true);
     try {
@@ -157,6 +161,32 @@ export default function AdminFilesPanel({ apiPath }: { apiPath: string }) {
       alert(error instanceof Error ? error.message : "調整檔案排序失敗");
     } finally {
       setSorting(false);
+    }
+  }
+
+  function beginDrag(path: string) {
+    if (!canUpload || sorting) return;
+    draggedPathRef.current = path;
+    setDraggedPath(path);
+    setDragOverPath(path);
+  }
+
+  function updateDragTarget(clientX: number, clientY: number) {
+    if (!draggedPathRef.current) return;
+    const target = document.elementFromPoint(clientX, clientY)?.closest<HTMLElement>("[data-file-path]");
+    const targetPath = target?.dataset.filePath || null;
+    if (targetPath) setDragOverPath(targetPath);
+  }
+
+  function finishDrag(clientX: number, clientY: number) {
+    const sourcePath = draggedPathRef.current;
+    const target = document.elementFromPoint(clientX, clientY)?.closest<HTMLElement>("[data-file-path]");
+    const targetPath = target?.dataset.filePath || dragOverPath;
+    draggedPathRef.current = null;
+    setDraggedPath(null);
+    setDragOverPath(null);
+    if (sourcePath && targetPath && sourcePath !== targetPath) {
+      void reorderFile(sourcePath, targetPath);
     }
   }
 
@@ -198,20 +228,45 @@ export default function AdminFilesPanel({ apiPath }: { apiPath: string }) {
         <section className="overflow-hidden rounded-3xl bg-white shadow-sm">
           <div className="border-b border-slate-100 px-6 py-5">
             <h2 className="text-lg font-black text-slate-800">{category === "operations" ? "營運相關" : "員工相關"}檔案</h2>
-            {canUpload ? <p className="mt-1 text-xs font-semibold text-violet-500">使用上下箭頭調整顯示順序，排序會自動儲存。</p> : null}
+            {canUpload ? <p className="mt-1 text-xs font-semibold text-violet-500">按住拖曳把手移動檔案，放開後會自動儲存順序。</p> : null}
           </div>
           {loading ? (
             <p className="flex items-center justify-center gap-2 p-12 text-sm text-slate-400"><Loader2 size={18} className="animate-spin" />讀取中…</p>
           ) : files.length ? (
             <div className="divide-y divide-slate-100">
-              {files.map((file, index) => (
-                <article key={file.path} className="flex flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+              {files.map((file) => (
+                <article
+                  key={file.path}
+                  data-file-path={file.path}
+                  className={`flex flex-col gap-4 px-5 py-4 transition sm:flex-row sm:items-center sm:justify-between ${draggedPath === file.path ? "opacity-45" : ""} ${dragOverPath === file.path && draggedPath !== file.path ? "bg-violet-50 ring-2 ring-inset ring-violet-300" : ""}`}
+                >
                   <div className="flex min-w-0 items-center gap-3">
+                    {canUpload ? (
+                      <button
+                        type="button"
+                        aria-label={`拖曳調整 ${file.name} 的順序`}
+                        title="按住並拖曳調整順序"
+                        disabled={sorting}
+                        onPointerDown={(event) => {
+                          event.currentTarget.setPointerCapture(event.pointerId);
+                          beginDrag(file.path);
+                        }}
+                        onPointerMove={(event) => updateDragTarget(event.clientX, event.clientY)}
+                        onPointerUp={(event) => finishDrag(event.clientX, event.clientY)}
+                        onPointerCancel={() => {
+                          draggedPathRef.current = null;
+                          setDraggedPath(null);
+                          setDragOverPath(null);
+                        }}
+                        className="touch-none cursor-grab rounded-xl border border-slate-200 p-2.5 text-slate-400 transition hover:border-violet-300 hover:bg-violet-50 hover:text-violet-600 active:cursor-grabbing disabled:cursor-wait disabled:opacity-40"
+                      >
+                        <GripVertical size={18} />
+                      </button>
+                    ) : null}
                     <span className="shrink-0 rounded-xl bg-slate-100 p-2.5 text-slate-500"><FileText size={20} /></span>
                     <div className="min-w-0"><p className="truncate font-bold text-slate-800">{file.name}</p><p className="mt-1 text-xs text-slate-400">{formatBytes(file.size)} · {formatDate(file.createdAt)}</p></div>
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
-                    {canUpload ? <><button type="button" aria-label={`上移 ${file.name}`} onClick={() => moveFile(index, -1)} disabled={sorting || index === 0} className="rounded-xl border border-slate-200 p-2.5 text-slate-500 hover:border-violet-300 hover:text-violet-600 disabled:opacity-30"><ArrowUp size={16}/></button><button type="button" aria-label={`下移 ${file.name}`} onClick={() => moveFile(index, 1)} disabled={sorting || index === files.length - 1} className="rounded-xl border border-slate-200 p-2.5 text-slate-500 hover:border-violet-300 hover:text-violet-600 disabled:opacity-30"><ArrowDown size={16}/></button></> : null}
                     <button type="button" onClick={() => downloadFile(file)} disabled={downloading === file.path} className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-sm font-black text-white hover:bg-violet-600 disabled:opacity-50">
                       {downloading === file.path ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}下載
                     </button>
