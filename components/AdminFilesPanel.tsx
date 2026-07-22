@@ -8,6 +8,7 @@ import {
   FolderKanban,
   GripVertical,
   Loader2,
+  Trash2,
   Upload,
   UsersRound,
 } from "lucide-react";
@@ -35,6 +36,7 @@ export default function AdminFilesPanel({ apiPath }: { apiPath: string }) {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [downloading, setDownloading] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
   const [sorting, setSorting] = useState(false);
   const [draggedPath, setDraggedPath] = useState<string | null>(null);
   const [dragOverPath, setDragOverPath] = useState<string | null>(null);
@@ -133,6 +135,31 @@ export default function AdminFilesPanel({ apiPath }: { apiPath: string }) {
       alert(error instanceof Error ? error.message : "檔案下載失敗");
     } finally {
       setDownloading(null);
+    }
+  }
+
+  async function deleteFile(file: StoredFile) {
+    if (!window.confirm(`確定要永久刪除「${file.name}」嗎？\n刪除後無法復原。`)) return;
+    setDeleting(file.path);
+    try {
+      const token = await getToken();
+      const response = await fetch(apiPath, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ category, path: file.path }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.message || "刪除檔案失敗");
+      setFiles(payload.files || files.filter((item) => item.path !== file.path));
+      alert("檔案已刪除");
+    } catch (error) {
+      console.error("delete admin file failed", error);
+      alert(error instanceof Error ? error.message : "刪除檔案失敗");
+    } finally {
+      setDeleting(null);
     }
   }
 
@@ -270,6 +297,11 @@ export default function AdminFilesPanel({ apiPath }: { apiPath: string }) {
                     <button type="button" onClick={() => downloadFile(file)} disabled={downloading === file.path} className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-sm font-black text-white hover:bg-violet-600 disabled:opacity-50">
                       {downloading === file.path ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}下載
                     </button>
+                    {canUpload ? (
+                      <button type="button" onClick={() => deleteFile(file)} disabled={deleting === file.path} className="inline-flex items-center justify-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-black text-rose-600 transition hover:border-rose-300 hover:bg-rose-100 disabled:opacity-50">
+                        {deleting === file.path ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}刪除
+                      </button>
+                    ) : null}
                   </div>
                 </article>
               ))}
