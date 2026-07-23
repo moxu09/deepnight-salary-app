@@ -67,9 +67,10 @@ async function mutateAccount(request) {
   const body = await request.json().catch(() => ({}));
   const discordId = String(body.discordId || "").trim();
   const displayName = String(body.displayName || "").trim().slice(0, 100);
-  const role = normalizeErpRole(body.role);
+  const requestedRole = String(body.role || "").trim();
+  if (!ERP_ROLES.includes(requestedRole)) throw new Error("ERP 權限層級不正確");
+  const role = normalizeErpRole(requestedRole);
   if (!/^\d{15,22}$/.test(discordId)) throw new Error("請輸入正確的 Discord 帳號 ID");
-  if (!ERP_ROLES.includes(role)) throw new Error("ERP 權限層級不正確");
   if (discordId === actor.discordId) throw new Error("為避免鎖住後台，不能變更自己目前的權限");
 
   const { data: existing, error: existingError } = await supabaseAdmin
