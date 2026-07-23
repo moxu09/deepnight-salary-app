@@ -2,10 +2,10 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import {
   bulkDepositSalaryWallet,
-  getAuthUserFromRequest,
   manuallyDepositSalaryWallet,
   settleSalaryWallet,
 } from "@/lib/salaryWallet";
+import { authorizeErpRequest } from "@/lib/erpAccess";
 
 const DEEPNIGHT_GUILD_ID =
   process.env.NEXT_PUBLIC_DEEPNIGHT_GUILD_ID ||
@@ -30,23 +30,8 @@ const SALARY_WALLET_START_ISO = new Date(
 ).toISOString();
 
 async function requireAdmin(request) {
-  const { discordId } = await getAuthUserFromRequest(supabaseAdmin, request);
-
-  const { data, error } = await supabaseAdmin
-    .from("admins")
-    .select("*")
-    .eq("discord_id", discordId)
-    .eq("is_active", true)
-    .maybeSingle();
-
-  if (error || !data) {
-    throw new Error("你沒有後台管理權限");
-  }
-
-  return {
-    discordId,
-    admin: data,
-  };
+  const access = await authorizeErpRequest(supabaseAdmin, request, "deepnight", "canViewAllAdmin");
+  return { discordId: access.discordId, admin: access.assignment || access.legacyAdmin };
 }
 
 function isDeepnightTipOrder(order) {

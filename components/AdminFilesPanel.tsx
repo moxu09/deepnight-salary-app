@@ -32,6 +32,8 @@ export default function AdminFilesPanel({ apiPath }: { apiPath: string }) {
   const [category, setCategory] = useState<Category>("operations");
   const [files, setFiles] = useState<StoredFile[]>([]);
   const [canUpload, setCanUpload] = useState(false);
+  const [canDelete, setCanDelete] = useState(false);
+  const [canReorder, setCanReorder] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -60,6 +62,8 @@ export default function AdminFilesPanel({ apiPath }: { apiPath: string }) {
       if (!response.ok) throw new Error(payload.message || "讀取檔案失敗");
       setFiles(payload.files || []);
       setCanUpload(Boolean(payload.canUpload));
+      setCanDelete(Boolean(payload.canDelete));
+      setCanReorder(Boolean(payload.canReorder));
     } catch (error) {
       console.error("load admin files failed", error);
       alert(error instanceof Error ? error.message : "讀取檔案失敗");
@@ -192,7 +196,7 @@ export default function AdminFilesPanel({ apiPath }: { apiPath: string }) {
   }
 
   function beginDrag(path: string) {
-    if (!canUpload || sorting) return;
+    if (!canReorder || sorting) return;
     draggedPathRef.current = path;
     setDraggedPath(path);
     setDragOverPath(path);
@@ -255,7 +259,7 @@ export default function AdminFilesPanel({ apiPath }: { apiPath: string }) {
         <section className="overflow-hidden rounded-3xl bg-white shadow-sm">
           <div className="border-b border-slate-100 px-6 py-5">
             <h2 className="text-lg font-black text-slate-800">{category === "operations" ? "營運相關" : "員工相關"}檔案</h2>
-            {canUpload ? <p className="mt-1 text-xs font-semibold text-violet-500">按住拖曳把手移動檔案，放開後會自動儲存順序。</p> : null}
+            {canReorder ? <p className="mt-1 text-xs font-semibold text-violet-500">按住拖曳把手移動檔案，放開後會自動儲存順序。</p> : null}
           </div>
           {loading ? (
             <p className="flex items-center justify-center gap-2 p-12 text-sm text-slate-400"><Loader2 size={18} className="animate-spin" />讀取中…</p>
@@ -268,7 +272,7 @@ export default function AdminFilesPanel({ apiPath }: { apiPath: string }) {
                   className={`flex flex-col gap-4 px-5 py-4 transition sm:flex-row sm:items-center sm:justify-between ${draggedPath === file.path ? "opacity-45" : ""} ${dragOverPath === file.path && draggedPath !== file.path ? "bg-violet-50 ring-2 ring-inset ring-violet-300" : ""}`}
                 >
                   <div className="flex min-w-0 items-center gap-3">
-                    {canUpload ? (
+                    {canReorder ? (
                       <button
                         type="button"
                         aria-label={`拖曳調整 ${file.name} 的順序`}
@@ -297,7 +301,7 @@ export default function AdminFilesPanel({ apiPath }: { apiPath: string }) {
                     <button type="button" onClick={() => downloadFile(file)} disabled={downloading === file.path} className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-sm font-black text-white hover:bg-violet-600 disabled:opacity-50">
                       {downloading === file.path ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}下載
                     </button>
-                    {canUpload ? (
+                    {canDelete ? (
                       <button type="button" onClick={() => deleteFile(file)} disabled={deleting === file.path} className="inline-flex items-center justify-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-black text-rose-600 transition hover:border-rose-300 hover:bg-rose-100 disabled:opacity-50">
                         {deleting === file.path ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}刪除
                       </button>

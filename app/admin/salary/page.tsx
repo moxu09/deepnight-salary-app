@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { getDiscordIdFromSession } from "@/lib/discordSession";
+import { useErpAccess } from "@/lib/useErpAccess";
 import WorkReportReviewPanel, {
   WorkReport,
 } from "@/components/WorkReportReviewPanel";
@@ -315,6 +316,7 @@ function getOrderCustomer(order: SalaryOrder) {
 }
 
 export default function AdminSalaryPage() {
+  const { loading: erpLoading, access } = useErpAccess("deepnight");
   const router = useRouter();
   const [checking, setChecking] = useState(true);
   const [loading, setLoading] = useState(true);
@@ -1118,7 +1120,7 @@ export default function AdminSalaryPage() {
     return () => window.clearTimeout(timeoutId);
   }, []);
 
-  if (checking) {
+  if (checking || erpLoading) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-[#eef7fd]">
         <div className="rounded-[28px] border border-sky-100 bg-white px-8 py-7 text-center shadow-sm shadow-sky-100">
@@ -1129,6 +1131,10 @@ export default function AdminSalaryPage() {
         </div>
       </main>
     );
+  }
+
+  if (access?.role === "customer_service") {
+    return <main className="min-h-screen bg-[#eef7fd] px-5 py-6 text-slate-900"><div className="mx-auto max-w-7xl space-y-5"><header className="rounded-[30px] border border-sky-100 bg-white px-6 py-5 shadow-sm shadow-sky-100"><p className="text-sm font-bold text-sky-600">深夜不關燈 ERP｜客服</p><h1 className="mt-1 text-2xl font-black">訂單與打賞審核</h1><p className="mt-2 text-sm text-slate-500">客服帳號僅能核准或駁回待審核的訂單與打賞。</p></header><WorkReportReviewPanel appKey="deepnight" accent="sky" onApprove={approveWorkReport} reviewApiPath="/api/deepnight/work-reports/review"/></div></main>;
   }
 
   return (
@@ -1142,11 +1148,11 @@ export default function AdminSalaryPage() {
                 className="inline-flex items-center gap-2 text-sm font-bold text-sky-600 hover:text-sky-700"
               >
                 <ArrowLeft size={16} />
-                回管理後台
+                回 ERP 首頁
               </Link>
 
               <p className="mt-4 text-sm font-bold text-sky-600">
-                DeepNight Admin
+                DeepNight ERP
               </p>
 
               <h1 className="mt-1 text-2xl font-black text-slate-900 md:text-3xl">
@@ -1173,6 +1179,7 @@ export default function AdminSalaryPage() {
           appKey="deepnight"
           accent="sky"
           onApprove={approveWorkReport}
+          reviewApiPath="/api/deepnight/work-reports/review"
         />
 
         <section className="grid gap-4 md:grid-cols-4">

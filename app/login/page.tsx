@@ -34,18 +34,18 @@ export default function LoginPage() {
         <div className="rounded-[30px] border border-sky-100 bg-white p-7 shadow-xl shadow-sky-100/70">
           <div className="flex items-center justify-center gap-2">
             <span className="rounded-full border border-sky-100 bg-sky-50 px-3 py-1 text-xs font-bold text-sky-700">
-              DeepNight Staff
+              DeepNight ERP
             </span>
 
             <span className="flex items-center gap-1 rounded-full border border-sky-100 bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700">
               <Sparkles size={13} />
-              Staff Only
+              員工入口
             </span>
           </div>
 
           <div className="mt-6 text-center">
             <h1 className="text-3xl font-black tracking-tight text-slate-900">
-              深夜不關燈薪資網
+              深夜不關燈 ERP
             </h1>
 
             <p className="mt-4 text-sm leading-7 text-slate-600">
@@ -66,7 +66,7 @@ export default function LoginPage() {
             <p className="text-xs leading-6 text-slate-500">
               安心接單，清楚發薪。
               <br />
-              深夜不關燈專用員工薪資系統
+              深夜不關燈員工 ERP
             </p>
           </div>
         </div>

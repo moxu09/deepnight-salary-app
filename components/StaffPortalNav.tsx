@@ -97,7 +97,7 @@ export default function StaffPortalNav({
   return (
     <aside className="staff-portal-sidebar sticky top-0 z-20 self-start overflow-x-auto bg-[#17202d] text-white lg:h-screen lg:overflow-y-auto">
       <div className="staff-portal-brand hidden lg:block">
-        <p className="text-xs font-semibold tracking-[0.2em]">STAFF CENTER</p>
+        <p className="text-xs font-semibold tracking-[0.2em]">ERP｜員工端</p>
         <p className="mt-2 text-xl font-black">{company}</p>
         <p className="mt-1 truncate text-sm">{employeeName}</p>
       </div>

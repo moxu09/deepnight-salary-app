@@ -16,6 +16,7 @@ import { getDiscordIdFromSession } from "@/lib/discordSession";
 import { formatTaipeiDateTime } from "@/lib/taipeiTime";
 import ActivityCommissionPanel from "@/components/ActivityCommissionPanel";
 import AnnouncementManager from "@/components/AnnouncementManager";
+import ErpAccessManager from "@/components/ErpAccessManager";
 
 type SalarySettings = {
   id: string;
@@ -216,11 +217,11 @@ export default function AdminSettingsPage() {
                 className="inline-flex items-center gap-2 text-sm font-bold text-sky-600 hover:text-sky-700"
               >
                 <ArrowLeft size={16} />
-                回管理後台
+                回 ERP 首頁
               </Link>
 
               <p className="mt-4 text-sm font-bold text-sky-600">
-                DeepNight Admin
+                DeepNight ERP
               </p>
 
               <h1 className="mt-1 text-2xl font-black text-slate-900 md:text-3xl">
@@ -322,7 +323,7 @@ export default function AdminSettingsPage() {
           <h2 className="text-lg font-black text-slate-900">發薪設定</h2>
 
           <p className="mt-2 text-sm leading-7 text-slate-500">
-            這裡是薪資網顯示用設定，不會自動轉帳，只用於提醒與報表。
+            這裡是 ERP 顯示用設定，不會自動轉帳，只用於提醒與報表。
           </p>
 
           <div className="mt-6 grid gap-5 md:grid-cols-[0.45fr_1fr]">
@@ -352,6 +353,7 @@ export default function AdminSettingsPage() {
         </section>
 
         <AnnouncementManager apiPath="/api/deepnight/announcements" accent="sky" />
+        <ErpAccessManager apiPath="/api/deepnight/erp-access" accent="sky" />
         <ActivityCommissionPanel appKey="deepnight" accent="sky" />
       </div>
     </main>

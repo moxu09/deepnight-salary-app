@@ -95,11 +95,11 @@ export default function AdminHomePage() {
       <div className="mx-auto max-w-7xl space-y-8">
         <header className="rounded-[36px] border border-sky-100 bg-white px-8 py-10 shadow-sm shadow-sky-100">
           <p className="text-sm font-black tracking-wide text-sky-600 md:text-lg">
-            DeepNight Admin
+            DeepNight ERP
           </p>
 
           <h1 className="mt-5 text-3xl font-black text-slate-900 md:text-4xl">
-            深夜不關燈｜管理後台
+            深夜不關燈｜ERP
           </h1>
 
           <p className="mt-6 text-base font-semibold leading-8 text-slate-500 md:text-lg">
