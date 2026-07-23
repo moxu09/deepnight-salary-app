@@ -89,6 +89,7 @@ type Bonus = {
   description?: string | null;
   amount?: number | null;
   created_at?: string | null;
+  wallet_settled_at?: string | null;
 };
 
 type OrderForm = {
@@ -330,6 +331,7 @@ export default function AdminSalaryPage() {
   const [savingOrder, setSavingOrder] = useState(false);
   const [savingBonus, setSavingBonus] = useState(false);
   const [savingDeduction, setSavingDeduction] = useState(false);
+  const [deletingBonusId, setDeletingBonusId] = useState<string | null>(null);
   const [paying, setPaying] = useState(false);
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
 
@@ -988,26 +990,47 @@ export default function AdminSalaryPage() {
     await loadSalaryData();
   }
 
-  async function deleteDeduction(bonus: Bonus) {
+  async function deleteSalaryAdjustment(bonus: Bonus) {
+    const isDeduction = Number(bonus.amount || 0) < 0;
+    const itemLabel = isDeduction ? "扣薪" : "獎金";
+    const settledWarning = bonus.wallet_settled_at
+      ? "\n\n這筆資料已匯入員工錢包，刪除時會同步撤銷對應的錢包明細並重新計算餘額。"
+      : "";
     const ok = confirm(
-      `確定要刪除「${bonus.description || bonus.bonus_type || "薪水扣除"}」這筆扣薪嗎？`
+      `確定要刪除「${
+        bonus.description || bonus.bonus_type || itemLabel
+      }」這筆${itemLabel}嗎？${settledWarning}`
     );
     if (!ok) return;
 
-    const { error } = await supabase
-      .from("players_bonus")
-      .delete()
-      .eq("id", bonus.id)
-      .lt("amount", 0);
+    setDeletingBonusId(bonus.id);
 
-    if (error) {
-      console.error("delete salary deduction error:", error);
-      alert("刪除扣薪失敗");
-      return;
+    try {
+      const { data } = await supabase.auth.getSession();
+      const accessToken = data.session?.access_token;
+      if (!accessToken) throw new Error("登入已失效，請重新登入");
+
+      const response = await fetch("/api/deepnight/salary-adjustments", {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ id: bonus.id }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || !payload.ok) {
+        throw new Error(payload.message || `刪除${itemLabel}失敗`);
+      }
+
+      alert(`${itemLabel}已刪除`);
+      await loadSalaryData();
+    } catch (error) {
+      console.error("delete salary adjustment error:", error);
+      alert(error instanceof Error ? error.message : `刪除${itemLabel}失敗`);
+    } finally {
+      setDeletingBonusId(null);
     }
-
-    alert("扣薪已刪除");
-    await loadSalaryData();
   }
 
   async function bulkMarkPaid() {
@@ -1828,17 +1851,20 @@ export default function AdminSalaryPage() {
                         {money(bonus.amount)}
                       </td>
                       <td>
-                        {Number(bonus.amount || 0) < 0 ? (
-                          <button
-                            onClick={() => deleteDeduction(bonus)}
-                            className="inline-flex items-center gap-2 rounded-full border border-red-100 bg-red-50 px-3 py-1.5 text-xs font-bold text-red-600 hover:bg-red-100"
-                          >
+                        <button
+                          onClick={() => void deleteSalaryAdjustment(bonus)}
+                          disabled={deletingBonusId === bonus.id}
+                          className="inline-flex items-center gap-2 rounded-full border border-red-100 bg-red-50 px-3 py-1.5 text-xs font-bold text-red-600 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {deletingBonusId === bonus.id ? (
+                            <Loader2 size={14} className="animate-spin" />
+                          ) : (
                             <Trash2 size={14} />
-                            刪除扣薪
-                          </button>
-                        ) : (
-                          "-"
-                        )}
+                          )}
+                          {Number(bonus.amount || 0) < 0
+                            ? "刪除扣薪"
+                            : "刪除獎金"}
+                        </button>
                       </td>
                     </tr>
                   ))}
