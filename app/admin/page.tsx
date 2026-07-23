@@ -1,19 +1,9 @@
 "use client";
 
-import type { ReactNode } from "react";
 import { useEffect, useEffectEvent, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import {
-  ArrowRight,
-  Banknote,
-  Loader2,
-  ReceiptText,
-  Settings,
-  Users,
-  WalletCards,
-  Trophy,
-} from "lucide-react";
+import { Loader2 } from "lucide-react";
+import ErpWelcome from "@/components/ErpWelcome";
 import { supabase } from "@/lib/supabase";
 import { getDiscordIdFromSession } from "@/lib/discordSession";
 
@@ -90,104 +80,5 @@ export default function AdminHomePage() {
     );
   }
 
-  return (
-    <main className="min-h-screen bg-[#eef7fd] px-5 py-6 text-slate-900">
-      <div className="mx-auto max-w-7xl space-y-8">
-        <header className="rounded-[36px] border border-sky-100 bg-white px-8 py-10 shadow-sm shadow-sky-100">
-          <p className="text-sm font-black tracking-wide text-sky-600 md:text-lg">
-            DeepNight ERP
-          </p>
-
-          <h1 className="mt-5 text-3xl font-black text-slate-900 md:text-4xl">
-            深夜不關燈｜ERP
-          </h1>
-
-          <p className="mt-6 text-base font-semibold leading-8 text-slate-500 md:text-lg">
-            管理員可在這裡維護員工資料、薪資資料、系統通知與發薪設定。
-          </p>
-        </header>
-
-        <section className="grid gap-7 md:grid-cols-2">
-          <AdminCard
-            href="/admin/staff"
-            icon={<Users size={38} />}
-            title="員工管理"
-            description="設定員工資料、上線狀態、可接服務、個人薪資頻道 ID。"
-          />
-
-          <AdminCard
-            href="/admin/salary"
-            icon={<WalletCards size={38} />}
-            title="薪資總表"
-            description="查看收入、支出、獎金、訂單薪資與發薪狀態。"
-          />
-
-          <AdminCard
-            href="/admin/salary-rank"
-            icon={<Trophy size={38} />}
-            title="員工薪資排序"
-            description="查看每位員工薪水總額，可依薪資升冪或降冪排序。"
-          />
-
-          <AdminCard
-            href="/admin/payroll"
-            icon={<Banknote size={38} />}
-            title="發薪模式"
-            description="彙整有薪水要發的員工、薪水、獎金、銀行帳號與戶名。"
-          />
-
-          <AdminCard
-            href="/admin/accounting"
-            icon={<ReceiptText size={38} />}
-            title="會計報表"
-            description="按月份匯出儲值預收、訂單收入、折扣、薪資與月結應收。"
-          />
-
-          <AdminCard
-            href="/admin/settings"
-            icon={<Settings size={38} />}
-            title="系統設定"
-            description="設定管理總報告頻道、發薪日與薪資通知相關設定。"
-          />
-        </section>
-      </div>
-    </main>
-  );
-}
-
-function AdminCard({
-  href,
-  icon,
-  title,
-  description,
-}: {
-  href: string;
-  icon: ReactNode;
-  title: string;
-  description: string;
-}) {
-  return (
-    <Link
-      href={href}
-      className="group rounded-[36px] border border-sky-100 bg-white p-8 shadow-sm shadow-sky-100 transition hover:-translate-y-1 hover:border-sky-200 hover:shadow-md hover:shadow-sky-100"
-    >
-      <div className="flex min-h-[260px] flex-col justify-between">
-        <div>
-          <div className="flex h-24 w-24 items-center justify-center rounded-[28px] bg-sky-50 text-sky-600">
-            {icon}
-          </div>
-
-          <h2 className="mt-10 text-2xl font-black text-slate-900">{title}</h2>
-
-          <p className="mt-8 text-base font-semibold leading-8 text-slate-500">
-            {description}
-          </p>
-        </div>
-
-        <div className="mt-6 flex justify-end text-sky-500 transition group-hover:translate-x-1">
-          <ArrowRight size={30} />
-        </div>
-      </div>
-    </Link>
-  );
+  return <ErpWelcome organization="deepnight" />;
 }
