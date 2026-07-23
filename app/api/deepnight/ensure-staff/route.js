@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import {
+  getDiscordIdFromUser,
+  getDiscordProfileFromUser,
+} from "@/lib/erpAuthLinks";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -34,36 +38,6 @@ function getAccessTokenFromRequest(request, body) {
 
   return String(
     body?.access_token || body?.token || body?.session?.access_token || ""
-  ).trim();
-}
-
-function getDiscordIdFromUser(user) {
-  const metadata = user?.user_metadata || {};
-  const identityData = user?.identities?.[0]?.identity_data || {};
-
-  return String(
-    metadata.provider_id ||
-      metadata.sub ||
-      metadata.user_id ||
-      identityData.sub ||
-      identityData.id ||
-      ""
-  ).trim();
-}
-
-function getNameFromSupabaseUser(user) {
-  const metadata = user?.user_metadata || {};
-  const identityData = user?.identities?.[0]?.identity_data || {};
-
-  return String(
-    metadata.full_name ||
-      metadata.name ||
-      metadata.user_name ||
-      metadata.preferred_username ||
-      identityData.full_name ||
-      identityData.name ||
-      identityData.username ||
-      ""
   ).trim();
 }
 
@@ -112,6 +86,39 @@ async function handler(request) {
     );
   }
 
+  const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+  });
+
+  const accessToken = getAccessTokenFromRequest(request, body);
+
+  let user = null;
+  let discordId = "";
+
+  if (accessToken) {
+    const { data: userResult, error: userError } =
+      await supabaseAdmin.auth.getUser(accessToken);
+
+    if (!userError && userResult?.user) {
+      user = userResult.user;
+      discordId = getDiscordIdFromUser(user);
+    }
+  }
+
+  if (!discordId) {
+    return json(
+      {
+        ok: false,
+        message:
+          "首次登入必須使用 Discord，且登入帳號需保留 Discord 綁定。請重新登入後再試一次。",
+      },
+      401
+    );
+  }
+
   if (!botToken) {
     return json(
       {
@@ -129,45 +136,6 @@ async function handler(request) {
         message: "伺服器缺少員工身分組設定，請設定 DEEPNIGHT_STAFF_ROLE_IDS。",
       },
       500
-    );
-  }
-
-  const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-    },
-  });
-
-  const accessToken = getAccessTokenFromRequest(request, body);
-
-  let user = null;
-  let discordId = "";
-  let fallbackMode = false;
-
-  if (accessToken) {
-    const { data: userResult, error: userError } =
-      await supabaseAdmin.auth.getUser(accessToken);
-
-    if (!userError && userResult?.user) {
-      user = userResult.user;
-      discordId = getDiscordIdFromUser(user);
-    }
-  }
-
-  if (!discordId) {
-    discordId = String(body?.discord_id || body?.discordId || "").trim();
-    fallbackMode = true;
-  }
-
-  if (!discordId) {
-    return json(
-      {
-        ok: false,
-        message:
-          "沒有收到登入 token，也沒有收到 Discord ID。請重新登入後再試一次。",
-      },
-      401
     );
   }
 
@@ -228,23 +196,24 @@ async function handler(request) {
   }
 
   const discordUser = member.user || {};
+  const discordProfile = getDiscordProfileFromUser(user);
 
   const discordUsername =
     discordUser.username ||
     body?.discord_name ||
-    getNameFromSupabaseUser(user) ||
+    discordProfile.name ||
     discordId;
 
   const displayName =
     member.nick ||
     discordUser.global_name ||
     body?.discord_name ||
-    getNameFromSupabaseUser(user) ||
+    discordProfile.name ||
     discordUsername ||
     discordId;
 
   const avatarUrl =
-    getDiscordAvatarUrl(discordUser) || body?.avatar_url || null;
+    getDiscordAvatarUrl(discordUser) || discordProfile.avatarUrl || null;
 
   const now = new Date().toISOString();
 
@@ -332,7 +301,7 @@ async function handler(request) {
     ok: true,
     message: "員工身分驗證成功。",
     discord_id: discordId,
-    fallback_mode: fallbackMode,
+    fallback_mode: false,
     staff,
     player: staff,
   });

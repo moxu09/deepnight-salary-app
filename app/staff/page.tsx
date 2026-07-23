@@ -22,6 +22,7 @@ import {
 import StaffAvatar from "@/components/StaffAvatar";
 import StaffPortalNav, { type PortalTab } from "@/components/StaffPortalNav";
 import HrPortalPanel from "@/components/HrPortalPanel";
+import ErpAuthLinkManager from "@/components/ErpAuthLinkManager";
 import {
   formatTaipeiDateTime,
   getNextTaipeiMonthText,
@@ -1748,6 +1749,14 @@ export default function StaffPage() {
                   <Save size={16} />
                   {profileSaving ? "儲存中..." : "儲存個人資料"}
                 </button>
+
+                <div className="border-t border-sky-100 pt-6">
+                  <ErpAuthLinkManager
+                    organization="deepnight"
+                    mode="profile"
+                    embedded
+                  />
+                </div>
               </div>
             </div>
           </div>
