@@ -232,27 +232,33 @@ export default function AppLanguageProvider() {
     document.documentElement.lang = locale;
     document.documentElement.dataset.locale = locale;
     window.localStorage.setItem(STORAGE_KEY, locale);
-    translateTree(document.body, locale);
-    const observer = new MutationObserver((mutations) => {
-      mutations.forEach((mutation) => {
-        if (mutation.type === "characterData") translateNode(mutation.target as Text, locale);
-        mutation.addedNodes.forEach((node) => {
-          if (node.nodeType === Node.TEXT_NODE) translateNode(node as Text, locale);
-          else if (node instanceof Element) translateTree(node, locale);
+    let observer: MutationObserver | null = null;
+    const startTimer = window.setTimeout(() => {
+      translateTree(document.body, locale);
+      observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+          if (mutation.type === "characterData") translateNode(mutation.target as Text, locale);
+          mutation.addedNodes.forEach((node) => {
+            if (node.nodeType === Node.TEXT_NODE) translateNode(node as Text, locale);
+            else if (node instanceof Element) translateTree(node, locale);
+          });
+          if (mutation.type === "attributes" && mutation.target instanceof Element) {
+            translateAttributes(mutation.target, locale);
+          }
         });
-        if (mutation.type === "attributes" && mutation.target instanceof Element) {
-          translateAttributes(mutation.target, locale);
-        }
       });
-    });
-    observer.observe(document.body, {
-      childList: true,
-      subtree: true,
-      characterData: true,
-      attributes: true,
-      attributeFilter: [...translatedAttributes],
-    });
-    return () => observer.disconnect();
+      observer.observe(document.body, {
+        childList: true,
+        subtree: true,
+        characterData: true,
+        attributes: true,
+        attributeFilter: [...translatedAttributes],
+      });
+    }, 350);
+    return () => {
+      window.clearTimeout(startTimer);
+      observer?.disconnect();
+    };
   }, [locale]);
 
   useEffect(() => {
