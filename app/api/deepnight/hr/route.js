@@ -39,9 +39,13 @@ async function getStaff(discordId) {
   return data;
 }
 
-async function requireAdmin(discordId) {
+async function requireAdmin(discordId, requestType = null) {
   const access = await getErpAccessByDiscordId(supabaseAdmin, ORG, discordId);
-  if (!access.capabilities.canReviewAll) throw new Error("你沒有簽核申請的權限");
+  const canReview =
+    access.capabilities.canReviewAll ||
+    (requestType === "離職申請書" &&
+      access.capabilities.canReviewResignations);
+  if (!canReview) throw new Error("你沒有簽核申請的權限");
   return access.assignment || access.legacyAdmin;
 }
 
@@ -179,16 +183,16 @@ export async function POST(request) {
 export async function PATCH(request) {
   try {
     const { discordId } = await getAuthUserFromRequest(supabaseAdmin, request);
-    const admin = await requireAdmin(discordId);
     const body = await request.json().catch(() => ({}));
     if (!body.id || !["approved", "rejected"].includes(body.status)) throw new Error("簽核資料不正確");
     const { data: existing, error: existingError } = await supabaseAdmin
       .from("salary_requests")
-      .select("id, form_data")
+      .select("id, request_type, form_data")
       .eq("id", body.id)
       .eq("organization_code", ORG)
       .single();
     if (existingError || !existing) throw new Error("找不到申請資料");
+    const admin = await requireAdmin(discordId, existing.request_type);
     const formData = existing.form_data || {};
     const attachments = Array.isArray(formData.attachments)
       ? formData.attachments
