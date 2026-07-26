@@ -465,20 +465,46 @@ export default function AdminStaffPage() {
       .select("*")
       .single();
 
-    setSaving(false);
-
     if (error) {
+      setSaving(false);
       console.error("save staff error:", error);
       alert("儲存員工資料失敗");
       return;
     }
 
     const updated = data as Staff;
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token;
+    if (!token) {
+      setSaving(false);
+      alert("員工資料已儲存，但登入已過期，官網顯示狀態尚未同步");
+      return;
+    }
+
+    const syncResponse = await fetch("/api/deepnight/public-profile", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        action: "sync-staff",
+        discordId: updated.discord_id,
+      }),
+    });
+    const syncResult = await syncResponse.json().catch(() => ({}));
+    setSaving(false);
 
     setSelectedStaff(updated);
     setStaffList((prev) =>
       prev.map((staff) => (staff.id === updated.id ? updated : staff))
     );
+
+    if (!syncResponse.ok || !syncResult.ok) {
+      console.error("sync public profile error:", syncResult);
+      alert("員工資料已儲存，但官網顯示狀態同步失敗，請稍後再試");
+      return;
+    }
 
     alert("員工資料已儲存");
   }
