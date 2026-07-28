@@ -179,6 +179,15 @@ type SalaryWalletData = {
   };
 };
 
+type PerformanceRanking = {
+  month: string;
+  rank: number;
+  participantCount: number;
+  performanceAmount: number;
+  gapToPrevious: number;
+  isFirst: boolean;
+};
+
 type WithdrawalStatementSummary = {
   requestCount: number;
   approvedCount: number;
@@ -481,6 +490,8 @@ export default function StaffPage() {
   const [salaryWallet, setSalaryWallet] = useState<SalaryWalletData | null>(
     null
   );
+  const [performanceRanking, setPerformanceRanking] =
+    useState<PerformanceRanking | null>(null);
   const [selectedMonth, setSelectedMonth] = useState(getCurrentMonthInput());
   const [activeTab, setActiveTab] = useState<PortalTab>("profile");
 
@@ -663,6 +674,7 @@ export default function StaffPage() {
           staffData.discord_id,
           staffData.allowed_services || []
         ),
+        loadPerformanceRanking(),
       ]);
     } catch (error) {
       console.error("staff boot error:", error);
@@ -787,6 +799,33 @@ export default function StaffPage() {
       alert(getErrorMessage(error, "讀取薪資錢包失敗"));
     } finally {
       setWalletLoading(false);
+    }
+  }
+
+  async function loadPerformanceRanking() {
+    try {
+      const { data } = await supabase.auth.getSession();
+      const session = data.session;
+      if (!session) return;
+
+      const params = new URLSearchParams({ month: selectedMonth });
+      const response = await fetch(
+        `/api/deepnight/performance-rank?${params.toString()}`,
+        {
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          cache: "no-store",
+        }
+      );
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || !payload.ok) {
+        throw new Error(payload.message || "讀取業績排名失敗");
+      }
+      setPerformanceRanking(payload.ranking as PerformanceRanking);
+    } catch (error) {
+      console.error("load performance ranking error:", error);
+      setPerformanceRanking(null);
     }
   }
 
@@ -956,6 +995,7 @@ export default function StaffPage() {
         loadWalletData(),
         loadSalaryData(staff.discord_id),
         loadStaffServices(staff.discord_id, staff.allowed_services || []),
+        loadPerformanceRanking(),
       ]);
     } finally {
       setRefreshing(false);
@@ -1244,6 +1284,39 @@ export default function StaffPage() {
           <StatCard title="獎金 / 扣除" value={money(monthBonus)} />
           <StatCard title="未發薪" value={money(unpaidAmount)} />
         </section>
+
+        {activeTab === "profile" && performanceRanking ? (
+          <section className="rounded-[28px] border border-violet-100 bg-gradient-to-r from-sky-50 via-white to-violet-50 p-5 shadow-sm shadow-violet-100">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="flex items-center gap-2 text-sm font-black text-violet-600">
+                  <Trophy size={18} />
+                  {formatMonthLabel(performanceRanking.month)}業績排名
+                </p>
+                <p className="mt-2 text-3xl font-black text-slate-900">
+                  第 {performanceRanking.rank} 名
+                  <span className="ml-2 text-sm font-bold text-slate-500">
+                    ／{performanceRanking.participantCount} 人
+                  </span>
+                </p>
+                <p className="mt-2 text-sm text-slate-500">
+                  本月接單業績 {money(performanceRanking.performanceAmount)}
+                </p>
+              </div>
+              <div className="rounded-2xl bg-white px-5 py-4 text-center shadow-sm">
+                <p className="text-xs font-bold text-slate-500">距離上一名</p>
+                <p className="mt-1 text-xl font-black text-violet-600">
+                  {performanceRanking.isFirst
+                    ? "目前位居第一"
+                    : money(performanceRanking.gapToPrevious)}
+                </p>
+                <p className="mt-1 text-xs text-slate-400">
+                  不會顯示其他陪陪身分
+                </p>
+              </div>
+            </div>
+          </section>
+        ) : null}
 
         <section id="wallet" className={`${activeTab === "profile" ? "block" : "hidden"} rounded-[28px] border border-sky-100 bg-white p-5 shadow-sm shadow-sky-100`}>
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
