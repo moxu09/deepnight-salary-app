@@ -50,6 +50,15 @@ export default function ErpLoginCard({
   admin = false,
 }: ErpLoginCardProps) {
   const content = CONTENT[organization];
+  const displayContent = admin
+    ? {
+        badge: "We Are Still Here ERP",
+        title: "共同 ERP 後台",
+        description:
+          "登入後會依你的權限顯示深夜不關燈與秋奈電競的部門資料。",
+        copyright: "© We Are Still Here",
+      }
+    : content;
   const isQiunai = organization === "qiunai";
   const apiPath = `/api/${organization}/auth-links`;
   const [email, setEmail] = useState("");
@@ -171,7 +180,7 @@ export default function ErpLoginCard({
                   : "inline-flex rounded-full border border-sky-100 bg-sky-50 px-3 py-1 text-xs font-bold text-sky-700"
               }
             >
-              {content.badge} · {admin ? "管理入口" : "員工入口"}
+              {displayContent.badge} · {admin ? "管理入口" : "員工入口"}
             </span>
             <h1
               className={
@@ -180,7 +189,7 @@ export default function ErpLoginCard({
                   : "mt-5 text-3xl font-black tracking-tight text-slate-900"
               }
             >
-              {content.title}
+            {displayContent.title}
             </h1>
             <p
               className={
@@ -189,7 +198,7 @@ export default function ErpLoginCard({
                   : "mt-3 text-sm leading-7 text-slate-600"
               }
             >
-              {content.description}
+            {displayContent.description}
             </p>
           </div>
 
@@ -325,7 +334,7 @@ export default function ErpLoginCard({
               : "mt-5 text-center text-xs font-semibold text-slate-400"
           }
         >
-          {content.copyright}
+          {displayContent.copyright}
         </p>
       </div>
     </main>
