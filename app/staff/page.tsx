@@ -1310,9 +1310,6 @@ export default function StaffPage() {
                     ? "目前位居第一"
                     : money(performanceRanking.gapToPrevious)}
                 </p>
-                <p className="mt-1 text-xs text-slate-400">
-                  不會顯示其他陪陪身分
-                </p>
               </div>
             </div>
           </section>
