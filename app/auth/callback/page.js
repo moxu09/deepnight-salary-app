@@ -56,8 +56,14 @@ function CallbackInner() {
           return;
         }
 
-        const destination =
-          searchParams.get("next") === "/admin" ? "/admin" : "/staff";
+        const requestedNext = searchParams.get("next") || "";
+        const destination = requestedNext.startsWith(
+          "/admin/department/qiunai",
+        )
+          ? requestedNext
+          : requestedNext === "/admin"
+            ? "/admin"
+            : "/staff";
         const mode = searchParams.get("mode") || "";
         const method = searchParams.get("method") || "discord";
         const token = data.session.access_token;
@@ -147,7 +153,13 @@ function CallbackInner() {
           <button
             onClick={() =>
               router.replace(
-                searchParams.get("next") === "/admin" ? "/admin-login" : "/"
+                searchParams.get("next")?.startsWith("/admin")
+                  ? `/admin-login?department=${
+                      searchParams.get("department") === "qiunai"
+                        ? "qiunai"
+                        : "deepnight"
+                    }`
+                  : "/"
               )
             }
             className="mt-6 rounded-xl bg-white/10 px-4 py-2 text-sm hover:bg-white/20"

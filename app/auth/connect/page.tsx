@@ -14,7 +14,12 @@ export default function AuthConnectPage() {
 
 function ConnectContent() {
   const searchParams = useSearchParams();
-  const nextPath = searchParams.get("next") === "/admin" ? "/admin" : "/staff";
+  const requestedNext = searchParams.get("next") || "";
+  const nextPath = requestedNext.startsWith("/admin/department/qiunai")
+    ? requestedNext
+    : requestedNext === "/admin"
+      ? "/admin"
+      : "/staff";
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-[#eef7fd] px-4 py-10">

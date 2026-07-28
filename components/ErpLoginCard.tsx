@@ -15,7 +15,8 @@ type Theme = "deepnight" | "qiunai";
 
 type ErpLoginCardProps = {
   organization: Theme;
-  nextPath?: "/staff" | "/admin";
+  nextPath?: string;
+  department?: Theme;
   admin?: boolean;
 };
 
@@ -45,6 +46,7 @@ const CONTENT = {
 export default function ErpLoginCard({
   organization,
   nextPath = "/staff",
+  department,
   admin = false,
 }: ErpLoginCardProps) {
   const content = CONTENT[organization];
@@ -64,6 +66,7 @@ export default function ErpLoginCard({
       next: nextPath,
       method: provider,
     });
+    if (department) params.set("department", department);
     const redirectTo = `${window.location.origin}/auth/callback?${params.toString()}`;
     const { error } = await supabase.auth.signInWithOAuth({
       provider,

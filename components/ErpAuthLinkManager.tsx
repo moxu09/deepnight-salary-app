@@ -30,7 +30,7 @@ type AuthLinkStatus = {
 type Props = {
   organization: Organization;
   mode?: "onboarding" | "profile";
-  nextPath?: "/staff" | "/admin";
+  nextPath?: string;
   embedded?: boolean;
 };
 
