@@ -268,14 +268,14 @@ export default function DeviceAuditAdmin({
           <p className="mt-2 text-sm text-slate-500">
             上傳碼綁定部門及帳號，24 小時內只能成功上傳一份報告。
           </p>
-          <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+          <div className="device-audit-token-row mt-4 flex flex-col gap-3 sm:flex-row">
             {owner ? (
               <select
                 value={tokenOrganization}
                 onChange={(event) =>
                   setTokenOrganization(event.target.value as Organization)
                 }
-                className="rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm font-black outline-none focus:border-cyan-500"
+                className="device-audit-organization rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm font-black outline-none focus:border-cyan-500"
               >
                 <option value="deepnight">深夜不關燈</option>
                 <option value="qiunai">秋奈電競</option>
@@ -285,13 +285,13 @@ export default function DeviceAuditAdmin({
               value={applicantId}
               onChange={(event) => setApplicantId(event.target.value)}
               placeholder="申請編號或 Discord ID"
-              className="min-w-0 flex-1 rounded-2xl border border-slate-300 px-4 py-3 text-sm font-bold outline-none focus:border-cyan-500"
+              className="device-audit-applicant min-w-0 flex-1 rounded-2xl border border-slate-300 px-4 py-3 text-sm font-bold outline-none focus:border-cyan-500"
             />
             <button
               type="button"
               onClick={() => void generateToken()}
               disabled={creatingToken}
-              className="rounded-2xl bg-cyan-600 px-5 py-3 text-sm font-black text-white disabled:opacity-60"
+              className="device-audit-create-button shrink-0 rounded-2xl bg-cyan-600 px-5 py-3 text-sm font-black text-white disabled:opacity-60"
             >
               {creatingToken ? "建立中…" : "建立上傳碼"}
             </button>

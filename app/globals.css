@@ -232,6 +232,26 @@ button:disabled {
   opacity: 0.55;
 }
 
+/* 電腦稽核上傳碼列需覆寫全站表單 width: 100%，避免部門欄位擠壓帳號欄位。 */
+.device-audit-token-row .device-audit-organization {
+  width: 190px !important;
+  flex: 0 0 190px;
+}
+
+.device-audit-token-row .device-audit-applicant {
+  width: auto !important;
+  flex: 1 1 360px;
+}
+
+@media (max-width: 639px) {
+  .device-audit-token-row .device-audit-organization,
+  .device-audit-token-row .device-audit-applicant,
+  .device-audit-token-row .device-audit-create-button {
+    width: 100% !important;
+    flex-basis: auto;
+  }
+}
+
 /* =========================================================
    移除原本 staff 頁面的大色塊背景裝飾
    ========================================================= */
