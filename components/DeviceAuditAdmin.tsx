@@ -454,8 +454,8 @@ function AuditDetail({ report }: { report: AuditReport | null }) {
       </div>
       <div className="mt-3 flex flex-wrap gap-2 text-xs font-black">
         {[
-          ["0–9", "低風險"],
-          ["10–24", "需注意"],
+          ["0–10", "低風險"],
+          ["11–24", "需注意"],
           ["25–49", "高風險"],
           ["50–74", "嚴重風險"],
           ["75–100", "極高風險"],
