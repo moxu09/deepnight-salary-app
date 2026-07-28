@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import AdminStaffWalletCard from "@/components/AdminStaffWalletCard";
 import StaffAvatar from "@/components/StaffAvatar";
 
 type Staff = {
@@ -1119,6 +1120,15 @@ export default function AdminStaffPage() {
                 </div>
               )}
             </div>
+
+            {selectedStaff ? (
+              <AdminStaffWalletCard
+                key={selectedStaff.discord_id}
+                discordId={selectedStaff.discord_id}
+                staffName={getDisplayName(selectedStaff)}
+                apiPath="/api/deepnight/salary-wallet/admin"
+              />
+            ) : null}
 
             {selectedStaff ? (
               <div className="rounded-[28px] border border-amber-200 bg-amber-50/80 p-5 shadow-sm shadow-amber-100">
