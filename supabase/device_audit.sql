@@ -47,3 +47,21 @@ alter table public.device_audit_reports enable row level security;
 
 comment on table public.device_audit_reports is
   'Private Windows device audit reports. Access only through authenticated server routes.';
+
+create table if not exists public.device_audit_role_memberships (
+  id uuid primary key default gen_random_uuid(),
+  organization_code text not null check (organization_code in ('deepnight', 'qiunai')),
+  discord_id text not null,
+  display_name text,
+  source_role_id text not null,
+  is_active boolean not null default true,
+  last_synced_at timestamptz not null default now(),
+  created_at timestamptz not null default now(),
+  unique (organization_code, discord_id)
+);
+
+create index if not exists device_audit_role_memberships_access_idx
+  on public.device_audit_role_memberships
+  (organization_code, discord_id, is_active);
+
+alter table public.device_audit_role_memberships enable row level security;

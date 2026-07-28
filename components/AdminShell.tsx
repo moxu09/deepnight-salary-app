@@ -74,13 +74,22 @@ export default function AdminShell({
   const currentOrganization = organizationFromPath(pathname);
   const { loading, access } = useErpAccess(currentOrganization);
   const supportOnly = access?.role === "customer_service";
+  const auditOnly = access?.role === "audit_reviewer";
   const salaryHref = sectionHref(currentOrganization, "salary");
+  const deviceAuditHref = sectionHref(currentOrganization, "device-audit");
+  const fallbackHref = auditOnly ? deviceAuditHref : salaryHref;
   const allowedPath =
-    !supportOnly ||
-    pathname === salaryHref ||
-    pathname.startsWith(`${salaryHref}/`);
+    (!supportOnly && !auditOnly) ||
+    (supportOnly &&
+      (pathname === salaryHref || pathname.startsWith(`${salaryHref}/`))) ||
+    (auditOnly &&
+      (pathname === deviceAuditHref ||
+        pathname.startsWith(`${deviceAuditHref}/`)));
   const links = makeAdminLinks(currentOrganization).filter(
-    (link) => !supportOnly || link.href === salaryHref,
+    (link) =>
+      (!supportOnly && !auditOnly) ||
+      (supportOnly && link.href === salaryHref) ||
+      (auditOnly && link.href === deviceAuditHref),
   );
   const owner = access?.discordId === ERP_OWNER_DISCORD_ID;
   const company =
@@ -88,9 +97,9 @@ export default function AdminShell({
 
   useEffect(() => {
     if (!loading && access && (!access.isAdmin || !allowedPath)) {
-      router.replace(access.isAdmin ? salaryHref : "/staff");
+      router.replace(access.isAdmin ? fallbackHref : "/staff");
     }
-  }, [access, allowedPath, loading, router, salaryHref]);
+  }, [access, allowedPath, fallbackHref, loading, router]);
 
   if (loading || !access?.isAdmin || !allowedPath) {
     return (
@@ -106,7 +115,7 @@ export default function AdminShell({
     <div className="admin-portal-shell min-h-screen bg-slate-100 lg:grid lg:grid-cols-[240px_minmax(0,1fr)]">
       <aside className="admin-portal-sidebar sticky top-0 z-50 overflow-x-auto bg-[#17202d] text-white lg:h-screen lg:overflow-y-auto">
         <Link
-          href={owner && !supportOnly ? "/admin" : salaryHref}
+          href={owner && !supportOnly && !auditOnly ? "/admin" : fallbackHref}
           className="admin-portal-brand hidden lg:block"
         >
           <p className="text-xs font-bold tracking-[0.18em]">共同 ERP 後台</p>
