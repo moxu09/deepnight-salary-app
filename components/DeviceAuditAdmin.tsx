@@ -98,9 +98,11 @@ function levelStyle(level: string) {
 export default function DeviceAuditAdmin({
   organization,
   combinedForOwner = false,
+  embedded = false,
 }: {
   organization: Organization;
   combinedForOwner?: boolean;
+  embedded?: boolean;
 }) {
   const { loading: accessLoading, access } = useErpAccess(organization);
   const owner =
@@ -232,7 +234,7 @@ export default function DeviceAuditAdmin({
   }
 
   return (
-    <main className="min-h-screen bg-slate-100 p-5 sm:p-8">
+    <main className={embedded ? "w-full" : "min-h-screen bg-slate-100 p-5 sm:p-8"}>
       <div className="mx-auto max-w-7xl">
         <header className="rounded-[28px] bg-slate-900 p-7 text-white shadow-xl">
           <div className="flex flex-wrap items-start justify-between gap-4">

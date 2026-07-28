@@ -23,6 +23,7 @@ import StaffAvatar from "@/components/StaffAvatar";
 import StaffPortalNav, { type PortalTab } from "@/components/StaffPortalNav";
 import HrPortalPanel from "@/components/HrPortalPanel";
 import ErpAuthLinkManager from "@/components/ErpAuthLinkManager";
+import DeviceAuditAdmin from "@/components/DeviceAuditAdmin";
 import {
   formatTaipeiDateTime,
   getNextTaipeiMonthText,
@@ -494,6 +495,7 @@ export default function StaffPage() {
     useState<PerformanceRanking | null>(null);
   const [selectedMonth, setSelectedMonth] = useState(getCurrentMonthInput());
   const [activeTab, setActiveTab] = useState<PortalTab>("profile");
+  const [canViewDeviceAudit, setCanViewDeviceAudit] = useState(false);
 
   const [profileForm, setProfileForm] = useState<ProfileForm>({
     display_name: "",
@@ -651,6 +653,15 @@ export default function StaffPage() {
         bank_name: staffData.bank_name || "",
         bank_account: staffData.bank_account || "",
       });
+
+      const accessRes = await fetch("/api/deepnight/erp-access", {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+        cache: "no-store",
+      });
+      const accessData = await accessRes.json().catch(() => ({}));
+      setCanViewDeviceAudit(
+        Boolean(accessRes.ok && accessData.access?.role === "audit_reviewer")
+      );
 
       const publicProfileRes = await fetch("/api/deepnight/public-profile", {
         headers: { Authorization: `Bearer ${session.access_token}` },
@@ -1222,7 +1233,7 @@ export default function StaffPage() {
   return (
     <main className="staff-portal-page min-h-screen bg-[#f3f7fa] text-slate-900">
       <div className="staff-portal-shell grid lg:grid-cols-[240px_minmax(0,1fr)]">
-        <StaffPortalNav activeTab={activeTab} onSelect={setActiveTab} employeeName={getDisplayName(staff)} company="深夜不關燈" />
+        <StaffPortalNav activeTab={activeTab} onSelect={setActiveTab} employeeName={getDisplayName(staff)} company="深夜不關燈" showDeviceAudit={canViewDeviceAudit} />
 
         <div className="staff-portal-content min-w-0 space-y-5">
         <header id="overview" className="scroll-mt-24 rounded-[30px] border border-violet-100 bg-white px-6 py-5 shadow-sm shadow-violet-100">
@@ -1277,6 +1288,10 @@ export default function StaffPage() {
         </header>
 
         <HrPortalPanel activeTab={activeTab} apiPath="/api/deepnight/hr" department="深夜不關燈" staffName={getDisplayName(staff)} selectedMonth={selectedMonth} onMonthChange={setSelectedMonth} />
+
+        {activeTab === "device-audit" && canViewDeviceAudit ? (
+          <DeviceAuditAdmin organization="deepnight" embedded />
+        ) : null}
 
         <section className={activeTab === "profile" ? "grid gap-4 md:grid-cols-4" : "hidden"}>
           <StatCard title="月份訂單" value={`${monthOrderCount} 筆`} />
