@@ -14,6 +14,7 @@ import {
   Search,
   Settings2,
   Trophy,
+  Trash2,
   Users,
 } from "lucide-react";
 import Link from "next/link";
@@ -180,6 +181,7 @@ export default function AdminStaffPage() {
   const [salarySort, setSalarySort] = useState("created_desc");
   const [saving, setSaving] = useState(false);
   const [serviceSaving, setServiceSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [featuredIds, setFeaturedIds] = useState<string[]>([]);
   const [featuredSaving, setFeaturedSaving] = useState(false);
 
@@ -585,6 +587,61 @@ export default function AdminStaffPage() {
 
     setServiceSaving(false);
     alert("可接服務已儲存");
+  }
+
+  async function deleteStaff() {
+    if (!selectedStaff) return;
+
+    const name = getDisplayName(selectedStaff);
+    const confirmed = window.confirm(
+      `確定要永久刪除「${name}」嗎？\n\n` +
+        "員工主資料、可接服務設定及官網展示資料會一併刪除；歷史訂單與薪資紀錄會保留。\n\n" +
+        "此操作無法復原。",
+    );
+    if (!confirmed) return;
+
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
+    if (!token) {
+      alert("登入已過期，請重新登入後再試");
+      return;
+    }
+
+    setDeleting(true);
+    const response = await fetch("/api/deepnight/staff", {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        staffId: selectedStaff.id,
+        discordId: selectedStaff.discord_id,
+      }),
+    });
+    const result = await response.json().catch(() => ({}));
+    setDeleting(false);
+
+    if (!response.ok || !result.ok) {
+      alert(result.message || "刪除員工失敗");
+      return;
+    }
+
+    const deletedId = selectedStaff.id;
+    const deletedDiscordId = selectedStaff.discord_id;
+    const remaining = staffList.filter((staff) => staff.id !== deletedId);
+    setStaffList(remaining);
+    setFeaturedIds((current) =>
+      current.filter((id) => id !== deletedDiscordId),
+    );
+    setAllowedServices([]);
+    const nextStaff = remaining[0] || null;
+    setSelectedStaff(nextStaff);
+    setForm(makeForm(nextStaff));
+    if (nextStaff) {
+      await selectStaff(nextStaff);
+    }
+    alert(`已刪除員工「${name}」`);
   }
 
   async function refresh() {
@@ -1024,6 +1081,24 @@ export default function AdminStaffPage() {
                 </div>
               )}
             </div>
+
+            {selectedStaff ? (
+              <div className="rounded-[28px] border border-rose-200 bg-rose-50/80 p-5 shadow-sm shadow-rose-100">
+                <h2 className="text-lg font-black text-rose-700">刪除員工</h2>
+                <p className="mt-2 text-sm leading-6 text-rose-600">
+                  刪除員工主資料、可接服務設定及官網展示資料；歷史訂單與薪資紀錄會保留。
+                </p>
+                <button
+                  type="button"
+                  onClick={deleteStaff}
+                  disabled={deleting}
+                  className="mt-4 inline-flex items-center justify-center gap-2 rounded-full bg-rose-600 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <Trash2 size={17} />
+                  {deleting ? "刪除中..." : "刪除此員工"}
+                </button>
+              </div>
+            ) : null}
           </div>
         </section>
       </div>
