@@ -104,7 +104,7 @@ export default function AdminShell({
     <div className="admin-portal-shell min-h-screen bg-slate-100 lg:grid lg:grid-cols-[240px_minmax(0,1fr)]">
       <aside className="admin-portal-sidebar sticky top-0 z-50 overflow-x-auto bg-[#17202d] text-white lg:h-screen lg:overflow-y-auto">
         <Link
-          href={supportOnly ? salaryHref : sectionHref(currentOrganization, "salary")}
+          href={owner && !supportOnly ? "/admin" : salaryHref}
           className="admin-portal-brand hidden lg:block"
         >
           <p className="text-xs font-bold tracking-[0.18em]">共同 ERP 後台</p>
@@ -116,32 +116,17 @@ export default function AdminShell({
 
         {owner ? (
           <div className="mx-3 mb-3 mt-3 rounded-2xl border border-slate-700 bg-slate-800/80 p-2 lg:mt-0">
-            <p className="mb-2 flex items-center gap-2 px-2 text-xs font-bold text-slate-400">
+            <Link
+              href="/admin"
+              className={`flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-black transition ${
+                pathname === "/admin"
+                  ? "bg-violet-500 text-white"
+                  : "text-slate-300 hover:bg-slate-700"
+              }`}
+            >
               <Building2 size={14} />
-              部門
-            </p>
-            <div className="grid grid-cols-2 gap-2 lg:grid-cols-1">
-              <Link
-                href="/admin/salary"
-                className={`rounded-xl px-3 py-2 text-center text-xs font-black transition lg:text-left ${
-                  currentOrganization === "deepnight"
-                    ? "bg-sky-500 text-white"
-                    : "bg-slate-700 text-slate-300 hover:bg-slate-600"
-                }`}
-              >
-                深夜不關燈
-              </Link>
-              <Link
-                href="/admin/department/qiunai/salary"
-                className={`rounded-xl px-3 py-2 text-center text-xs font-black transition lg:text-left ${
-                  currentOrganization === "qiunai"
-                    ? "bg-pink-500 text-white"
-                    : "bg-slate-700 text-slate-300 hover:bg-slate-600"
-                }`}
-              >
-                秋奈電競
-              </Link>
-            </div>
+              兩家合併總覽
+            </Link>
           </div>
         ) : null}
 
