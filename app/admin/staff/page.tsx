@@ -14,7 +14,8 @@ import {
   Search,
   Settings2,
   Trophy,
-  Trash2,
+  Archive,
+  ArchiveRestore,
   Users,
 } from "lucide-react";
 import Link from "next/link";
@@ -181,14 +182,17 @@ export default function AdminStaffPage() {
   const [salarySort, setSalarySort] = useState("created_desc");
   const [saving, setSaving] = useState(false);
   const [serviceSaving, setServiceSaving] = useState(false);
-  const [deleting, setDeleting] = useState(false);
+  const [archiving, setArchiving] = useState(false);
   const [featuredIds, setFeaturedIds] = useState<string[]>([]);
   const [featuredSaving, setFeaturedSaving] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
 
   const filteredStaff = useMemo(() => {
     const key = keyword.trim().toLowerCase();
 
-    let list = [...staffList];
+    let list = staffList.filter((staff) =>
+      showArchived ? staff.is_active === false : staff.is_active !== false,
+    );
 
     if (key) {
       list = list.filter((staff) => {
@@ -255,7 +259,7 @@ export default function AdminStaffPage() {
     }
 
     return list;
-  }, [staffList, keyword, salarySort]);
+  }, [staffList, keyword, salarySort, showArchived]);
 
   const activeCount = staffList.filter(
     (staff) => staff.is_active !== false
@@ -589,16 +593,19 @@ export default function AdminStaffPage() {
     alert("可接服務已儲存");
   }
 
-  async function deleteStaff() {
+  async function setStaffArchived(archived: boolean) {
     if (!selectedStaff) return;
 
     const name = getDisplayName(selectedStaff);
-    const confirmed = window.confirm(
-      `確定要永久刪除「${name}」嗎？\n\n` +
-        "員工主資料、可接服務設定及官網展示資料會一併刪除；歷史訂單與薪資紀錄會保留。\n\n" +
-        "此操作無法復原。",
-    );
-    if (!confirmed) return;
+    if (
+      archived &&
+      !window.confirm(
+        `確定要封存「${name}」嗎？\n\n` +
+          "封存後會立即停用、下線並禁止接單，也不會出現在官網及一般員工清單。之後仍可從「查看已封存員工」重新啟用。",
+      )
+    ) {
+      return;
+    }
 
     const { data } = await supabase.auth.getSession();
     const token = data.session?.access_token;
@@ -607,41 +614,55 @@ export default function AdminStaffPage() {
       return;
     }
 
-    setDeleting(true);
+    setArchiving(true);
     const response = await fetch("/api/deepnight/staff", {
-      method: "DELETE",
+      method: "PATCH",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({
+        action: archived ? "archive" : "restore",
         staffId: selectedStaff.id,
         discordId: selectedStaff.discord_id,
       }),
     });
     const result = await response.json().catch(() => ({}));
-    setDeleting(false);
+    setArchiving(false);
 
     if (!response.ok || !result.ok) {
-      alert(result.message || "刪除員工失敗");
+      alert(result.message || "更新員工封存狀態失敗");
       return;
     }
 
-    const deletedId = selectedStaff.id;
-    const deletedDiscordId = selectedStaff.discord_id;
-    const remaining = staffList.filter((staff) => staff.id !== deletedId);
-    setStaffList(remaining);
-    setFeaturedIds((current) =>
-      current.filter((id) => id !== deletedDiscordId),
+    const updated = {
+      ...selectedStaff,
+      is_active: !archived,
+      is_online: archived ? false : selectedStaff.is_online,
+      can_take_order: archived ? false : selectedStaff.can_take_order,
+    };
+    const nextStaffList = staffList.map((staff) =>
+      staff.id === selectedStaff.id ? updated : staff,
     );
-    setAllowedServices([]);
-    const nextStaff = remaining[0] || null;
-    setSelectedStaff(nextStaff);
-    setForm(makeForm(nextStaff));
-    if (nextStaff) {
-      await selectStaff(nextStaff);
+    setStaffList(nextStaffList);
+    if (archived) {
+      setFeaturedIds((current) =>
+        current.filter((id) => id !== selectedStaff.discord_id),
+      );
+      const nextStaff =
+        nextStaffList.find((staff) => staff.is_active !== false) || null;
+      setSelectedStaff(nextStaff);
+      setForm(makeForm(nextStaff));
+      setAllowedServices([]);
+      if (nextStaff) await selectStaff(nextStaff);
+      alert(`已封存員工「${name}」`);
+      return;
     }
-    alert(`已刪除員工「${name}」`);
+
+    setShowArchived(false);
+    setSelectedStaff(updated);
+    setForm(makeForm(updated));
+    alert(`已重新啟用員工「${name}」`);
   }
 
   async function refresh() {
@@ -707,7 +728,7 @@ export default function AdminStaffPage() {
         </header>
 
         <section className="grid gap-4 md:grid-cols-3">
-          <StatCard title="員工總數" value={`${staffList.length} 人`} />
+          <StatCard title="員工總數" value={`${activeCount} 人`} />
           <StatCard title="啟用中" value={`${activeCount} 人`} />
           <StatCard title="目前上線" value={`${onlineCount} 人`} />
         </section>
@@ -776,6 +797,23 @@ export default function AdminStaffPage() {
                   <option value="tier_90">只看：90%</option>
                   <option value="tier_95">只看：主管津貼 95%</option>
                 </select>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowArchived((current) => !current);
+                    setSelectedStaff(null);
+                    setForm(makeForm(null));
+                    setAllowedServices([]);
+                  }}
+                  className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-sky-200 bg-white px-3 py-2 text-sm font-bold text-sky-600 transition hover:bg-sky-50"
+                >
+                  {showArchived ? (
+                    <ArchiveRestore size={16} />
+                  ) : (
+                    <Archive size={16} />
+                  )}
+                  {showArchived ? "回到啟用中員工" : "查看已封存員工"}
+                </button>
               </div>
             </div>
 
@@ -1083,19 +1121,39 @@ export default function AdminStaffPage() {
             </div>
 
             {selectedStaff ? (
-              <div className="rounded-[28px] border border-rose-200 bg-rose-50/80 p-5 shadow-sm shadow-rose-100">
-                <h2 className="text-lg font-black text-rose-700">刪除員工</h2>
-                <p className="mt-2 text-sm leading-6 text-rose-600">
-                  刪除員工主資料、可接服務設定及官網展示資料；歷史訂單與薪資紀錄會保留。
+              <div className="rounded-[28px] border border-amber-200 bg-amber-50/80 p-5 shadow-sm shadow-amber-100">
+                <h2 className="text-lg font-black text-amber-800">
+                  {selectedStaff.is_active === false
+                    ? "已封存員工"
+                    : "封存員工"}
+                </h2>
+                <p className="mt-2 text-sm leading-6 text-amber-700">
+                  {selectedStaff.is_active === false
+                    ? "重新啟用後，員工會恢復顯示；上線與接單狀態仍需另外設定。"
+                    : "封存後會立即停用、下線並禁止接單，不再顯示於官網及一般員工清單。"}
                 </p>
                 <button
                   type="button"
-                  onClick={deleteStaff}
-                  disabled={deleting}
-                  className="mt-4 inline-flex items-center justify-center gap-2 rounded-full bg-rose-600 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  onClick={() =>
+                    setStaffArchived(selectedStaff.is_active !== false)
+                  }
+                  disabled={archiving}
+                  className={`mt-4 inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-bold text-white transition disabled:cursor-not-allowed disabled:opacity-60 ${
+                    selectedStaff.is_active === false
+                      ? "bg-emerald-600 hover:bg-emerald-700"
+                      : "bg-amber-600 hover:bg-amber-700"
+                  }`}
                 >
-                  <Trash2 size={17} />
-                  {deleting ? "刪除中..." : "刪除此員工"}
+                  {selectedStaff.is_active === false ? (
+                    <ArchiveRestore size={17} />
+                  ) : (
+                    <Archive size={17} />
+                  )}
+                  {archiving
+                    ? "處理中..."
+                    : selectedStaff.is_active === false
+                      ? "重新啟用員工"
+                      : "封存此員工"}
                 </button>
               </div>
             ) : null}

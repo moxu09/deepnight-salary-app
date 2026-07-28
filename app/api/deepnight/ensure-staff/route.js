@@ -231,7 +231,7 @@ async function handler(request) {
 
   const { data: existingRows, error: findError } = await supabaseAdmin
     .from("players")
-    .select("id, discord_id")
+    .select("id, discord_id, is_active")
     .eq("discord_id", discordId)
     .limit(1);
 
@@ -249,6 +249,17 @@ async function handler(request) {
   let staff = null;
 
   if (existingRows && existingRows.length > 0) {
+    if (existingRows[0].is_active === false) {
+      return json(
+        {
+          ok: false,
+          message: "你的員工資料已封存，請聯繫管理員重新啟用。",
+        },
+        403
+      );
+    }
+    delete updatePayload.is_active;
+    delete updatePayload.can_take_order;
     const { data, error } = await supabaseAdmin
       .from("players")
       .update(updatePayload)
