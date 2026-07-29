@@ -7,6 +7,11 @@ import {
   validateDeviceAuditReport,
   verifyDeviceAuditChallenge,
 } from "@/lib/deviceAudit";
+import { createDeviceAuditPdf } from "@/lib/deviceAuditPdf.mjs";
+import {
+  removeAdminFilePath,
+  uploadAdminFileBuffer,
+} from "@/lib/adminFileStorage";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,6 +21,24 @@ const MAX_REPORT_BYTES = 15 * 1024 * 1024;
 function cleanJsonText(buffer) {
   const text = buffer.toString("utf8");
   return text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
+}
+
+async function resolveEmployeeName(organization, applicantId) {
+  const table = organization === "qiunai" ? "qiunai_staff" : "players";
+  const { data, error } = await supabaseAdmin
+    .from(table)
+    .select("display_name,real_name,discord_name")
+    .eq("discord_id", applicantId)
+    .maybeSingle();
+  if (error) {
+    console.error("[device-audit] employee name lookup failed", error);
+  }
+  return String(
+    data?.display_name ||
+      data?.real_name ||
+      data?.discord_name ||
+      applicantId,
+  ).trim();
 }
 
 export async function POST(request) {
@@ -104,6 +127,25 @@ export async function POST(request) {
 
     const analysis = analyzeDeviceAudit(report, baselineReport);
     if (!analysis.ok) throw new Error(analysis.errors.join("；"));
+    const employeeName = await resolveEmployeeName(
+      tokenRow.organization_code,
+      report.applicantId,
+    );
+    const pdf = await createDeviceAuditPdf({
+      organization: tokenRow.organization_code,
+      employeeName,
+      applicantId: report.applicantId,
+      report,
+      analysis,
+      uploadedAt: new Date().toISOString(),
+    });
+    const pdfPath = await uploadAdminFileBuffer({
+      organization: tokenRow.organization_code,
+      category: "employees",
+      name: `${employeeName}.pdf`,
+      buffer: pdf,
+      contentType: "application/pdf",
+    });
     const { data: saved, error: saveError } = await supabaseAdmin
       .from("device_audit_reports")
       .insert({
@@ -122,7 +164,12 @@ export async function POST(request) {
       })
       .select("id, organization_code, report_id, uploaded_at")
       .single();
-    if (saveError) throw saveError;
+    if (saveError) {
+      await removeAdminFilePath(pdfPath).catch((cleanupError) => {
+        console.error("[device-audit] generated PDF cleanup failed", cleanupError);
+      });
+      throw saveError;
+    }
 
     const { error: updateError } = await supabaseAdmin
       .from("device_audit_upload_tokens")
