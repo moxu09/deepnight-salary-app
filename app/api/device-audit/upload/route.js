@@ -62,7 +62,7 @@ export async function POST(request) {
     if (String(report.applicantId).trim() !== String(tokenRow.applicant_id).trim()) {
       throw new Error("報告帳號與上傳碼指定帳號不一致");
     }
-    if (report.schemaVersion === "1.1") {
+    if (report.schemaVersion !== "1.0") {
       verifyDeviceAuditChallenge(uploadChallenge, {
         tokenHash,
         applicantId: String(report.applicantId).trim(),
