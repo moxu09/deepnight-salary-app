@@ -64,6 +64,11 @@ type AuditReport = {
       loadedModuleCount: number;
       moduleAttemptedProcesses: number;
       moduleInaccessibleProcesses: number;
+      serverAttested: boolean;
+      bamHistoryCount: number;
+      userAssistHistoryCount: number;
+      compatibilityHistoryCount: number;
+      recentExecutableCount: number;
     };
     security: Record<string, string>;
     system: Record<string, string>;
@@ -485,6 +490,10 @@ function AuditDetail({ report }: { report: AuditReport | null }) {
           value={summary.moduleInaccessibleProcesses ?? 0}
           tone="amber"
         />
+        <StatusMetric label="伺服器防偽挑戰" enabled={summary.serverAttested === true} />
+        <Metric label="BAM 執行歷史" value={summary.bamHistoryCount ?? 0} tone="violet" />
+        <Metric label="UserAssist 歷史" value={summary.userAssistHistoryCount ?? 0} tone="violet" />
+        <Metric label="近期執行檔" value={summary.recentExecutableCount ?? 0} tone="violet" />
       </div>
       <div className={`mt-5 rounded-2xl border p-5 ${levelStyle(summary.level)}`}>
         <p className="text-xs font-black tracking-[0.12em]">自動評語｜{summary.riskBand}</p>

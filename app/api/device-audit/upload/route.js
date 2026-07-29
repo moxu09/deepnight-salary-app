@@ -5,6 +5,7 @@ import {
   hashUploadToken,
   sha256Buffer,
   validateDeviceAuditReport,
+  verifyDeviceAuditChallenge,
 } from "@/lib/deviceAudit";
 
 export const runtime = "nodejs";
@@ -27,7 +28,12 @@ export async function POST(request) {
     const uploadToken = String(body.uploadToken || "").trim();
     const reportBase64 = String(body.reportBase64 || "");
     const claimedHash = String(body.sha256 || "").trim().toLowerCase();
-    if (!uploadToken || !reportBase64 || !/^[a-f0-9]{64}$/.test(claimedHash)) {
+    const uploadChallenge = String(body.uploadChallenge || "").trim();
+    if (
+      !uploadToken ||
+      !reportBase64 ||
+      !/^[a-f0-9]{64}$/.test(claimedHash)
+    ) {
       throw new Error("上傳資料不完整");
     }
 
@@ -55,6 +61,15 @@ export async function POST(request) {
     }
     if (String(report.applicantId).trim() !== String(tokenRow.applicant_id).trim()) {
       throw new Error("報告帳號與上傳碼指定帳號不一致");
+    }
+    if (report.schemaVersion === "1.1") {
+      verifyDeviceAuditChallenge(uploadChallenge, {
+        tokenHash,
+        applicantId: String(report.applicantId).trim(),
+      });
+      if (report.attestation?.challenge !== uploadChallenge) {
+        throw new Error("報告內容與伺服器挑戰碼不一致");
+      }
     }
 
     if (tokenRow.used_at) {
