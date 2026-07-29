@@ -84,7 +84,25 @@ export async function POST(request) {
       throw new Error("此上傳碼已使用");
     }
 
-    const analysis = analyzeDeviceAudit(report);
+    let baselineReport = null;
+    if (report.deviceFingerprint) {
+      const { data: previousReport, error: baselineError } = await supabaseAdmin
+        .from("device_audit_reports")
+        .select("report_data")
+        .eq("organization_code", tokenRow.organization_code)
+        .eq("applicant_id", report.applicantId)
+        .eq("device_fingerprint", report.deviceFingerprint)
+        .order("uploaded_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (baselineError) {
+        console.error("[device-audit] baseline lookup failed", baselineError);
+      } else {
+        baselineReport = previousReport?.report_data || null;
+      }
+    }
+
+    const analysis = analyzeDeviceAudit(report, baselineReport);
     if (!analysis.ok) throw new Error(analysis.errors.join("；"));
     const { data: saved, error: saveError } = await supabaseAdmin
       .from("device_audit_reports")

@@ -65,14 +65,41 @@ type AuditReport = {
       moduleAttemptedProcesses: number;
       moduleInaccessibleProcesses: number;
       serverAttested: boolean;
+      collectorVersion: string;
+      ruleSetVersion: string;
       bamHistoryCount: number;
       userAssistHistoryCount: number;
       compatibilityHistoryCount: number;
       recentExecutableCount: number;
+      peAnomalyCount: number;
+      timelineOverlapCount: number;
+      securityTimelineCount: number;
+      baselineCompared: boolean;
+      baselineNewDeviceCount: number;
+      baselineNewDmaDeviceCount: number;
     };
     security: Record<string, string>;
     system: Record<string, string>;
     findings: Finding[];
+    baseline?: {
+      compared: boolean;
+      reportId: string;
+      generatedAt: string;
+      newDeviceCount: number;
+      newDmaDeviceCount: number;
+      newRunningDriverCount: number;
+      newUntrustedDriverCount: number;
+      securityRegressionCount: number;
+    } | null;
+    timelinePreview?: Array<{
+      timeCreated: string;
+      source: string;
+      eventId: number;
+      category: string;
+      subject?: string;
+      target?: string;
+      detail?: string;
+    }>;
     disclaimer: string;
   };
 };
@@ -95,6 +122,7 @@ const SECURITY_LABELS: Record<string, string> = {
   memoryIntegrity: "記憶體完整性",
   kernelDmaProtection: "Kernel DMA Protection",
   dmaRemapping: "DMA Remapping",
+  vulnerableDriverBlocklist: "易受攻擊驅動封鎖清單",
 };
 
 async function accessToken() {
@@ -116,6 +144,23 @@ function levelStyle(level: string) {
   if (level === "high") return "border-rose-200 bg-rose-50 text-rose-700";
   if (level === "review") return "border-amber-200 bg-amber-50 text-amber-700";
   return "border-emerald-200 bg-emerald-50 text-emerald-700";
+}
+
+function timelineCategoryLabel(value: string) {
+  return {
+    "process-injection": "程序注入",
+    driver: "驅動",
+    wmi: "WMI",
+    "process-file-registry": "程序／檔案／登錄",
+    "code-integrity": "程式碼完整性",
+    defender: "Defender",
+    "log-clear": "紀錄清除",
+    "service-install": "服務安裝",
+    "audit-policy": "稽核原則",
+    "time-change": "時間變更",
+    integrity: "完整性",
+    device: "裝置",
+  }[value] || value;
 }
 
 export default function DeviceAuditAdmin({
@@ -491,9 +536,15 @@ function AuditDetail({ report }: { report: AuditReport | null }) {
           tone="amber"
         />
         <StatusMetric label="伺服器防偽挑戰" enabled={summary.serverAttested === true} />
+        <Metric label="掃描器版本" value={summary.collectorVersion || "舊版"} tone="violet" />
+        <Metric label="規則版本" value={summary.ruleSetVersion || "舊版"} tone="violet" />
         <Metric label="BAM 執行歷史" value={summary.bamHistoryCount ?? 0} tone="violet" />
         <Metric label="UserAssist 歷史" value={summary.userAssistHistoryCount ?? 0} tone="violet" />
         <Metric label="近期執行檔" value={summary.recentExecutableCount ?? 0} tone="violet" />
+        <Metric label="PE 結構異常" value={summary.peAnomalyCount ?? 0} tone="amber" />
+        <Metric label="遊戲時段重疊事件" value={summary.timelineOverlapCount ?? 0} tone="rose" />
+        <Metric label="安全時間軸事件" value={summary.securityTimelineCount ?? 0} tone="violet" />
+        <StatusMetric label="已比較歷次基準" enabled={summary.baselineCompared === true} />
       </div>
       <div className={`mt-5 rounded-2xl border p-5 ${levelStyle(summary.level)}`}>
         <p className="text-xs font-black tracking-[0.12em]">自動評語｜{summary.riskBand}</p>
@@ -536,6 +587,21 @@ function AuditDetail({ report }: { report: AuditReport | null }) {
           </span>
         ))}
       </div>
+      {report.analysis.baseline?.compared ? (
+        <section className="mt-5 rounded-2xl border border-violet-200 bg-violet-50 p-5">
+          <h3 className="font-black text-violet-900">同一部電腦歷次基準比較</h3>
+          <p className="mt-2 text-xs font-semibold text-violet-700">
+            基準報告：{report.analysis.baseline.reportId}・{dateTime(report.analysis.baseline.generatedAt)}
+          </p>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            <Metric label="新增裝置" value={report.analysis.baseline.newDeviceCount} tone="violet" />
+            <Metric label="新增 DMA 候選" value={report.analysis.baseline.newDmaDeviceCount} tone="amber" />
+            <Metric label="新增執行中驅動" value={report.analysis.baseline.newRunningDriverCount} tone="violet" />
+            <Metric label="新增未受信任驅動" value={report.analysis.baseline.newUntrustedDriverCount} tone="rose" />
+            <Metric label="防護退步" value={report.analysis.baseline.securityRegressionCount} tone="amber" />
+          </div>
+        </section>
+      ) : null}
       <p className="mt-3 text-xs font-bold text-slate-500">
         DMA 可存取裝置通常包含顯示卡、網卡及控制器；數量僅供硬體核對，不代表外掛數量，也不會因數量增加風險分數。
       </p>
@@ -582,6 +648,28 @@ function AuditDetail({ report }: { report: AuditReport | null }) {
           )}
         </div>
       </div>
+
+      {(report.analysis.timelinePreview?.length || 0) > 0 ? (
+        <div className="mt-6 rounded-2xl border border-slate-200 p-5">
+          <h3 className="font-black text-slate-900">安全事件時間軸</h3>
+          <p className="mt-1 text-xs font-semibold text-slate-500">顯示最近 50 筆；時間關聯不等於外掛定論。</p>
+          <div className="mt-4 max-h-[520px] space-y-3 overflow-y-auto pr-1">
+            {(report.analysis.timelinePreview || []).map((event, index) => (
+              <div key={`${event.timeCreated}-${event.source}-${event.eventId}-${index}`} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-xs font-black text-slate-900">
+                    {timelineCategoryLabel(event.category)}・{event.source} Event {event.eventId}
+                  </p>
+                  <time className="text-[11px] font-bold text-slate-500">{dateTime(event.timeCreated)}</time>
+                </div>
+                {event.subject ? <p className="mt-2 break-all text-xs font-semibold text-slate-700">{event.subject}</p> : null}
+                {event.target ? <p className="mt-1 break-all text-[11px] font-semibold text-slate-500">目標：{event.target}</p> : null}
+                {event.detail ? <p className="mt-1 break-all text-[11px] font-semibold text-slate-500">{event.detail}</p> : null}
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
 
       <p className="mt-5 text-xs font-semibold leading-5 text-slate-500">
         {report.analysis.disclaimer}
