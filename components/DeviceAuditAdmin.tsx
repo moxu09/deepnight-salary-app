@@ -21,6 +21,7 @@ type Finding = {
   severity: "high" | "medium" | "low";
   title: string;
   detail: string;
+  evidence?: string[];
 };
 type AuditReport = {
   id: string;
@@ -52,6 +53,17 @@ type AuditReport = {
       defenderDetectionCount: number;
       collectionErrorCount: number;
       isAdministrator: boolean;
+      activeCeCount: number;
+      historicalCeCount: number;
+      injectionEventCount: number;
+      accessEventCount: number;
+      codeIntegrityEventCount: number;
+      moduleScanIncomplete: boolean;
+      sysmonAvailable: boolean;
+      codeIntegrityAvailable: boolean;
+      loadedModuleCount: number;
+      moduleAttemptedProcesses: number;
+      moduleInaccessibleProcesses: number;
     };
     security: Record<string, string>;
     system: Record<string, string>;
@@ -451,6 +463,28 @@ function AuditDetail({ report }: { report: AuditReport | null }) {
           value={summary.isAdministrator ? "是" : "否"}
           tone={summary.isAdministrator ? "emerald" : "amber"}
         />
+        <Metric label="CE 即時跡象" value={summary.activeCeCount ?? 0} tone="rose" />
+        <Metric label="CE 歷史跡象" value={summary.historicalCeCount ?? 0} tone="amber" />
+        <Metric
+          label="注入／篡改事件"
+          value={(summary.injectionEventCount ?? 0) + (summary.accessEventCount ?? 0)}
+          tone="rose"
+        />
+        <Metric
+          label="Code Integrity 警告"
+          value={summary.codeIntegrityEventCount ?? 0}
+          tone="amber"
+        />
+      </div>
+      <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <StatusMetric label="Sysmon 事件紀錄" enabled={summary.sysmonAvailable === true} />
+        <StatusMetric label="Code Integrity 紀錄" enabled={summary.codeIntegrityAvailable === true} />
+        <Metric label="已列舉載入模組" value={summary.loadedModuleCount ?? 0} tone="violet" />
+        <Metric
+          label="無法列舉程序"
+          value={summary.moduleInaccessibleProcesses ?? 0}
+          tone="amber"
+        />
       </div>
       <div className={`mt-5 rounded-2xl border p-5 ${levelStyle(summary.level)}`}>
         <p className="text-xs font-black tracking-[0.12em]">自動評語｜{summary.riskBand}</p>
@@ -527,6 +561,13 @@ function AuditDetail({ report }: { report: AuditReport | null }) {
                 <p className="mt-1 text-xs font-semibold leading-5 text-slate-500">
                   {finding.detail}
                 </p>
+                {finding.evidence && finding.evidence.length > 0 ? (
+                  <ul className="mt-3 space-y-1 rounded-lg border border-slate-200 bg-white p-3 text-[11px] font-semibold leading-5 text-slate-600">
+                    {finding.evidence.map((item) => (
+                      <li key={item} className="break-all">• {item}</li>
+                    ))}
+                  </ul>
+                ) : null}
               </div>
             ))
           )}
@@ -562,6 +603,21 @@ function Metric({
     <div className={`rounded-2xl border p-4 ${styles}`}>
       <p className="text-xs font-black">{label}</p>
       <p className="mt-1 text-2xl font-black">{value}</p>
+    </div>
+  );
+}
+
+function StatusMetric({ label, enabled }: { label: string; enabled: boolean }) {
+  return (
+    <div
+      className={`rounded-2xl border p-4 ${
+        enabled
+          ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+          : "border-slate-200 bg-slate-50 text-slate-500"
+      }`}
+    >
+      <p className="text-xs font-black">{label}</p>
+      <p className="mt-1 text-lg font-black">{enabled ? "可用" : "未提供"}</p>
     </div>
   );
 }
