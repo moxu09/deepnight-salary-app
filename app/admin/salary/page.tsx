@@ -542,6 +542,7 @@ export default function AdminSalaryPage() {
       .select("*")
       .or(DEEPNIGHT_PLAY_ORDER_FILTER)
       .or("is_deleted.eq.false,is_deleted.is.null")
+      .not("discord_id", "is", null)
       .order("order_finished_at", { ascending: false });
 
     if (startIso) {
