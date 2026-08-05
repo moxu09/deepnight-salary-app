@@ -276,6 +276,11 @@ export default function AdminPayrollPage() {
   const [bulkEndDate, setBulkEndDate] = useState(() => getTaipeiDateInput());
   const [bulkWalletSending, setBulkWalletSending] = useState(false);
 
+  const staffByDiscordId = useMemo(
+    () => new Map(staffList.map((staff) => [staff.discord_id, staff])),
+    [staffList]
+  );
+
   const rows = useMemo(() => {
     const staffMap = new Map<string, Staff>();
     const walletEntryKeySet = new Set(
@@ -977,7 +982,7 @@ export default function AdminPayrollPage() {
                 <thead>
                   <tr>
                     <th>申請時間</th>
-                    <th>員工</th>
+                    <th>員工 / 銀行資料</th>
                     <th>申請金額</th>
                     <th>扣除費用</th>
                     <th>實際入帳</th>
@@ -987,7 +992,12 @@ export default function AdminPayrollPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {withdrawRequests.map((request) => (
+                  {withdrawRequests.map((request) => {
+                    const requestStaff = staffByDiscordId.get(
+                      request.discord_id
+                    );
+
+                    return (
                     <tr key={request.id}>
                       <td>{formatDateTime(request.requested_at)}</td>
                       <td>
@@ -996,6 +1006,11 @@ export default function AdminPayrollPage() {
                         </div>
                         <div className="text-xs font-semibold text-slate-400">
                           {request.discord_id}
+                        </div>
+                        <div className="mt-2 space-y-0.5 text-xs font-semibold text-slate-600">
+                          <div>銀行：{requestStaff?.bank_name || "未填寫"}</div>
+                          <div>帳號：{requestStaff?.bank_account || "未填寫"}</div>
+                          <div>戶名：{requestStaff?.real_name || "未填寫"}</div>
                         </div>
                       </td>
                       <td className="font-black text-sky-600">
@@ -1062,7 +1077,8 @@ export default function AdminPayrollPage() {
                         )}
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
