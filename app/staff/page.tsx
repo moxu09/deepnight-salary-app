@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { getDiscordIdFromSession } from "@/lib/discordSession";
@@ -18,6 +18,7 @@ import {
   HandCoins,
   FileDown,
   Search,
+  Coins,
 } from "lucide-react";
 import StaffAvatar from "@/components/StaffAvatar";
 import StaffPortalNav, { type PortalTab } from "@/components/StaffPortalNav";
@@ -142,6 +143,7 @@ type SalaryWalletEntry = {
 type SalaryWithdrawRequest = {
   id: string;
   amount: number | string;
+  destination?: "bank" | "asd" | null;
   service_fee?: number | string | null;
   welfare_fee?: number | string | null;
   payout_amount?: number | string | null;
@@ -257,6 +259,14 @@ const ALL_SERVICES = Object.values(SERVICE_GROUPS).flat();
 
 function getCurrentMonthInput() {
   return getTaipeiMonthInput();
+}
+
+function getPreviousMonthInput() {
+  const [year, month] = getCurrentMonthInput().split("-").map(Number);
+  const previous = new Date(Date.UTC(year, month - 2, 1));
+  return `${previous.getUTCFullYear()}-${String(
+    previous.getUTCMonth() + 1
+  ).padStart(2, "0")}`;
 }
 
 function getDefaultStatementRange() {
@@ -478,6 +488,7 @@ export default function StaffPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [walletLoading, setWalletLoading] = useState(false);
   const [withdrawing, setWithdrawing] = useState(false);
+  const [transferringAsd, setTransferringAsd] = useState(false);
   const [statementLoading, setStatementLoading] = useState(false);
   const [statementDownloading, setStatementDownloading] = useState(false);
   const [statementFrom, setStatementFrom] = useState(
@@ -492,7 +503,11 @@ export default function StaffPage() {
   );
   const [performanceRanking, setPerformanceRanking] =
     useState<PerformanceRanking | null>(null);
-  const [selectedMonth, setSelectedMonth] = useState(getCurrentMonthInput());
+  const [selectedMonth, setSelectedMonth] = useState(getPreviousMonthInput());
+  const [hrSelectedMonth, setHrSelectedMonth] = useState(
+    getCurrentMonthInput()
+  );
+  const salaryMonthMounted = useRef(false);
   const [activeTab, setActiveTab] = useState<PortalTab>("profile");
   const [canViewDeviceAudit, setCanViewDeviceAudit] = useState(false);
 
@@ -586,6 +601,23 @@ export default function StaffPage() {
     boot();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!salaryMonthMounted.current) {
+      salaryMonthMounted.current = true;
+      return;
+    }
+    if (!staff?.discord_id) return;
+
+    void Promise.all([
+      loadSalaryData(staff.discord_id),
+      loadPerformanceRanking(),
+    ]).catch((error) => {
+      console.error("load selected salary month error:", error);
+    });
+    // Month changes should immediately reload without requiring a second click.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedMonth]);
 
   async function boot() {
     setLoading(true);
@@ -904,6 +936,75 @@ export default function StaffPage() {
       alert(getErrorMessage(error, "送出提領申請失敗"));
     } finally {
       setWithdrawing(false);
+    }
+  }
+
+  async function transferSalaryToAsd() {
+    if (!salaryWallet) return;
+
+    const available = Math.floor(Number(salaryWallet.totals.available || 0));
+    const hasRequestedAmount = withdrawAmount.trim() !== "";
+    const amountNumber = hasRequestedAmount ? Number(withdrawAmount) : available;
+    const amount = Math.floor(amountNumber);
+
+    if (
+      !Number.isFinite(amountNumber) ||
+      amount < salaryWallet.withdrawPolicy.minimumAmount
+    ) {
+      alert("轉入 ASD 金額必須高於 1,000 元");
+      return;
+    }
+
+    if (amount > available) {
+      alert(`轉入金額不能超過可提領薪資 ${money(available)}`);
+      return;
+    }
+
+    if (
+      !confirm(
+        `確定要將 ${money(amount)} 薪資轉入你本人的 ASD？\n轉入後會立即扣除可提領薪資並增加 ASD 餘額。`
+      )
+    ) {
+      return;
+    }
+
+    setTransferringAsd(true);
+
+    try {
+      const { data } = await supabase.auth.getSession();
+      const session = data.session;
+
+      if (!session) {
+        throw new Error("請重新登入");
+      }
+
+      const res = await fetch("/api/deepnight/salary-wallet", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ amount, destination: "asd" }),
+      });
+
+      const payload = await res.json().catch(() => ({}));
+
+      if (!res.ok || !payload.ok) {
+        throw new Error(payload.message || "轉入 ASD 失敗");
+      }
+
+      setSalaryWallet(payload.wallet as SalaryWalletData);
+      setWithdrawAmount("");
+      alert(
+        `已轉入本人 ASD；目前 ASD 餘額 ${money(
+          Number(payload.asdBalance || 0)
+        )}`
+      );
+    } catch (error: unknown) {
+      console.error("transfer salary to ASD error:", error);
+      alert(getErrorMessage(error, "轉入 ASD 失敗"));
+    } finally {
+      setTransferringAsd(false);
     }
   }
 
@@ -1281,7 +1382,7 @@ export default function StaffPage() {
           </div>
         </header>
 
-        <HrPortalPanel activeTab={activeTab} apiPath="/api/deepnight/hr" department="深夜不關燈" staffName={getDisplayName(staff)} selectedMonth={selectedMonth} onMonthChange={setSelectedMonth} />
+        <HrPortalPanel activeTab={activeTab} apiPath="/api/deepnight/hr" department="深夜不關燈" staffName={getDisplayName(staff)} selectedMonth={hrSelectedMonth} onMonthChange={setHrSelectedMonth} />
 
         {activeTab === "device-audit" && canViewDeviceAudit ? (
           <DeviceAuditAdmin organization="deepnight" embedded />
@@ -1358,25 +1459,50 @@ export default function StaffPage() {
                 />
               </label>
 
-              <button
-                onClick={requestWithdraw}
-                disabled={
-                  withdrawing ||
-                  walletLoading ||
-                  !salaryWallet ||
-                  !salaryWallet.withdrawWindow.isOpen ||
-                  !!salaryWallet.pendingRequest ||
-                  Number(salaryWallet.totals.available || 0) <
-                    salaryWallet.withdrawPolicy.minimumAmount ||
-                  (withdrawAmount.trim() !== "" &&
-                    Number(withdrawAmount) <
-                      salaryWallet.withdrawPolicy.minimumAmount)
-                }
-                className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-sky-500 px-5 py-2.5 text-sm font-bold text-white shadow-sm shadow-sky-200 hover:bg-sky-600 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <WalletCards size={16} />
-                {withdrawing ? "申請中..." : "提領"}
-              </button>
+              <div className="grid w-full grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={requestWithdraw}
+                  disabled={
+                    withdrawing ||
+                    transferringAsd ||
+                    walletLoading ||
+                    !salaryWallet ||
+                    !salaryWallet.withdrawWindow.isOpen ||
+                    !!salaryWallet.pendingRequest ||
+                    Number(salaryWallet.totals.available || 0) <
+                      salaryWallet.withdrawPolicy.minimumAmount ||
+                    (withdrawAmount.trim() !== "" &&
+                      Number(withdrawAmount) <
+                        salaryWallet.withdrawPolicy.minimumAmount)
+                  }
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-sky-500 px-4 py-2.5 text-sm font-bold text-white shadow-sm shadow-sky-200 hover:bg-sky-600 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <WalletCards size={16} />
+                  {withdrawing ? "申請中..." : "提領"}
+                </button>
+                <button
+                  type="button"
+                  onClick={transferSalaryToAsd}
+                  disabled={
+                    withdrawing ||
+                    transferringAsd ||
+                    walletLoading ||
+                    !salaryWallet ||
+                    !salaryWallet.withdrawWindow.isOpen ||
+                    !!salaryWallet.pendingRequest ||
+                    Number(salaryWallet.totals.available || 0) <
+                      salaryWallet.withdrawPolicy.minimumAmount ||
+                    (withdrawAmount.trim() !== "" &&
+                      Number(withdrawAmount) <
+                        salaryWallet.withdrawPolicy.minimumAmount)
+                  }
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-violet-500 px-4 py-2.5 text-sm font-bold text-white shadow-sm shadow-violet-200 hover:bg-violet-600 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <Coins size={16} />
+                  {transferringAsd ? "轉入中..." : "轉入 ASD"}
+                </button>
+              </div>
 
               <div className="space-y-1 text-xs font-semibold text-slate-500">
                 <p>每月 5 日 09:00 至 25 日 15:30 開放提領。</p>
@@ -1492,7 +1618,9 @@ export default function StaffPage() {
                       >
                         <span>
                           <span className="block text-sm font-bold text-slate-800">
-                            {getWalletRequestStatusText(request.status)}
+                            {request.destination === "asd"
+                              ? "已轉入本人 ASD"
+                              : getWalletRequestStatusText(request.status)}
                           </span>
                           <span className="mt-1 block text-xs text-slate-500">
                             {formatDateTime(request.requested_at)}
@@ -1504,7 +1632,8 @@ export default function StaffPage() {
                           </span>
                           {request.status === "approved" ? (
                             <span className="mt-1 block text-xs text-slate-500">
-                              實付 {money(Number(request.payout_amount || 0))}
+                              {request.destination === "asd" ? "轉入" : "實付"}{" "}
+                              {money(Number(request.payout_amount || 0))}
                             </span>
                           ) : null}
                         </span>
@@ -1589,14 +1718,14 @@ export default function StaffPage() {
                         value={`${statementData.summary.approvedCount} 筆`}
                       />
                       <MiniStat
-                        title="福利金 / 手續費"
+                        title="扣除費用"
                         value={money(
                           statementData.summary.welfareFee +
                             statementData.summary.serviceFee
                         )}
                       />
                       <MiniStat
-                        title="已核准實際匯款"
+                        title="已完成實際入帳"
                         value={money(statementData.summary.payoutAmount)}
                       />
                     </div>
@@ -1607,9 +1736,9 @@ export default function StaffPage() {
                           <tr>
                             <th>申請時間</th>
                             <th>申請金額</th>
-                            <th>福利金</th>
+                            <th>入帳方式</th>
                             <th>手續費</th>
-                            <th>實際匯款</th>
+                            <th>實際入帳</th>
                             <th>狀態</th>
                           </tr>
                         </thead>
@@ -1625,7 +1754,11 @@ export default function StaffPage() {
                               <tr key={request.id}>
                                 <td>{formatDateTime(request.requested_at)}</td>
                                 <td>{money(Number(request.amount || 0))}</td>
-                                <td>{money(Number(request.welfare_fee || 0))}</td>
+                                <td>
+                                  {request.destination === "asd"
+                                    ? "本人 ASD"
+                                    : "銀行提領"}
+                                </td>
                                 <td>{money(Number(request.service_fee || 0))}</td>
                                 <td className="font-black text-sky-600">
                                   {request.status === "rejected"
@@ -1645,7 +1778,9 @@ export default function StaffPage() {
                                       request
                                     )}`}
                                   >
-                                    {getRequestStatusText(request)}
+                                    {request.destination === "asd"
+                                      ? "已轉入本人 ASD"
+                                      : getRequestStatusText(request)}
                                   </span>
                                 </td>
                               </tr>
@@ -1673,6 +1808,7 @@ export default function StaffPage() {
             </Field>
 
             <button
+              type="button"
               onClick={refreshAll}
               disabled={refreshing}
               className="inline-flex items-center justify-center gap-2 rounded-full bg-sky-500 px-5 py-2.5 text-sm font-bold text-white shadow-sm shadow-sky-200 hover:bg-sky-600 disabled:opacity-60"

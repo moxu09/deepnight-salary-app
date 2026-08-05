@@ -107,6 +107,7 @@ type WithdrawRequest = {
   service_fee?: number | string | null;
   welfare_fee?: number | string | null;
   payout_amount?: number | string | null;
+  destination?: "bank" | "asd" | null;
   status: string;
   reject_reason?: string | null;
   reviewed_at?: string | null;
@@ -979,7 +980,7 @@ export default function AdminPayrollPage() {
                     <th>員工</th>
                     <th>申請金額</th>
                     <th>扣除費用</th>
-                    <th>實際匯款</th>
+                    <th>實際入帳</th>
                     <th>狀態</th>
                     <th>審核時間</th>
                     <th>操作</th>
@@ -1001,10 +1002,20 @@ export default function AdminPayrollPage() {
                         {money(request.amount)}
                       </td>
                       <td>
-                        <div>福利金 {money(request.welfare_fee)}</div>
-                        <div className="text-xs text-slate-400">
-                          手續費 {money(request.service_fee)}
-                        </div>
+                        {request.destination === "asd" ? (
+                          <div className="font-bold text-violet-600">
+                            轉入本人 ASD
+                          </div>
+                        ) : (
+                          <>
+                            {Number(request.welfare_fee || 0) > 0 ? (
+                              <div>福利金 {money(request.welfare_fee)}</div>
+                            ) : null}
+                            <div className="text-xs text-slate-400">
+                              手續費 {money(request.service_fee)}
+                            </div>
+                          </>
+                        )}
                       </td>
                       <td className="font-black text-emerald-600">
                         {money(getWithdrawPayout(request))}
