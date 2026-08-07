@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
   BarChart3,
@@ -16,6 +16,7 @@ import {
   WalletCards,
 } from "lucide-react";
 import { ERP_ROLE_LABELS } from "@/lib/erpRoles";
+import { supabase } from "@/lib/supabase";
 import { useErpAccess } from "@/lib/useErpAccess";
 
 const ERP_OWNER_DISCORD_ID = "847840193859682304";
@@ -25,6 +26,16 @@ type AdminLink = {
   href: string;
   label: string;
   icon: typeof UsersRound;
+};
+
+type NotificationCounts = {
+  payroll: number;
+  approvals: number;
+};
+
+const EMPTY_NOTIFICATION_COUNTS: NotificationCounts = {
+  payroll: 0,
+  approvals: 0,
 };
 
 const SECTIONS = [
@@ -94,12 +105,56 @@ export default function AdminShell({
   const owner = access?.discordId === ERP_OWNER_DISCORD_ID;
   const company =
     currentOrganization === "qiunai" ? "秋奈電競" : "深夜不關燈";
+  const [notificationCounts, setNotificationCounts] = useState(
+    EMPTY_NOTIFICATION_COUNTS,
+  );
+
+  const loadNotificationCounts = useCallback(async () => {
+    if (loading || !access?.isAdmin || supportOnly || auditOnly) {
+      setNotificationCounts(EMPTY_NOTIFICATION_COUNTS);
+      return;
+    }
+
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
+    if (!token) return;
+
+    const response = await fetch(
+      `/api/${currentOrganization}/admin-notifications`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: "no-store",
+      },
+    );
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || !payload.ok) return;
+
+    setNotificationCounts({
+      payroll: Number(payload.payroll || 0),
+      approvals: Number(payload.approvals || 0),
+    });
+  }, [access?.isAdmin, auditOnly, currentOrganization, loading, supportOnly]);
 
   useEffect(() => {
     if (!loading && access && (!access.isAdmin || !allowedPath)) {
       router.replace(access.isAdmin ? fallbackHref : "/staff");
     }
   }, [access, allowedPath, fallbackHref, loading, router]);
+
+  useEffect(() => {
+    if (loading || !access?.isAdmin || supportOnly || auditOnly) return;
+
+    const refresh = () => void loadNotificationCounts();
+    refresh();
+    const intervalId = window.setInterval(refresh, 30_000);
+    window.addEventListener("focus", refresh);
+    window.addEventListener("erp-notifications-changed", refresh);
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", refresh);
+      window.removeEventListener("erp-notifications-changed", refresh);
+    };
+  }, [access?.isAdmin, auditOnly, loadNotificationCounts, loading, supportOnly]);
 
   if (loading || !access?.isAdmin || !allowedPath) {
     return (
@@ -145,6 +200,11 @@ export default function AdminShell({
           {links.map(({ href, label, icon: Icon }) => {
             const active =
               pathname === href || pathname.startsWith(`${href}/`);
+            const notificationCount = href.endsWith("/payroll")
+              ? notificationCounts.payroll
+              : href.endsWith("/approvals")
+                ? notificationCounts.approvals
+                : 0;
             return (
               <Link
                 key={href}
@@ -154,7 +214,15 @@ export default function AdminShell({
                 }`}
               >
                 <Icon size={18} />
-                <span>{label}</span>
+                <span className="min-w-0 flex-1">{label}</span>
+                {notificationCount > 0 ? (
+                  <span
+                    aria-label={`${label}有 ${notificationCount} 筆待處理`}
+                    className="ml-auto inline-flex min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 py-0.5 text-[11px] font-black leading-none text-white shadow-sm shadow-red-950/30"
+                  >
+                    {notificationCount > 99 ? "99+" : notificationCount}
+                  </span>
+                ) : null}
               </Link>
             );
           })}

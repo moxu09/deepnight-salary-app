@@ -48,6 +48,10 @@ export default function RemoteDepartmentFrame({
         }
         return;
       }
+      if (event.data?.type === "ERP_NOTIFICATION_REFRESH") {
+        window.dispatchEvent(new Event("erp-notifications-changed"));
+        return;
+      }
       if (event.data?.type !== "ERP_COMMON_SESSION_REQUEST") return;
 
       const { data, error } = await supabase.auth.getSession();
