@@ -162,6 +162,20 @@ function formatDateTime(value?: string | null) {
   });
 }
 
+function getTaipeiYearMonth(value?: string | null) {
+  if (!value) return "";
+
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Taipei",
+    year: "numeric",
+    month: "2-digit",
+  }).formatToParts(new Date(value));
+  const year = parts.find((part) => part.type === "year")?.value;
+  const month = parts.find((part) => part.type === "month")?.value;
+
+  return year && month ? `${year}-${month}` : "";
+}
+
 function getRequestStatusText(status: string, rejectReason?: string | null) {
   if (status === "pending") return "申請中";
   if (status === "approved") return "申請成功，請稍等 0 到 3 個工作日";
@@ -275,6 +289,53 @@ export default function AdminPayrollPage() {
     () => new Map(staffList.map((staff) => [staff.discord_id, staff])),
     [staffList]
   );
+
+  const pendingWithdrawRequests = useMemo(
+    () => withdrawRequests.filter((request) => request.status === "pending"),
+    [withdrawRequests]
+  );
+  const completedWithdrawRequests = useMemo(
+    () =>
+      withdrawRequests.filter(
+        (request) =>
+          request.status === "approved" || request.status === "rejected"
+      ),
+    [withdrawRequests]
+  );
+  const currentWithdrawMonth = getTaipeiDateInput().slice(0, 7);
+  const monthlyWithdrawCounts = useMemo(() => {
+    const countByStaff = new Map<
+      string,
+      { discordId: string; staffName: string; count: number }
+    >();
+
+    for (const request of withdrawRequests) {
+      if (getTaipeiYearMonth(request.requested_at) !== currentWithdrawMonth) {
+        continue;
+      }
+
+      const current = countByStaff.get(request.discord_id);
+      if (current) {
+        current.count += 1;
+        continue;
+      }
+
+      countByStaff.set(request.discord_id, {
+        discordId: request.discord_id,
+        staffName: getDisplayName(
+          staffByDiscordId.get(request.discord_id),
+          request.staff_name
+        ),
+        count: 1,
+      });
+    }
+
+    return [...countByStaff.values()].sort(
+      (left, right) =>
+        right.count - left.count ||
+        left.staffName.localeCompare(right.staffName, "zh-Hant")
+    );
+  }, [currentWithdrawMonth, staffByDiscordId, withdrawRequests]);
 
   const rows = useMemo(() => {
     const staffMap = new Map<string, Staff>();
@@ -962,17 +1023,39 @@ export default function AdminPayrollPage() {
               <Banknote size={20} className="text-sky-500" />
               薪資錢包提領申請
               <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs text-amber-700">
-                待審核 {withdrawRequests.filter((request) => request.status === "pending").length} 筆
+                待審核 {pendingWithdrawRequests.length} 筆
               </span>
             </h2>
             <p className="mt-1 text-sm text-slate-500">
               員工按下提領後會出現在這裡；同意後員工端會顯示申請成功，駁回會顯示理由。
             </p>
+            <div className="mt-4 rounded-[20px] bg-sky-50 px-4 py-3">
+              <p className="text-xs font-black text-sky-700">
+                {currentWithdrawMonth.replace("-", " 年 ")} 月每人提領筆數
+                （包含申請中、核准與拒絕）
+              </p>
+              {monthlyWithdrawCounts.length === 0 ? (
+                <p className="mt-2 text-sm font-semibold text-slate-400">
+                  本月尚無提領紀錄
+                </p>
+              ) : (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {monthlyWithdrawCounts.map((item) => (
+                    <span
+                      key={item.discordId}
+                      className="rounded-full border border-sky-100 bg-white px-3 py-1.5 text-xs font-bold text-slate-700"
+                    >
+                      {item.staffName}：{item.count} 筆
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
-          {withdrawRequests.length === 0 ? (
+          {pendingWithdrawRequests.length === 0 ? (
             <div className="px-5 py-10 text-center text-sm font-semibold text-slate-400">
-              目前沒有提領申請
+              目前沒有待審核提領申請
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -990,7 +1073,7 @@ export default function AdminPayrollPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {withdrawRequests.map((request) => {
+                  {pendingWithdrawRequests.map((request) => {
                     const requestStaff = staffByDiscordId.get(
                       request.discord_id
                     );
@@ -1169,6 +1252,80 @@ export default function AdminPayrollPage() {
                       </td>
                     </tr>
                   ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+
+        <section className="rounded-[28px] border border-slate-200 bg-white shadow-sm">
+          <div className="border-b border-slate-200 px-5 py-4">
+            <h2 className="flex items-center gap-2 text-lg font-black text-slate-900">
+              <Clipboard size={20} className="text-slate-500" />
+              已結束的提領紀錄
+              <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-600">
+                共 {completedWithdrawRequests.length} 筆
+              </span>
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">
+              已核准與已拒絕的提領統一顯示於頁面最下方。
+            </p>
+          </div>
+
+          {completedWithdrawRequests.length === 0 ? (
+            <div className="px-5 py-10 text-center text-sm font-semibold text-slate-400">
+              目前沒有已結束的提領紀錄
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-[1160px]">
+                <thead>
+                  <tr>
+                    <th>申請時間</th>
+                    <th>員工 / 銀行資料</th>
+                    <th>申請金額</th>
+                    <th>提領方式</th>
+                    <th>實際入帳</th>
+                    <th>結果</th>
+                    <th>審核時間</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {completedWithdrawRequests.map((request) => {
+                    const requestStaff = staffByDiscordId.get(request.discord_id);
+
+                    return (
+                      <tr key={request.id}>
+                        <td>{formatDateTime(request.requested_at)}</td>
+                        <td>
+                          <div className="font-black text-slate-900">
+                            {request.staff_name || request.discord_id}
+                          </div>
+                          <div className="text-xs font-semibold text-slate-400">
+                            {request.discord_id}
+                          </div>
+                          <div className="mt-2 space-y-0.5 text-xs font-semibold text-slate-600">
+                            <div>銀行：{requestStaff?.bank_name || "未填寫"}</div>
+                            <div>帳號：{requestStaff?.bank_account || "未填寫"}</div>
+                            <div>戶名：{requestStaff?.real_name || "未填寫"}</div>
+                          </div>
+                        </td>
+                        <td className="font-black text-sky-600">{money(request.amount)}</td>
+                        <td>
+                          {request.destination === "asd" ? "轉入本人 ASD" : "銀行提領"}
+                        </td>
+                        <td className="font-black text-emerald-600">
+                          {money(getWithdrawPayout(request))}
+                        </td>
+                        <td>
+                          <span className={`rounded-full px-3 py-1 text-xs font-bold ${getRequestStatusClass(request.status)}`}>
+                            {getRequestStatusText(request.status, request.reject_reason)}
+                          </span>
+                        </td>
+                        <td>{formatDateTime(request.reviewed_at)}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
