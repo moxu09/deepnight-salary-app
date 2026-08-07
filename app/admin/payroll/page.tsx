@@ -961,6 +961,9 @@ export default function AdminPayrollPage() {
             <h2 className="flex items-center gap-2 text-lg font-black text-slate-900">
               <Banknote size={20} className="text-sky-500" />
               薪資錢包提領申請
+              <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs text-amber-700">
+                待審核 {withdrawRequests.filter((request) => request.status === "pending").length} 筆
+              </span>
             </h2>
             <p className="mt-1 text-sm text-slate-500">
               員工按下提領後會出現在這裡；同意後員工端會顯示申請成功，駁回會顯示理由。
