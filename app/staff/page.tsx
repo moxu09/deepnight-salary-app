@@ -25,6 +25,7 @@ import StaffPortalNav, { type PortalTab } from "@/components/StaffPortalNav";
 import HrPortalPanel from "@/components/HrPortalPanel";
 import ErpAuthLinkManager from "@/components/ErpAuthLinkManager";
 import DeviceAuditAdmin from "@/components/DeviceAuditAdmin";
+import MonthSelect from "@/components/MonthSelect";
 import {
   formatTaipeiDateTime,
   getNextTaipeiMonthText,
@@ -1758,10 +1759,9 @@ export default function StaffPage() {
         <section className={`${isOrderTab ? "block" : "hidden"} rounded-[28px] border border-sky-100 bg-white p-5 shadow-sm shadow-sky-100`}>
           <div className="grid gap-4 md:grid-cols-[1fr_auto] md:items-end">
             <Field label="薪資月份">
-              <input
-                type="month"
+              <MonthSelect
                 value={selectedMonth}
-                onChange={(event) => setSelectedMonth(event.target.value)}
+                onChange={setSelectedMonth}
               />
             </Field>
 
