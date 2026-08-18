@@ -11,6 +11,7 @@ import {
   Cpu,
   FileSpreadsheet,
   FolderDown,
+  History,
   Settings,
   UsersRound,
   WalletCards,
@@ -47,6 +48,7 @@ const SECTIONS = [
   { key: "device-audit", label: "電腦稽核", icon: Cpu },
   { key: "files", label: "資料下載", icon: FolderDown },
   { key: "accounting", label: "會計報表", icon: Coins },
+  { key: "activity-logs", label: "異動日誌", icon: History },
   { key: "settings", label: "系統設定", icon: Settings },
 ] as const;
 

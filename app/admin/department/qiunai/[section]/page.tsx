@@ -9,6 +9,7 @@ const SECTIONS = new Set([
   "approvals",
   "files",
   "accounting",
+  "activity-logs",
   "settings",
 ]);
 
