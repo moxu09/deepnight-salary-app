@@ -41,7 +41,7 @@ declare
 begin
   if tg_table_name like 'qiunai_%' then
     v_org := 'qiunai';
-  elsif tg_table_name in ('orders', 'play_orders', 'players_bonus', 'salary_orders') then
+  elsif tg_table_name in ('orders', 'play_orders', 'players', 'players_bonus', 'admins', 'salary_orders') then
     v_org := 'deepnight';
   end if;
 
@@ -106,6 +106,11 @@ begin
       ('wallet_logs', 'money'),
       ('monthly_bills', 'money'),
       ('accounting_ledger_entries', 'money')
+      ,('customer_service_order_points', 'system')
+      ,('salary_activity_commission_settings', 'money')
+      ,('players', 'system')
+      ,('qiunai_staff', 'system')
+      ,('erp_role_assignments', 'system')
     ) as targets(table_name, category)
   loop
     if to_regclass('public.' || item.table_name) is not null then
@@ -119,5 +124,11 @@ begin
   end loop;
 end;
 $block$;
+
+-- These shared bot wallet tables do not identify the owning ERP and polluted
+-- both companies' daily logs. Salary-to-ASD remains covered by the app-scoped
+-- salary withdrawal and salary wallet entry records.
+drop trigger if exists erp_activity_log_trigger on public.users;
+drop trigger if exists erp_activity_log_trigger on public.wallet_logs;
 
 notify pgrst, 'reload schema';

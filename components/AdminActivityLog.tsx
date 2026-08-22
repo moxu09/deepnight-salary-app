@@ -17,11 +17,35 @@ type LogRow = {
   changed_at: string;
 };
 
-const IMPORTANT_FIELDS = [
-  "status", "order_no", "order_id", "discord_id", "user_id", "amount",
-  "price", "final_price", "order_amount", "staff_salary", "salary_rate",
-  "coins", "balance", "service_fee", "payout_amount", "discount_amount",
-];
+const FIELD_LABELS: Record<string, string> = {
+  status: "狀態", order_no: "訂單編號", order_id: "訂單 ID",
+  discord_id: "Discord ID", user_id: "使用者 ID", staff_name: "員工姓名",
+  customer_name: "客人姓名", service: "服務內容", service_name: "服務內容",
+  amount: "金額", price: "原價", original_price: "折扣前金額",
+  final_price: "實付金額", order_amount: "訂單金額", staff_salary: "員工薪資",
+  salary_rate: "抽成比例", salary_level: "抽成說明", commission_tier: "指定抽成",
+  bonus_amount: "訂單獎金", coins: "ASD 餘額", balance: "餘額",
+  service_fee: "手續費", payout_amount: "實際入帳金額", welfare_fee: "福利金",
+  discount_amount: "折扣金額", paid: "是否付款", paid_at: "付款時間",
+  salary_paid: "是否發薪", salary_paid_at: "發薪時間", destination: "提領目的地",
+  entry_type: "錢包項目", entry_label: "錢包說明", points: "客服點數",
+  app_key: "所屬 ERP", reviewed_by: "審核人", reviewed_at: "審核時間",
+  review_note: "審核備註", rejection_reason: "拒絕原因", note: "備註",
+  order_finished_at: "訂單完成時間", requested_at: "申請時間",
+};
+
+const TABLE_LABELS: Record<string, string> = {
+  play_orders: "深夜訂單", qiunai_salary_orders: "秋奈訂單",
+  salary_wallet_entries: "薪資錢包", salary_withdraw_requests: "薪資提領",
+  players_bonus: "深夜獎金／扣薪", qiunai_staff_bonus: "秋奈獎金／扣薪",
+  customer_service_order_points: "客服服務點數", salary_activity_commission_settings: "活動抽成設定",
+  players: "深夜員工", qiunai_staff: "秋奈員工", erp_role_assignments: "ERP 權限",
+};
+
+const HIDDEN_FIELDS = new Set([
+  "id", "created_at", "updated_at", "edited_at", "deleted_at",
+  "avatar_url", "bank_account", "bank_account_name", "bank_name",
+]);
 
 function taipeiToday() {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Taipei" }).format(new Date());
@@ -36,7 +60,14 @@ function formatTime(value: string) {
 function changedFields(row: LogRow) {
   const before = row.old_data || {};
   const after = row.new_data || {};
-  return IMPORTANT_FIELDS.filter((key) => before[key] !== after[key] && (key in before || key in after));
+  return [...new Set([...Object.keys(before), ...Object.keys(after)])]
+    .filter((key) => !HIDDEN_FIELDS.has(key))
+    .filter((key) => JSON.stringify(before[key]) !== JSON.stringify(after[key]))
+    .sort((a, b) => {
+      const aKnown = FIELD_LABELS[a] ? 0 : 1;
+      const bKnown = FIELD_LABELS[b] ? 0 : 1;
+      return aKnown - bKnown || a.localeCompare(b);
+    });
 }
 
 function displayValue(value: unknown) {
@@ -121,10 +152,10 @@ export default function AdminActivityLog({ organization }: { organization: "deep
                   <time className="font-mono text-xs font-black text-slate-500">{formatTime(row.changed_at)}</time>
                   <span className={`rounded-full px-2 py-1 text-[11px] font-black ${row.category === "money" ? "bg-emerald-50 text-emerald-700" : row.category === "order" ? "bg-sky-50 text-sky-700" : "bg-slate-100 text-slate-600"}`}>{row.category === "money" ? "金錢" : row.category === "order" ? "訂單" : "系統"}</span>
                   <span className="rounded-full bg-violet-50 px-2 py-1 text-[11px] font-black text-violet-700">{row.operation === "INSERT" ? "新增" : row.operation === "UPDATE" ? "修改" : "刪除"}</span>
-                  <strong className="text-sm">{row.table_name}{row.record_id ? ` #${row.record_id}` : ""}</strong>
+                  <strong className="text-sm">{TABLE_LABELS[row.table_name] || row.table_name}{row.record_id ? ` #${row.record_id}` : ""}</strong>
                 </div>
                 {row.actor_id ? <p className="mt-2 text-xs font-semibold text-slate-500">關聯帳號：{row.actor_id}</p> : null}
-                {fields.length ? <div className="mt-3 grid gap-2 sm:grid-cols-2">{fields.map((field) => <div key={field} className="rounded-xl bg-slate-50 px-3 py-2 text-xs"><span className="font-black text-slate-500">{field}</span><p className="mt-1 break-all"><span className="text-red-500 line-through">{displayValue(row.old_data?.[field])}</span><span className="mx-2">→</span><span className="font-bold text-emerald-700">{displayValue(row.new_data?.[field])}</span></p></div>)}</div> : null}
+                {fields.length ? <div className="mt-3 grid gap-2 sm:grid-cols-2">{fields.map((field) => <div key={field} className="rounded-xl bg-slate-50 px-3 py-2 text-xs"><span className="font-black text-slate-500">{FIELD_LABELS[field] || field}</span><p className="mt-1 break-all"><span className="text-red-500 line-through">{displayValue(row.old_data?.[field])}</span><span className="mx-2">→</span><span className="font-bold text-emerald-700">{displayValue(row.new_data?.[field])}</span></p></div>)}</div> : <p className="mt-3 text-xs font-semibold text-slate-400">沒有可顯示的業務欄位變更</p>}
               </article>;
             })}
           </section>
