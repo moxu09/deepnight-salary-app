@@ -182,6 +182,7 @@ type PerformanceRanking = {
   rank: number;
   participantCount: number;
   performanceAmount: number;
+  customerServicePoints: number;
   gapToPrevious: number;
   isFirst: boolean;
 };
@@ -1407,6 +1408,9 @@ export default function StaffPage() {
                 <p className="mt-2 text-sm text-slate-500">
                   本月接單業績 {money(performanceRanking.performanceAmount)}
                 </p>
+                <p className="mt-1 text-sm font-bold text-violet-600">
+                  本月客服服務點數 {performanceRanking.customerServicePoints || 0} 點
+                </p>
               </div>
               <div className="rounded-2xl bg-white px-5 py-4 text-center shadow-sm">
                 <p className="text-xs font-bold text-slate-500">距離上一名</p>
@@ -1482,12 +1486,9 @@ export default function StaffPage() {
                     transferringAsd ||
                     walletLoading ||
                     !salaryWallet ||
-                    !salaryWallet.withdrawWindow.isOpen ||
-                    Number(salaryWallet.totals.available || 0) <
-                      salaryWallet.withdrawPolicy.minimumAmount ||
+                    Number(salaryWallet.totals.available || 0) < 1 ||
                     (withdrawAmount.trim() !== "" &&
-                      Number(withdrawAmount) <
-                        salaryWallet.withdrawPolicy.minimumAmount)
+                      Number(withdrawAmount) < 1)
                   }
                   className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-violet-500 px-4 py-2.5 text-sm font-bold text-white shadow-sm shadow-violet-200 hover:bg-violet-600 disabled:cursor-not-allowed disabled:opacity-50"
                 >

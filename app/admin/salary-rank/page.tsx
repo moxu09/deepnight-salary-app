@@ -71,6 +71,7 @@ type StaffSalaryRow = {
   extraBonus: number;
   totalSalary: number;
   unpaidSalary: number;
+  servicePoints: number;
 };
 
 function getTodayInput() {
@@ -163,6 +164,7 @@ export default function SalaryRankPage() {
   const [staffList, setStaffList] = useState<Staff[]>([]);
   const [orders, setOrders] = useState<SalaryOrder[]>([]);
   const [bonuses, setBonuses] = useState<Bonus[]>([]);
+  const [servicePoints, setServicePoints] = useState<Record<string, number>>({});
   const [keyword, setKeyword] = useState("");
   const [sortMode, setSortMode] = useState("salary_desc");
   const [startDate, setStartDate] = useState(getMonthStartInput());
@@ -232,6 +234,7 @@ export default function SalaryRankPage() {
         extraBonus,
         totalSalary,
         unpaidSalary,
+        servicePoints: servicePoints[staff.discord_id] || 0,
       };
     });
 
@@ -276,6 +279,14 @@ export default function SalaryRankPage() {
       result.sort((a, b) => a.orderCount - b.orderCount);
     }
 
+    if (sortMode === "service_points_desc") {
+      result.sort((a, b) => b.servicePoints - a.servicePoints);
+    }
+
+    if (sortMode === "service_points_asc") {
+      result.sort((a, b) => a.servicePoints - b.servicePoints);
+    }
+
     if (sortMode === "name_asc") {
       result.sort((a, b) =>
         getDisplayName(a.staff).localeCompare(getDisplayName(b.staff))
@@ -289,7 +300,7 @@ export default function SalaryRankPage() {
     }
 
     return result;
-  }, [staffList, orders, bonuses, keyword, sortMode, startDate, endDate]);
+  }, [staffList, orders, bonuses, servicePoints, keyword, sortMode, startDate, endDate]);
 
   const totalSalary = useMemo(() => {
     return rows.reduce((sum, row) => sum + row.totalSalary, 0);
@@ -363,7 +374,15 @@ export default function SalaryRankPage() {
   async function loadAll() {
     setLoading(true);
 
-    const [staffRes, orderRes, bonusRes] = await Promise.all([
+    const { data: authData } = await supabase.auth.getSession();
+    const token = authData.session?.access_token;
+    const pointParams = new URLSearchParams();
+    const pointStartIso = dateToStartIso(startDate);
+    const pointEndIso = dateToEndIso(endDate);
+    if (pointStartIso) pointParams.set("start", pointStartIso);
+    if (pointEndIso) pointParams.set("end", pointEndIso);
+
+    const [staffRes, orderRes, bonusRes, pointRes] = await Promise.all([
       supabase
         .from("players")
         .select(
@@ -384,6 +403,10 @@ export default function SalaryRankPage() {
         .from("players_bonus")
         .select("id, discord_id, amount, created_at")
         .order("created_at", { ascending: false }),
+      fetch(`/api/deepnight/customer-service-points?${pointParams}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        cache: "no-store",
+      }),
     ]);
 
     setLoading(false);
@@ -406,9 +429,24 @@ export default function SalaryRankPage() {
       return;
     }
 
+    const pointPayload = await pointRes.json().catch(() => ({}));
+    if (!pointRes.ok || !pointPayload.ok) {
+      console.error("load customer service points error:", pointPayload);
+      alert("讀取客服服務點數失敗");
+      return;
+    }
+
     setStaffList((staffRes.data || []) as Staff[]);
     setOrders((orderRes.data || []) as SalaryOrder[]);
     setBonuses((bonusRes.data || []) as Bonus[]);
+    setServicePoints(
+      Object.fromEntries(
+        (pointPayload.rows || []).map((row: { discordId: string; points: number }) => [
+          row.discordId,
+          Number(row.points || 0),
+        ]),
+      ),
+    );
   }
 
   if (checking) {
@@ -497,6 +535,8 @@ export default function SalaryRankPage() {
                 <option value="order_amount_asc">接單金額升冪</option>
                 <option value="order_count_desc">訂單數降冪</option>
                 <option value="order_count_asc">訂單數升冪</option>
+                <option value="service_points_desc">客服點數降冪</option>
+                <option value="service_points_asc">客服點數升冪</option>
                 <option value="name_asc">名稱 A 到 Z</option>
                 <option value="name_desc">名稱 Z 到 A</option>
               </select>
@@ -557,6 +597,7 @@ export default function SalaryRankPage() {
                     <th>員工</th>
                     <th>檔位</th>
                     <th>訂單數</th>
+                    <th>客服點數</th>
                     <th>接單金額</th>
                     <th>訂單薪資</th>
                     <th>訂單獎金</th>
@@ -602,6 +643,10 @@ export default function SalaryRankPage() {
                       </td>
 
                       <td data-label="訂單數">{row.orderCount} 筆</td>
+
+                      <td data-label="客服點數" className="font-black text-violet-600">
+                        {row.servicePoints} 點
+                      </td>
 
                       <td
                         data-label="接單金額"
