@@ -31,6 +31,7 @@ type DepartmentSummary = {
   salary: number;
   bonus: number;
   unpaid: number;
+  unwithdrawn: number;
 };
 
 type OverviewData = {
@@ -49,6 +50,7 @@ const EMPTY_SUMMARY: DepartmentSummary = {
   salary: 0,
   bonus: 0,
   unpaid: 0,
+  unwithdrawn: 0,
 };
 
 const SECTIONS = [
@@ -321,6 +323,7 @@ function SummaryGrid({
     ["訂單薪資", money(summary.salary)],
     ["獎金", money(summary.bonus)],
     ["待發金額", money(summary.unpaid)],
+    ["尚未提領總金額", money(summary.unwithdrawn)],
   ];
 
   return (

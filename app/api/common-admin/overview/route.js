@@ -13,6 +13,22 @@ const DEEPNIGHT_GUILD_ID =
   process.env.NEXT_PUBLIC_DEEPNIGHT_GUILD_ID ||
   process.env.NEXT_PUBLIC_GUILD_ID ||
   "1501098191813214312";
+const SALARY_WALLET_START_DATE =
+  process.env.SALARY_WALLET_START_DATE || "2026-07-17";
+const PAGE_SIZE = 1000;
+
+async function loadAllPages(buildQuery) {
+  const rows = [];
+
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const { data, error } = await buildQuery(from, from + PAGE_SIZE - 1);
+    if (error) return { data: rows, error };
+
+    const page = data || [];
+    rows.push(...page);
+    if (page.length < PAGE_SIZE) return { data: rows, error: null };
+  }
+}
 
 function taipeiMonthRange() {
   const monthKey = new Intl.DateTimeFormat("en-CA", {
@@ -38,7 +54,7 @@ function number(value) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function summarize(activeStaff, orders, bonuses) {
+function summarize(activeStaff, orders, bonuses, settledStatus, unwithdrawn) {
   const bonusTotal = (bonuses || []).reduce(
     (sum, item) => sum + number(item.amount),
     0,
@@ -63,13 +79,46 @@ function summarize(activeStaff, orders, bonuses) {
     bonus: orderBonus + bonusTotal,
     unpaid:
       (orders || [])
-        .filter((item) => item.status !== "已發薪")
+        .filter(
+          (item) =>
+            !item.wallet_settled_at && item.status !== settledStatus,
+        )
         .reduce(
           (sum, item) =>
             sum + number(item.staff_salary) + number(item.bonus_amount),
           0,
-        ) + bonusTotal,
+        ) +
+      (bonuses || [])
+        .filter((item) => !item.wallet_settled_at)
+        .reduce((sum, item) => sum + number(item.amount), 0),
+    unwithdrawn: number(unwithdrawn),
   };
+}
+
+function unwithdrawnByDepartment(entries, requests) {
+  const totals = {
+    deepnight: { deposited: 0, withdrawn: 0 },
+    qiunai: { deposited: 0, withdrawn: 0 },
+  };
+
+  for (const entry of entries || []) {
+    if (totals[entry.app_key]) {
+      totals[entry.app_key].deposited += number(entry.amount);
+    }
+  }
+
+  for (const request of requests || []) {
+    if (totals[request.app_key] && request.status === "approved") {
+      totals[request.app_key].withdrawn += number(request.amount);
+    }
+  }
+
+  return Object.fromEntries(
+    Object.entries(totals).map(([appKey, total]) => [
+      appKey,
+      total.deposited - total.withdrawn,
+    ]),
+  );
 }
 
 function merge(deepnight, qiunai) {
@@ -104,6 +153,8 @@ export async function GET(request) {
       qiunaiOrders,
       deepnightBonuses,
       qiunaiBonuses,
+      walletEntries,
+      approvedWithdrawals,
     ] = await Promise.all([
       supabaseAdmin
         .from("players")
@@ -116,7 +167,7 @@ export async function GET(request) {
       supabaseAdmin
         .from("play_orders")
         .select(
-          "order_amount, price, staff_salary, bonus_amount, status, order_finished_at",
+          "order_amount, price, staff_salary, bonus_amount, status, order_finished_at, wallet_settled_at",
         )
         .or(`guild_id.eq.${DEEPNIGHT_GUILD_ID},guild_id.is.null`)
         .or("is_deleted.eq.false,is_deleted.is.null")
@@ -125,21 +176,41 @@ export async function GET(request) {
       supabaseAdmin
         .from("qiunai_salary_orders")
         .select(
-          "order_amount, staff_salary, bonus_amount, status, order_finished_at",
+          "order_amount, staff_salary, bonus_amount, status, order_finished_at, wallet_settled_at",
         )
         .or("is_deleted.eq.false,is_deleted.is.null")
         .gte("order_finished_at", range.start)
         .lt("order_finished_at", range.end),
       supabaseAdmin
         .from("players_bonus")
-        .select("amount, created_at")
+        .select("amount, created_at, wallet_settled_at")
         .gte("created_at", range.start)
         .lt("created_at", range.end),
       supabaseAdmin
         .from("qiunai_staff_bonus")
-        .select("amount, created_at")
+        .select("amount, created_at, wallet_settled_at")
         .gte("created_at", range.start)
         .lt("created_at", range.end),
+      loadAllPages((from, to) =>
+        supabaseAdmin
+          .from("salary_wallet_entries")
+          .select("app_key, amount")
+          .in("app_key", ["deepnight", "qiunai"])
+          .gte("settlement_date", SALARY_WALLET_START_DATE)
+          .range(from, to),
+      ),
+      loadAllPages((from, to) =>
+        supabaseAdmin
+          .from("salary_withdraw_requests")
+          .select("app_key, amount, status")
+          .in("app_key", ["deepnight", "qiunai"])
+          .eq("status", "approved")
+          .gte(
+            "requested_at",
+            `${SALARY_WALLET_START_DATE}T00:00:00+08:00`,
+          )
+          .range(from, to),
+      ),
     ]);
 
     const results = [
@@ -149,19 +220,29 @@ export async function GET(request) {
       qiunaiOrders,
       deepnightBonuses,
       qiunaiBonuses,
+      walletEntries,
+      approvedWithdrawals,
     ];
     const failed = results.find((result) => result.error);
     if (failed?.error) throw failed.error;
 
+    const unwithdrawn = unwithdrawnByDepartment(
+      walletEntries.data,
+      approvedWithdrawals.data,
+    );
     const deepnight = summarize(
       deepnightStaff.count,
       deepnightOrders.data,
       deepnightBonuses.data,
+      "已發薪",
+      unwithdrawn.deepnight,
     );
     const qiunai = summarize(
       qiunaiStaff.count,
       qiunaiOrders.data,
       qiunaiBonuses.data,
+      "已入帳",
+      unwithdrawn.qiunai,
     );
 
     return NextResponse.json({
