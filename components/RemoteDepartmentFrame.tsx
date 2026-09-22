@@ -16,6 +16,7 @@ const QIUNAI_SECTIONS: Record<string, string> = {
   payroll: "/admin/payroll",
   ranking: "/admin/ranking",
   approvals: "/admin/approvals",
+  activities: "/admin/activities",
   files: "/admin/files",
   accounting: "/admin/accounting",
   settings: "/admin/settings",

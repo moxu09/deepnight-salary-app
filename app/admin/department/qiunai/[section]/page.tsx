@@ -7,6 +7,7 @@ const SECTIONS = new Set([
   "payroll",
   "ranking",
   "approvals",
+  "activities",
   "files",
   "accounting",
   "activity-logs",

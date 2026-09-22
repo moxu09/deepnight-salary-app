@@ -7,6 +7,7 @@ import {
   BarChart3,
   Building2,
   ClipboardCheck,
+  CalendarHeart,
   Coins,
   Cpu,
   FileSpreadsheet,
@@ -45,6 +46,7 @@ const SECTIONS = [
   { key: "payroll", label: "發薪模式", icon: WalletCards },
   { key: "ranking", label: "薪資排序", icon: BarChart3 },
   { key: "approvals", label: "簽核申請", icon: ClipboardCheck },
+  { key: "activities", label: "活動管理", icon: CalendarHeart },
   { key: "device-audit", label: "電腦稽核", icon: Cpu },
   { key: "files", label: "資料下載", icon: FolderDown },
   { key: "accounting", label: "會計報表", icon: Coins },
@@ -67,7 +69,7 @@ function sectionHref(organization: Organization, section: string) {
 }
 
 function makeAdminLinks(organization: Organization): AdminLink[] {
-  return SECTIONS.map(({ key, label, icon }) => ({
+  return SECTIONS.filter(({ key }) => organization === "qiunai" || key !== "activities").map(({ key, label, icon }) => ({
     href: sectionHref(organization, key),
     label,
     icon,
@@ -162,7 +164,7 @@ export default function AdminShell({
     return (
       <main className="flex min-h-screen items-center justify-center bg-slate-100">
         <p className="rounded-2xl bg-white px-6 py-4 text-sm font-bold text-slate-500 shadow-sm">
-          正在驗證共同 ERP 權限…
+          正在驗證共同 EIP 權限…
         </p>
       </main>
     );
@@ -175,7 +177,7 @@ export default function AdminShell({
           href={owner && !supportOnly && !auditOnly ? "/admin" : fallbackHref}
           className="admin-portal-brand hidden lg:block"
         >
-          <p className="text-xs font-bold tracking-[0.18em]">共同 ERP 後台</p>
+          <p className="text-xs font-bold tracking-[0.18em]">共同 EIP 後台</p>
           <p className="mt-2 text-lg font-black">{company}</p>
           <p className="mt-2 text-xs font-bold text-slate-400">
             {ERP_ROLE_LABELS[access.role as keyof typeof ERP_ROLE_LABELS]}
