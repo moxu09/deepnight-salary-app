@@ -107,6 +107,13 @@ export default function AdminShell({
       (auditOnly && link.href === deviceAuditHref),
   );
   const owner = access?.discordId === ERP_OWNER_DISCORD_ID;
+  if (owner) {
+    links.push({
+      href: "/admin/finance-erp-installers",
+      label: "財務 ERP 安裝包",
+      icon: FolderDown,
+    });
+  }
   const company =
     currentOrganization === "qiunai" ? "秋奈電競" : "深夜不關燈";
   const [notificationCounts, setNotificationCounts] = useState(
