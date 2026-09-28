@@ -67,7 +67,7 @@ export default function FinanceErpInstallersPage() {
   return (
     <main className="mx-auto max-w-4xl p-6 sm:p-10">
       <h1 className="text-2xl font-black text-slate-900">財務 ERP 安裝包</h1>
-      <p className="mt-2 text-sm text-slate-600">0.2.5 原生介面測試版，支援 Discord 跳轉登入、會計科目搜尋與科目主檔管理。此頁及檔案僅你的帳號可存取，員工資料下載區不會顯示。</p>
+      <p className="mt-2 text-sm text-slate-600">0.2.6 原生介面測試版，新增月結檢查與鎖帳／重新開帳；也支援 Discord 跳轉登入、會計科目搜尋及科目主檔管理。此頁及檔案僅你的帳號可存取，員工資料下載區不會顯示。</p>
       {message ? <p role="alert" className="mt-4 rounded-xl bg-rose-50 p-4 text-sm text-rose-700">{message}</p> : null}
       <div className="mt-6 grid gap-4 sm:grid-cols-2">
         {files.map((file) => (
