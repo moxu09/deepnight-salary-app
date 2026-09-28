@@ -3,6 +3,7 @@ import { authorizeErpRequest, ERP_OWNER_DISCORD_ID } from "@/lib/erpAccess";
 import {
   FINANCE_ERP_INSTALLER_BUCKET,
   FINANCE_ERP_INSTALLER_PREFIX,
+  FINANCE_ERP_INSTALLER_VERSION,
   financeInstallerPartPath,
   validateFinanceInstallerManifest,
 } from "@/lib/financeErpInstallers";
@@ -44,7 +45,7 @@ export async function GET(request) {
     const files = await readManifest();
     const platform = new URL(request.url).searchParams.get("download");
     if (!platform) {
-      return Response.json({ ok: true, version: "0.2.1", files: files.map((item) => ({
+      return Response.json({ ok: true, version: FINANCE_ERP_INSTALLER_VERSION, files: files.map((item) => ({
         platform: item.platform,
         label: item.label,
         filename: item.filename,
