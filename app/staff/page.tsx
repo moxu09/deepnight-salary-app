@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import StaffAvatar from "@/components/StaffAvatar";
 import StaffPortalNav, { type PortalTab } from "@/components/StaffPortalNav";
+import StaffMessages from "@/components/StaffMessages";
 import HrPortalPanel from "@/components/HrPortalPanel";
 import ErpAuthLinkManager from "@/components/ErpAuthLinkManager";
 import DeviceAuditAdmin from "@/components/DeviceAuditAdmin";
@@ -1371,6 +1372,7 @@ export default function StaffPage() {
         </header>
 
         <HrPortalPanel activeTab={activeTab} apiPath="/api/deepnight/hr" department="深夜不關燈" staffName={getDisplayName(staff)} selectedMonth={hrSelectedMonth} onMonthChange={setHrSelectedMonth} />
+        {activeTab === "messages" ? <StaffMessages organization="deepnight" myDiscordId={staff.discord_id} /> : null}
 
         {activeTab === "device-audit" && canViewDeviceAudit ? (
           <DeviceAuditAdmin organization="deepnight" embedded />
