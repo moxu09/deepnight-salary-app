@@ -1319,7 +1319,7 @@ export default function StaffPage() {
   return (
     <main className="staff-portal-page min-h-screen bg-[#f3f7fa] text-slate-900">
       <div className="staff-portal-shell grid lg:grid-cols-[240px_minmax(0,1fr)]">
-        <StaffPortalNav activeTab={chatOpen ? "messages" : activeTab} onSelect={(tab) => { if (tab === "messages") setChatOpen(true); else setActiveTab(tab); }} employeeName={getDisplayName(staff)} company="深夜不關燈" showDeviceAudit={canViewDeviceAudit} />
+        <StaffPortalNav activeTab={activeTab} onSelect={(tab) => { if (tab === "messages") setChatOpen(true); else setActiveTab(tab); }} employeeName={getDisplayName(staff)} company="深夜不關燈" showDeviceAudit={canViewDeviceAudit} />
 
         <div className="staff-portal-content min-w-0 space-y-5">
         <header id="overview" className="scroll-mt-24 rounded-[30px] border border-violet-100 bg-white px-6 py-5 shadow-sm shadow-violet-100">
