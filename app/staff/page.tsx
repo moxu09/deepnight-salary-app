@@ -499,6 +499,7 @@ export default function StaffPage() {
   );
   const salaryMonthMounted = useRef(false);
   const [activeTab, setActiveTab] = useState<PortalTab>("workspace");
+  const [chatOpen, setChatOpen] = useState(false);
   const [canViewDeviceAudit, setCanViewDeviceAudit] = useState(false);
 
   const [profileForm, setProfileForm] = useState<ProfileForm>({
@@ -1318,7 +1319,7 @@ export default function StaffPage() {
   return (
     <main className="staff-portal-page min-h-screen bg-[#f3f7fa] text-slate-900">
       <div className="staff-portal-shell grid lg:grid-cols-[240px_minmax(0,1fr)]">
-        <StaffPortalNav activeTab={activeTab} onSelect={setActiveTab} employeeName={getDisplayName(staff)} company="深夜不關燈" showDeviceAudit={canViewDeviceAudit} />
+        <StaffPortalNav activeTab={chatOpen ? "messages" : activeTab} onSelect={(tab) => { if (tab === "messages") setChatOpen(true); else setActiveTab(tab); }} employeeName={getDisplayName(staff)} company="深夜不關燈" showDeviceAudit={canViewDeviceAudit} />
 
         <div className="staff-portal-content min-w-0 space-y-5">
         <header id="overview" className="scroll-mt-24 rounded-[30px] border border-violet-100 bg-white px-6 py-5 shadow-sm shadow-violet-100">
@@ -1373,8 +1374,8 @@ export default function StaffPage() {
         </header>
 
         <HrPortalPanel activeTab={activeTab} apiPath="/api/deepnight/hr" department="深夜不關燈" staffName={getDisplayName(staff)} selectedMonth={hrSelectedMonth} onMonthChange={setHrSelectedMonth} />
-        {(["workspace", "calendar", "documents", "knowledge", "workflows"] as const).includes(activeTab as "workspace") ? <StaffCollaboration organization="deepnight" section={activeTab as "workspace" | "calendar" | "documents" | "knowledge" | "workflows"} employeeName={getDisplayName(staff)} onSelect={(tab) => setActiveTab(tab as PortalTab)} /> : null}
-        {activeTab === "messages" ? <StaffMessages organization="deepnight" myDiscordId={staff.discord_id} /> : null}
+        {(["workspace", "calendar", "documents", "knowledge", "workflows"] as const).includes(activeTab as "workspace") ? <StaffCollaboration organization="deepnight" section={activeTab as "workspace" | "calendar" | "documents" | "knowledge" | "workflows"} employeeName={getDisplayName(staff)} onSelect={(tab) => { if (tab === "messages") setChatOpen(true); else setActiveTab(tab as PortalTab); }} /> : null}
+        <StaffMessages organization="deepnight" myDiscordId={staff.discord_id} open={chatOpen} onOpenChange={setChatOpen} />
 
         {activeTab === "device-audit" && canViewDeviceAudit ? (
           <DeviceAuditAdmin organization="deepnight" embedded />
