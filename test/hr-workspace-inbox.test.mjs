@@ -11,11 +11,11 @@ const employee = "employee";
 const manager = "manager";
 const resignationReviewer = "resignation-reviewer";
 
-function setup() {
+function setup(targetOrganization = organization) {
   const rows = [
-    { id: "old-pending", organization_code: organization, discord_id: employee, application_date: "2025-01-01", created_at: "2025-01-01T00:00:00Z", status: "pending", request_type: "代支報銷", approval_category: "reimbursement", form_data: { attachments: [{ path: "proof.png" }] } },
-    { id: "resignation", organization_code: organization, discord_id: employee, application_date: "2025-02-01", created_at: "2025-02-01T00:00:00Z", status: "pending", request_type: "離職申請書", approval_category: "administrative", form_data: {} },
-    { id: "other-company", organization_code: organization === "qiunai" ? "deepnight" : "qiunai", discord_id: employee, application_date: "2025-01-01", created_at: "2025-01-01T00:00:00Z", status: "pending", request_type: "代支報銷", approval_category: "reimbursement", form_data: {} },
+    { id: "old-pending", organization_code: targetOrganization, discord_id: employee, application_date: "2025-01-01", created_at: "2025-01-01T00:00:00Z", status: "pending", request_type: "代支報銷", approval_category: "reimbursement", form_data: { attachments: [{ path: "proof.png" }] } },
+    { id: "resignation", organization_code: targetOrganization, discord_id: employee, application_date: "2025-02-01", created_at: "2025-02-01T00:00:00Z", status: "pending", request_type: "離職申請書", approval_category: "administrative", form_data: {} },
+    { id: "other-company", organization_code: targetOrganization === "qiunai" ? "deepnight" : "qiunai", discord_id: employee, application_date: "2025-01-01", created_at: "2025-01-01T00:00:00Z", status: "pending", request_type: "代支報銷", approval_category: "reimbursement", form_data: {} },
   ];
   const updates = [];
   const removed = [];
@@ -50,8 +50,9 @@ function setup() {
       return query;
     },
   };
-  const source = readFileSync(join(root, `app/api/${organization}/hr/route.js`), "utf8")
-    .slice(readFileSync(join(root, `app/api/${organization}/hr/route.js`), "utf8").indexOf("export const runtime"))
+  const routeSource = readFileSync(join(root, `app/api/${targetOrganization}/hr/route.js`), "utf8");
+  const source = routeSource
+    .slice(routeSource.indexOf("export const runtime"))
     .replaceAll("export ", "");
   const context = {
     supabaseAdmin,
@@ -72,7 +73,7 @@ function setup() {
   return { handlers: context.handlers, rows, updates, removed };
 }
 
-const get = (discordId, suffix = "") => ({ discordId, url: `https://test.local/api/${organization}/hr?mode=admin&view=inbox${suffix}` });
+const get = (discordId, suffix = "", targetOrganization = organization) => ({ discordId, url: `https://test.local/api/${targetOrganization}/hr?mode=admin&view=inbox${suffix}` });
 const patch = (discordId, body) => ({ discordId, json: async () => body });
 
 test("legacy approvals appear in the workbench across months and cannot leak across organizations", async () => {
@@ -122,4 +123,15 @@ test("DeepNight resignation reviewer sees only resignation applications", async 
   assert.equal(response.status, 200);
   assert.deepEqual(Array.from(response.body.requests, (row) => row.id), ["resignation"]);
   assert.equal(response.body.summary.pending, 1);
+});
+
+test("DeepNight unified backend serves Qiunai HR inbox with organization isolation", async () => {
+  if (organization !== "deepnight") return;
+  const { handlers } = setup("qiunai");
+  const unauthorized = await handlers.GET(get(employee, "", "qiunai"));
+  assert.equal(unauthorized.status, 400);
+  const response = await handlers.GET(get(manager, "", "qiunai"));
+  assert.equal(response.status, 200);
+  assert.deepEqual(Array.from(response.body.requests, (row) => row.id), ["old-pending", "resignation"]);
+  assert.equal(response.body.summary.pending, 2);
 });

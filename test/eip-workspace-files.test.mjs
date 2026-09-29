@@ -77,6 +77,14 @@ const post = (discordId, file, length = "100") => ({
 });
 const pdf = { name: "manual.pdf", size: 5, arrayBuffer: async () => new Uint8Array([1, 2, 3, 4, 5]).buffer };
 
+test("DeepNight unified backend exposes the Qiunai file route with scoped storage", () => {
+  if (!JSON.parse(readFileSync(join(root, "package.json"), "utf8")).name.startsWith("deepnight")) return;
+  const source = readFileSync(join(root, "app/api/qiunai/workspace/files/route.js"), "utf8");
+  assert.match(source, /createEipWorkspaceFileHandlers\("qiunai", "qiunai_staff"\)/);
+  assert.match(source, /export const GET = handlers\.GET/);
+  assert.match(source, /export const POST = handlers\.POST/);
+});
+
 test("unpublished attachments and uploads require scoped admin access", async () => {
   const { route, documents, files } = setup();
   assert.equal((await route.GET(get(null))).status, 401);
