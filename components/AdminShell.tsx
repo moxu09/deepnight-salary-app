@@ -14,6 +14,7 @@ import {
   FolderDown,
   History,
   Settings,
+  BookOpenText,
   UsersRound,
   WalletCards,
 } from "lucide-react";
@@ -46,6 +47,7 @@ const SECTIONS = [
   { key: "payroll", label: "發薪模式", icon: WalletCards },
   { key: "ranking", label: "薪資排序", icon: BarChart3 },
   { key: "approvals", label: "簽核申請", icon: ClipboardCheck },
+  { key: "workspace", label: "協作工作台", icon: BookOpenText },
   { key: "activities", label: "活動管理", icon: CalendarHeart },
   { key: "device-audit", label: "電腦稽核", icon: Cpu },
   { key: "files", label: "資料下載", icon: FolderDown },

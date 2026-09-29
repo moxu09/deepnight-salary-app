@@ -23,6 +23,7 @@ import {
 import StaffAvatar from "@/components/StaffAvatar";
 import StaffPortalNav, { type PortalTab } from "@/components/StaffPortalNav";
 import StaffMessages from "@/components/StaffMessages";
+import StaffCollaboration from "@/components/StaffCollaboration";
 import HrPortalPanel from "@/components/HrPortalPanel";
 import ErpAuthLinkManager from "@/components/ErpAuthLinkManager";
 import DeviceAuditAdmin from "@/components/DeviceAuditAdmin";
@@ -497,7 +498,7 @@ export default function StaffPage() {
     getCurrentMonthInput()
   );
   const salaryMonthMounted = useRef(false);
-  const [activeTab, setActiveTab] = useState<PortalTab>("profile");
+  const [activeTab, setActiveTab] = useState<PortalTab>("workspace");
   const [canViewDeviceAudit, setCanViewDeviceAudit] = useState(false);
 
   const [profileForm, setProfileForm] = useState<ProfileForm>({
@@ -1338,7 +1339,7 @@ export default function StaffPage() {
                 </p>
 
                 <h1 className="mt-1 text-2xl font-black text-slate-900">
-                  深夜不關燈｜員工薪資中心
+                  深夜不關燈｜員工工作台
                 </h1>
 
                 <p className="mt-1 text-sm text-slate-500">
@@ -1372,6 +1373,7 @@ export default function StaffPage() {
         </header>
 
         <HrPortalPanel activeTab={activeTab} apiPath="/api/deepnight/hr" department="深夜不關燈" staffName={getDisplayName(staff)} selectedMonth={hrSelectedMonth} onMonthChange={setHrSelectedMonth} />
+        {(["workspace", "calendar", "documents", "knowledge", "workflows"] as const).includes(activeTab as "workspace") ? <StaffCollaboration organization="deepnight" section={activeTab as "workspace" | "calendar" | "documents" | "knowledge" | "workflows"} employeeName={getDisplayName(staff)} onSelect={(tab) => setActiveTab(tab as PortalTab)} /> : null}
         {activeTab === "messages" ? <StaffMessages organization="deepnight" myDiscordId={staff.discord_id} /> : null}
 
         {activeTab === "device-audit" && canViewDeviceAudit ? (
