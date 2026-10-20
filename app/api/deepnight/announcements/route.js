@@ -4,6 +4,7 @@ import { authorizeErpRequest } from "@/lib/erpAccess";
 import { getDiscordIdFromAuthUser } from "@/lib/salaryWallet";
 import { addAdminSignatureStats, listEmployeeAnnouncements, parseAudience, sha256Buffer } from "@/lib/announcementSigning";
 import { removeAdminFilePath, uploadAdminFile } from "@/lib/adminFileStorage";
+import { addPollData as hydratePolls } from "@/lib/eipPolls";
 import { sendAnnouncementDirectMessages } from "@/lib/discordAnnouncement";
 
 export const runtime = "nodejs";
@@ -31,6 +32,18 @@ function jsonError(error, fallback) {
   return NextResponse.json({ ok: false, message: error?.message || fallback }, { status: 400 });
 }
 
+function parsePollOptions(value) {
+  let input = value;
+  if (typeof input === "string") {
+    try { input = JSON.parse(input); } catch { input = input.split("\n"); }
+  }
+  return [...new Set((Array.isArray(input) ? input : [])
+    .map((item) => String(item || "").trim().slice(0, 200))
+    .filter(Boolean))].slice(0, 20);
+}
+
+const addPollData = (items, discordId = null, adminMode = false) => hydratePolls(supabaseAdmin, items, discordId, adminMode);
+
 export async function GET(request) {
   try {
     const url = new URL(request.url);
@@ -42,7 +55,7 @@ export async function GET(request) {
     const query = supabaseAdmin.from("salary_announcements").select("*").eq("organization_code", ORG).order("created_at", { ascending: false });
     const { data, error } = await query;
     if (error) throw error;
-    return NextResponse.json({ ok: true, announcements: adminMode ? await addAdminSignatureStats(ORG, data || []) : data || [] });
+    return NextResponse.json({ ok: true, announcements: await addPollData(await addAdminSignatureStats(ORG, data || []), null, true) });
   } catch (error) {
     return jsonError(error, "讀取公告失敗");
   }
@@ -68,6 +81,10 @@ export async function POST(request) {
     if (requiresSignature && file.type !== "application/pdf" && !String(file.name || "").toLowerCase().endsWith(".pdf")) throw new Error("簽署文件僅支援 PDF 格式");
     const audienceDiscordIds = parseAudience(value("audienceDiscordIds"));
     const signatureDeadline = String(value("signatureDeadline") || "").trim() || null;
+    const isPoll = String(value("isPoll") || "") === "true" || value("isPoll") === true;
+    const pollAllowMultiple = String(value("pollAllowMultiple") || "") === "true" || value("pollAllowMultiple") === true;
+    const pollOptions = parsePollOptions(value("pollOptions"));
+    if (isPoll && pollOptions.length < 2) throw new Error("投票至少需要兩個選項");
     let attachmentPath = "";
     try {
       if (file && typeof file.arrayBuffer === "function" && file.size > 0) attachmentPath = await uploadAdminFile({ organization: ORG, category: "operations", file });
@@ -81,8 +98,19 @@ export async function POST(request) {
         requires_signature: requiresSignature,
         audience_discord_ids: audienceDiscordIds,
         signature_deadline: signatureDeadline,
+        is_poll: isPoll,
+        poll_allow_multiple: isPoll && pollAllowMultiple,
       }).select("*").single();
       if (error) throw error;
+      if (isPoll) {
+        const { error: optionError } = await supabaseAdmin.from("salary_poll_options").insert(
+          pollOptions.map((label, index) => ({ announcement_id: data.id, label, sort_order: index })),
+        );
+        if (optionError) {
+          await supabaseAdmin.from("salary_announcements").delete().eq("id", data.id);
+          throw optionError;
+        }
+      }
       let notification = null;
       if (data.is_active) {
         try {
@@ -117,21 +145,44 @@ export async function PATCH(request) {
     const content = String(body.content || "").trim();
     if (!id || !title || !content) throw new Error("公告資料不完整");
     const audienceDiscordIds = parseAudience(body.audienceDiscordIds);
-    const { data: existing } = await supabaseAdmin.from("salary_announcements").select("*").eq("id", id).eq("organization_code", ORG).maybeSingle();
+    const { data: existing, error: existingError } = await supabaseAdmin.from("salary_announcements").select("*").eq("id", id).eq("organization_code", ORG).maybeSingle();
+    if (existingError) throw existingError;
     if (!existing) throw new Error("找不到公告");
     if (existing.requires_signature) {
-      const { count } = await supabaseAdmin.from("salary_announcement_signatures").select("id", { count: "exact", head: true }).eq("announcement_id", id).eq("status", "signed");
+      const { count, error: signatureError } = await supabaseAdmin.from("salary_announcement_signatures").select("id", { count: "exact", head: true }).eq("announcement_id", id).eq("status", "signed");
+      if (signatureError) throw signatureError;
       if (count && (title !== existing.title || content !== existing.content || JSON.stringify(audienceDiscordIds) !== JSON.stringify(existing.audience_discord_ids || []))) throw new Error("已有員工完成簽署，不能修改公告內容或簽署對象；請建立新版公告");
     }
+    const isPoll = body.isPoll === undefined ? existing.is_poll : body.isPoll === true;
+    const pollOptions = parsePollOptions(body.pollOptions);
+    const { count: voteCount, error: voteError } = await supabaseAdmin.from("salary_poll_votes").select("id", { count: "exact", head: true }).eq("announcement_id", id);
+    if (voteError) throw voteError;
+    const { data: originalOptions, error: optionReadError } = await supabaseAdmin.from("salary_poll_options").select("label").eq("announcement_id", id).order("sort_order");
+    if (optionReadError) throw optionReadError;
+    const optionsChanged = body.pollOptions !== undefined && JSON.stringify(pollOptions) !== JSON.stringify((originalOptions || []).map((option) => option.label));
+    const multiple = body.pollAllowMultiple === undefined ? existing.poll_allow_multiple : body.pollAllowMultiple === true;
+    if (voteCount && (isPoll !== existing.is_poll || optionsChanged || multiple !== existing.poll_allow_multiple)) throw new Error("投票已有員工作答，不能修改選項或單複選設定；請建立新投票");
+    if (isPoll && !existing.is_poll && pollOptions.length < 2) throw new Error("投票至少需要兩個選項");
+    if (isPoll && optionsChanged && pollOptions.length < 2) throw new Error("投票至少需要兩個選項");
     const { data, error } = await supabaseAdmin.from("salary_announcements").update({
       title,
       content,
       is_active: body.isActive !== false,
       audience_discord_ids: audienceDiscordIds,
       signature_deadline: String(body.signatureDeadline || "").trim() || null,
+      is_poll: Boolean(isPoll),
+      poll_allow_multiple: Boolean(isPoll) && multiple,
       updated_at: new Date().toISOString(),
     }).eq("id", id).eq("organization_code", ORG).select("*").single();
     if (error) throw error;
+    if (!voteCount && optionsChanged && isPoll) {
+      const { error: removeError } = await supabaseAdmin.from("salary_poll_options").delete().eq("announcement_id", id);
+      if (removeError) throw removeError;
+      const { error: optionError } = await supabaseAdmin.from("salary_poll_options").insert(
+        pollOptions.map((label, index) => ({ announcement_id: id, label, sort_order: index })),
+      );
+      if (optionError) throw optionError;
+    }
     return NextResponse.json({ ok: true, announcement: data });
   } catch (error) {
     return jsonError(error, "更新公告失敗");

@@ -51,6 +51,7 @@ const SECTIONS = [
   { key: "approvals", label: "簽核申請", icon: ClipboardCheck },
   { key: "workspace", label: "協作工作台", icon: BookOpenText },
   { key: "activities", label: "活動管理", icon: CalendarHeart },
+  { key: "app-installers", label: "員工 App 安裝包", icon: FolderDown },
   { key: "device-audit", label: "電腦稽核", icon: Cpu },
   { key: "files", label: "資料下載", icon: FolderDown },
   { key: "accounting", label: "會計報表", icon: Coins },
@@ -73,7 +74,7 @@ function sectionHref(organization: Organization, section: string) {
 }
 
 function makeAdminLinks(organization: Organization): AdminLink[] {
-  return SECTIONS.filter(({ key }) => organization === "qiunai" || key !== "activities").map(({ key, label, icon }) => ({
+  return SECTIONS.filter(({ key }) => organization === "deepnight" || key !== "app-installers").map(({ key, label, icon }) => ({
     href: sectionHref(organization, key),
     label,
     icon,

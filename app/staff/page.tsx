@@ -24,6 +24,8 @@ import StaffAvatar from "@/components/StaffAvatar";
 import StaffPortalNav, { type PortalTab } from "@/components/StaffPortalNav";
 import StaffMessages from "@/components/StaffMessages";
 import StaffCollaboration from "@/components/StaffCollaboration";
+import ActivityPortal from "@/components/ActivityPortal";
+import StaffInstallerDownloads from "@/components/StaffInstallerDownloads";
 import StaffWorkspaceHome, { type WorkspaceFeed } from "@/components/StaffWorkspaceHome";
 import HrPortalPanel from "@/components/HrPortalPanel";
 import ErpAuthLinkManager from "@/components/ErpAuthLinkManager";
@@ -1418,6 +1420,8 @@ export default function StaffPage() {
         ) : null}
         {(["workspace", "calendar", "documents", "knowledge", "workflows"] as const).includes(activeTab as "workspace") ? <StaffCollaboration organization="deepnight" section={activeTab as "workspace" | "calendar" | "documents" | "knowledge" | "workflows"} employeeName={getDisplayName(staff)} onSelect={(tab) => { if (tab === "messages") setChatOpen(true); else setActiveTab(tab as PortalTab); }} /> : null}
         <StaffMessages organization="deepnight" myDiscordId={staff.discord_id} open={chatOpen} onOpenChange={setChatOpen} />
+        {activeTab === "activities" ? <ActivityPortal /> : null}
+        {activeTab === "downloads" ? <StaffInstallerDownloads /> : null}
 
         {activeTab === "device-audit" && canViewDeviceAudit ? (
           <DeviceAuditAdmin organization="deepnight" embedded />

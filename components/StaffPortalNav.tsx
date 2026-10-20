@@ -29,6 +29,8 @@ export type PortalTab =
   | "knowledge"
   | "workflows"
   | "messages"
+  | "activities"
+  | "downloads"
   | "profile"
   | "admin-service"
   | "welfare"
@@ -60,6 +62,8 @@ const groups: ReadonlyArray<PortalGroup> = [
       ["documents", "共享文件", FileText],
       ["knowledge", "知識庫", BookOpenText],
       ["workflows", "流程中心", ClipboardCheck],
+      ["activities", "活動報名", CalendarDays],
+      ["downloads", "App 下載", FileText],
     ],
   },
   {

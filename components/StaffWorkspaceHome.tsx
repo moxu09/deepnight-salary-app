@@ -32,6 +32,8 @@ type WorkApp = {
 };
 
 const BASE_APPS: WorkApp[] = [
+  { tab: "activities", label: "活動報名", description: "回覆活動、查看場次與報名狀態", category: "協作", icon: CalendarDays },
+  { tab: "downloads", label: "App 下載", description: "下載所屬店家的員工端安裝包", category: "資源", icon: FileText },
   { tab: "messages", label: "員工訊息", description: "聯絡同事並查看一對一對話", category: "協作", icon: MessageSquareText },
   { tab: "profile", label: "個人資料", description: "查看資料、薪資錢包與設定", category: "人事", icon: UserRound },
   { tab: "orders", label: "訂單明細", description: "查看本月訂單與薪資", category: "訂單", icon: ReceiptText },
