@@ -1,5 +1,6 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import AppLanguageProvider from "@/components/AppLanguageProvider";
+import MobileOAuthBridge from "@/components/MobileOAuthBridge";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -13,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  title: "深夜不關燈 ERP",
-  description: "深夜不關燈企業資源規劃系統",
+  title: "深夜不關燈 EIP",
+  description: "深夜不關燈企業資訊入口系統",
   icons: {
     icon: "/favicon.ico",
   },
@@ -31,6 +32,7 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
+        <MobileOAuthBridge />
         {children}
         <AppLanguageProvider />
       </body>

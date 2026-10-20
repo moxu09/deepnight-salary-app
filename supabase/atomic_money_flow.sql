@@ -792,7 +792,7 @@ begin
       where id = v_order.id;
     else
       execute format(
-        'insert into public.%I (order_id, discord_id, staff_name, customer_name, service_name, order_amount, staff_salary, bonus_amount, salary_rate, salary_level, platform_income, platform_expense, status, order_finished_at, is_deleted) values ($1,$2,$3,$4,$5,$6,$7,0,$8,$9,$6,$7,''未發薪'',$10,false)',
+        'insert into public.%I (order_id, discord_id, staff_name, customer_name, service_name, order_amount, staff_salary, bonus_amount, salary_rate, salary_level, platform_income, platform_expense, status, order_finished_at, is_deleted) values ($1,$2,$3,$4,$5,$6,$7,0,$8,$9,$6,$7,''未入帳'',$10,false)',
         p_salary_table
       ) using
         coalesce(v_order.order_no, v_order.id::text),

@@ -33,7 +33,7 @@ from public.qiunai_staff as staff
 where staff.discord_id = target.discord_id
   and staff.commission_tier = 'manager_95'
   and target.salary_rate is distinct from 95
-  and target.status = '未發薪'
+  and target.status = '未入帳'
   and target.wallet_settled_at is null
   and coalesce(target.is_deleted, false) = false;
 

@@ -24,10 +24,12 @@ import StaffAvatar from "@/components/StaffAvatar";
 import StaffPortalNav, { type PortalTab } from "@/components/StaffPortalNav";
 import StaffMessages from "@/components/StaffMessages";
 import StaffCollaboration from "@/components/StaffCollaboration";
+import StaffWorkspaceHome, { type WorkspaceFeed } from "@/components/StaffWorkspaceHome";
 import HrPortalPanel from "@/components/HrPortalPanel";
 import ErpAuthLinkManager from "@/components/ErpAuthLinkManager";
 import DeviceAuditAdmin from "@/components/DeviceAuditAdmin";
 import MonthSelect from "@/components/MonthSelect";
+import { filterShadowedSourceOrders } from "@/lib/playOrderDedupe";
 import {
   formatTaipeiDateTime,
   getNextTaipeiMonthText,
@@ -163,6 +165,7 @@ type SalaryWalletData = {
     withdrawn: number;
     pendingWithdrawn: number;
   }>;
+  requests: SalaryWithdrawRequest[];
   pendingRequest: SalaryWithdrawRequest | null;
   latestRequest: SalaryWithdrawRequest | null;
   withdrawWindow: {
@@ -492,6 +495,13 @@ export default function StaffPage() {
   const [salaryWallet, setSalaryWallet] = useState<SalaryWalletData | null>(
     null
   );
+  const recentAsdTransfers = useMemo(
+    () =>
+      (salaryWallet?.requests || [])
+        .filter((request) => request.destination === "asd")
+        .slice(0, 20),
+    [salaryWallet]
+  );
   const [performanceRanking, setPerformanceRanking] =
     useState<PerformanceRanking | null>(null);
   const [selectedMonth, setSelectedMonth] = useState(getCurrentMonthInput());
@@ -501,6 +511,7 @@ export default function StaffPage() {
   const salaryMonthMounted = useRef(false);
   const [activeTab, setActiveTab] = useState<PortalTab>("workspace");
   const [chatOpen, setChatOpen] = useState(false);
+  const [workspaceFeed, setWorkspaceFeed] = useState<WorkspaceFeed | null>(null);
   const [canViewDeviceAudit, setCanViewDeviceAudit] = useState(false);
 
   const [profileForm, setProfileForm] = useState<ProfileForm>({
@@ -541,7 +552,7 @@ export default function StaffPage() {
 
   const unpaidAmount = useMemo(() => {
     const orderTotal = salaryOrders
-      .filter((order) => order.status !== "已發薪" && !order.wallet_settled_at)
+      .filter((order) => order.status !== "已入帳" && !order.wallet_settled_at)
       .reduce(
         (sum, order) =>
           sum +
@@ -552,6 +563,17 @@ export default function StaffPage() {
 
     return orderTotal + monthBonus;
   }, [salaryOrders, monthBonus]);
+
+  const recentWorkspaceOrders = useMemo(() => [...salaryOrders]
+    .sort((a, b) => String(b.order_finished_at || b.completed_at || b.created_at || "").localeCompare(String(a.order_finished_at || a.completed_at || a.created_at || "")))
+    .slice(0, 4)
+    .map((order) => ({
+      id: order.id,
+      service: getOrderService(order) || "陪玩服務",
+      status: order.status || "狀態待更新",
+      amount: Number(order.staff_salary || 0) + Number(order.bonus_amount || 0),
+      date: order.order_finished_at || order.completed_at || order.created_at || "",
+    })), [salaryOrders]);
 
   const totalOrderAmount = useMemo(() => {
     return allSalaryOrders.reduce(
@@ -735,7 +757,7 @@ export default function StaffPage() {
       console.error("load salary orders error:", monthError);
       setSalaryOrders([]);
     } else {
-      setSalaryOrders((monthOrders || []) as SalaryOrder[]);
+      setSalaryOrders(filterShadowedSourceOrders(monthOrders || []) as SalaryOrder[]);
     }
 
     const { data: reviewData, error: reviewError } = await supabase
@@ -752,7 +774,7 @@ export default function StaffPage() {
       console.error("load order reviews error:", reviewError);
       setReviewedOrders([]);
     } else {
-      setReviewedOrders((reviewData || []) as SalaryOrder[]);
+      setReviewedOrders(filterShadowedSourceOrders(reviewData || []) as SalaryOrder[]);
     }
 
     const { data: allOrders, error: allError } = await supabase
@@ -767,7 +789,7 @@ export default function StaffPage() {
       console.error("load all salary orders error:", allError);
       setAllSalaryOrders([]);
     } else {
-      setAllSalaryOrders((allOrders || []) as SalaryOrder[]);
+      setAllSalaryOrders(filterShadowedSourceOrders(allOrders || []) as SalaryOrder[]);
     }
 
     const { data: bonusData, error: bonusError } = await supabase
@@ -819,6 +841,7 @@ export default function StaffPage() {
         headers: {
           Authorization: `Bearer ${session.access_token}`,
         },
+        cache: "no-store",
       });
 
       const payload = await res.json();
@@ -1100,34 +1123,53 @@ export default function StaffPage() {
     }
   }
 
+  async function patchOwnStaff(
+    action: "update-profile" | "set-online" | "set-services",
+    payload: Record<string, unknown>,
+  ) {
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
+    if (!token) throw new Error("登入已過期，請重新登入");
+    const response = await fetch("/api/deepnight/staff", {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ action, ...payload }),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || !result.ok || !result.staff) {
+      throw new Error(result.message || "更新員工資料失敗");
+    }
+    return result.staff as Staff;
+  }
+
   async function saveProfile() {
     if (!staff) return;
 
     setProfileSaving(true);
 
-    const { data, error } = await supabase
-      .from("players")
-      .update({
-        display_name: profileForm.display_name || null,
-        avatar_url: profileForm.avatar_url || null,
-        real_name: profileForm.real_name || null,
-        gender: profileForm.gender || null,
-        birthday: profileForm.birthday || null,
-        bank_name: profileForm.bank_name || null,
-        bank_account: profileForm.bank_account || null,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("discord_id", staff.discord_id)
-      .select("*")
-      .single();
-
-    setProfileSaving(false);
-
-    if (error) {
+    let updatedStaff: Staff;
+    try {
+      updatedStaff = await patchOwnStaff("update-profile", {
+        profile: {
+          displayName: profileForm.display_name,
+          avatarUrl: profileForm.avatar_url,
+          realName: profileForm.real_name,
+          gender: profileForm.gender,
+          birthday: profileForm.birthday,
+          bankName: profileForm.bank_name,
+          bankAccount: profileForm.bank_account,
+        },
+      });
+    } catch (error) {
       console.error("save profile error:", error);
-      alert("儲存個人資料失敗");
+      alert(error instanceof Error ? error.message : "儲存個人資料失敗");
+      setProfileSaving(false);
       return;
     }
+    setProfileSaving(false);
 
     try {
       await syncPublicProfile({
@@ -1138,12 +1180,12 @@ export default function StaffPage() {
       });
     } catch (syncError) {
       console.error("sync public profile error:", syncError);
-      setStaff(data as Staff);
+      setStaff(updatedStaff);
       alert("薪資資料已儲存，但官網介紹同步失敗，請稍後再試");
       return;
     }
 
-    setStaff(data as Staff);
+    setStaff(updatedStaff);
     alert("個人資料已儲存");
   }
 
@@ -1172,25 +1214,20 @@ export default function StaffPage() {
     const nextOnline = !staff.is_online;
     setOnlineSaving(true);
 
-    const { data, error } = await supabase
-      .from("players")
-      .update({
-        is_online: nextOnline,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("discord_id", staff.discord_id)
-      .select("*")
-      .single();
-
-    setOnlineSaving(false);
-
-    if (error) {
+    let updatedStaff: Staff;
+    try {
+      updatedStaff = await patchOwnStaff("set-online", {
+        isOnline: nextOnline,
+      });
+    } catch (error) {
       console.error("toggle online error:", error);
-      alert("更新接單狀態失敗");
+      alert(error instanceof Error ? error.message : "更新接單狀態失敗");
+      setOnlineSaving(false);
       return;
     }
+    setOnlineSaving(false);
 
-    setStaff(data as Staff);
+    setStaff(updatedStaff);
     await syncPublicProfile({ isOnline: nextOnline }).catch((syncError) => {
       console.error("sync online status error:", syncError);
     });
@@ -1211,18 +1248,13 @@ export default function StaffPage() {
 
     setServiceSaving(true);
 
-    const { error: updateStaffError } = await supabase
-      .from("players")
-      .update({
-        allowed_services: allowedServices,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("discord_id", staff.discord_id);
-
-    if (updateStaffError) {
+    let updatedStaff: Staff;
+    try {
+      updatedStaff = await patchOwnStaff("set-services", { allowedServices });
+    } catch (error) {
       setServiceSaving(false);
-      console.error("update allowed_services error:", updateStaffError);
-      alert("更新可接遊戲失敗");
+      console.error("update allowed_services error:", error);
+      alert(error instanceof Error ? error.message : "更新可接遊戲失敗");
       return;
     }
 
@@ -1260,14 +1292,7 @@ export default function StaffPage() {
       }
     }
 
-    setStaff((prev) =>
-      prev
-        ? {
-            ...prev,
-            allowed_services: allowedServices,
-          }
-        : prev
-    );
+    setStaff({ ...updatedStaff, allowed_services: allowedServices });
 
     setServiceSaving(false);
     await syncPublicProfile({
@@ -1374,7 +1399,23 @@ export default function StaffPage() {
           </div>
         </header>
 
-        <HrPortalPanel activeTab={activeTab} apiPath="/api/deepnight/hr" department="深夜不關燈" staffName={getDisplayName(staff)} selectedMonth={hrSelectedMonth} onMonthChange={setHrSelectedMonth} />
+        <HrPortalPanel activeTab={activeTab} apiPath="/api/deepnight/hr" department="深夜不關燈" staffName={getDisplayName(staff)} selectedMonth={hrSelectedMonth} onMonthChange={setHrSelectedMonth} onWorkspaceData={setWorkspaceFeed} />
+        {activeTab === "workspace" ? (
+          <StaffWorkspaceHome
+            organization="deepnight"
+            employeeId={staff.discord_id}
+            employeeName={getDisplayName(staff)}
+            month={selectedMonth}
+            orderCount={monthOrderCount}
+            salary={monthSalary}
+            unpaid={unpaidAmount}
+            walletAvailable={salaryWallet ? Number(salaryWallet.totals.available || 0) : null}
+            pendingWithdrawalCount={salaryWallet?.totals.pendingRequestCount || 0}
+            recentOrders={recentWorkspaceOrders}
+            feed={workspaceFeed}
+            onSelect={(tab) => { if (tab === "messages") setChatOpen(true); else setActiveTab(tab); }}
+          />
+        ) : null}
         {(["workspace", "calendar", "documents", "knowledge", "workflows"] as const).includes(activeTab as "workspace") ? <StaffCollaboration organization="deepnight" section={activeTab as "workspace" | "calendar" | "documents" | "knowledge" | "workflows"} employeeName={getDisplayName(staff)} onSelect={(tab) => { if (tab === "messages") setChatOpen(true); else setActiveTab(tab as PortalTab); }} /> : null}
         <StaffMessages organization="deepnight" myDiscordId={staff.discord_id} open={chatOpen} onOpenChange={setChatOpen} />
 
@@ -1386,7 +1427,7 @@ export default function StaffPage() {
           <StatCard title="月份訂單" value={`${monthOrderCount} 筆`} />
           <StatCard title="月份薪資" value={money(monthSalary)} />
           <StatCard title="獎金 / 扣除" value={money(monthBonus)} />
-          <StatCard title="未發薪" value={money(unpaidAmount)} />
+          <StatCard title="未入帳" value={money(unpaidAmount)} />
         </section>
 
         {activeTab === "profile" && performanceRanking ? (
@@ -1575,6 +1616,65 @@ export default function StaffPage() {
                 >
                   {getRequestStatusText(salaryWallet.latestRequest)}
                 </span>
+              </div>
+
+              <div className="mt-4 rounded-[22px] border border-violet-100 bg-white p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h3 className="flex items-center gap-2 font-black text-slate-800">
+                      <Coins size={18} className="text-violet-500" />
+                      ASD 轉入明細
+                    </h3>
+                    <p className="mt-1 text-xs text-slate-500">
+                      顯示最近 20 筆薪資轉入本人 ASD 的紀錄。
+                    </p>
+                  </div>
+                  <span className="rounded-full bg-violet-50 px-3 py-1 text-xs font-black text-violet-600">
+                    {recentAsdTransfers.length} 筆
+                  </span>
+                </div>
+                <div className="mt-3 overflow-x-auto">
+                  <table className="min-w-full text-sm">
+                    <thead className="text-left text-xs text-slate-500">
+                      <tr>
+                        <th className="py-2 pr-4">轉入時間</th>
+                        <th className="py-2 pr-4">薪資扣除</th>
+                        <th className="py-2 pr-4">ASD 入帳</th>
+                        <th className="py-2">狀態</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {recentAsdTransfers.map((request) => {
+                        const payout = Number(
+                          request.payout_amount || request.amount || 0
+                        );
+                        return (
+                          <tr key={request.id} className="border-t border-violet-50">
+                            <td className="py-3 pr-4">
+                              {formatDateTime(request.requested_at)}
+                            </td>
+                            <td className="py-3 pr-4 font-bold text-slate-700">
+                              -{money(Number(request.amount || 0))}
+                            </td>
+                            <td className="py-3 pr-4 font-black text-violet-600">
+                              +{payout.toLocaleString("zh-TW")} ASD
+                            </td>
+                            <td className="py-3 font-bold text-emerald-600">
+                              已立即入帳
+                            </td>
+                          </tr>
+                        );
+                      })}
+                      {recentAsdTransfers.length === 0 ? (
+                        <tr>
+                          <td colSpan={4} className="py-5 text-center text-slate-500">
+                            目前沒有薪資轉入 ASD 的紀錄
+                          </td>
+                        </tr>
+                      ) : null}
+                    </tbody>
+                  </table>
+                </div>
               </div>
 
               <div className="mt-4 rounded-[22px] border border-sky-100 bg-white p-4">
@@ -2217,7 +2317,7 @@ export default function StaffPage() {
                           <td data-label="狀態">
                             <span
                               className={`rounded-full px-3 py-1 text-xs font-bold ${
-                                order.status === "已發薪" ||
+                                order.status === "已入帳" ||
                                 order.wallet_settled_at
                                   ? "bg-emerald-50 text-emerald-600"
                                   : "bg-amber-50 text-amber-600"
@@ -2225,15 +2325,15 @@ export default function StaffPage() {
                             >
                               {order.wallet_settled_at
                                 ? "已入錢包"
-                                : order.status || "未發薪"}
+                                : order.status || "未入帳"}
                             </span>
                           </td>
 
                           <td data-label="發薪時間">
                             {order.wallet_settled_at
                               ? formatDateTime(order.wallet_settled_at)
-                              : order.status === "已發薪"
-                              ? "已發薪"
+                              : order.status === "已入帳"
+                              ? "已入帳"
                               : "-"}
                           </td>
                         </tr>

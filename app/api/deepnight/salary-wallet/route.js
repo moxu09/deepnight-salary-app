@@ -7,6 +7,9 @@ import {
   settleSalaryWallet,
 } from "@/lib/salaryWallet";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 const DEEPNIGHT_GUILD_ID =
   process.env.NEXT_PUBLIC_DEEPNIGHT_GUILD_ID ||
   process.env.NEXT_PUBLIC_GUILD_ID ||
@@ -167,6 +170,16 @@ export async function POST(request) {
             "目前不在提領期間，開放時間為每月 5 日 09:00 至 25 日 15:30。",
         },
         { status: 403 }
+      );
+    }
+
+    if (Number(wallet.totals.pendingRequestCount || 0) > 0) {
+      return NextResponse.json(
+        {
+          ok: false,
+          message: "目前已有一筆銀行提領等待審核，請等待該筆完成或駁回後再申請。",
+        },
+        { status: 409 }
       );
     }
 

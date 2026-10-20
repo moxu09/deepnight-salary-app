@@ -186,7 +186,7 @@ export async function POST(request) {
       reportId: saved.report_id,
       organization: saved.organization_code,
       uploadedAt: saved.uploaded_at,
-      message: "掃描報告已自動上傳 ERP",
+      message: "掃描報告已自動上傳 EIP",
     });
   } catch (error) {
     return NextResponse.json(

@@ -17,6 +17,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { fetchAllRows } from "@/lib/fetchAllRows";
 import { getDiscordIdFromSession } from "@/lib/discordSession";
 import {
   dateInputToTaipeiEndIso,
@@ -278,7 +279,6 @@ export default function AdminPayrollPage() {
   >(DEFAULT_WALLET_OPTIONS);
   const [walletManualAmount, setWalletManualAmount] = useState("");
   const [walletSendingId, setWalletSendingId] = useState<string | null>(null);
-  const [markingPaidId, setMarkingPaidId] = useState<string | null>(null);
   const [bulkWalletOpen, setBulkWalletOpen] = useState(false);
   const [bulkStartDate, setBulkStartDate] = useState(() =>
     getTaipeiMonthStartInput()
@@ -526,7 +526,7 @@ export default function AdminPayrollPage() {
       .or(DEEPNIGHT_PLAY_ORDER_FILTER)
       .or("is_deleted.eq.false,is_deleted.is.null")
       .or(PAYROLL_WALLET_FILTER)
-      .or("status.neq.已發薪,status.is.null")
+      .or("status.neq.已入帳,status.is.null")
       .order("order_finished_at", { ascending: false });
 
     if (startIso) orderQuery = orderQuery.gte("order_finished_at", startIso);
@@ -550,14 +550,14 @@ export default function AdminPayrollPage() {
           "id, discord_id, discord_name, display_name, real_name, bank_name, bank_account, is_active"
         )
         .order("created_at", { ascending: false }),
-      orderQuery,
-      bonusQuery,
-      supabase
+      fetchAllRows(orderQuery),
+      fetchAllRows(bonusQuery),
+      fetchAllRows(supabase
         .from("salary_wallet_entries")
-        .select("source_table, source_id, entry_type")
+        .select("id, source_table, source_id, entry_type")
         .eq("app_key", APP_KEY)
         .in("source_table", [ORDER_TABLE, BONUS_TABLE])
-        .limit(10000),
+      ),
     ]);
 
     if (!silent) {
@@ -848,49 +848,6 @@ export default function AdminPayrollPage() {
     }
   }
 
-  async function markStaffPaid(row: PayrollRow) {
-    const ok = confirm(
-      `確定要將「${row.staffName}」目前查詢範圍內的未發薪訂單標記為已發薪嗎？`
-    );
-    if (!ok) return;
-
-    setMarkingPaidId(row.discordId);
-    const settledAt = new Date().toISOString();
-    const orderIds = orders
-      .filter((order) => order.discord_id === row.discordId)
-      .map((order) => order.id);
-    const bonusIds = bonuses
-      .filter((bonus) => bonus.discord_id === row.discordId)
-      .map((bonus) => bonus.id);
-    const [orderResult, bonusResult] = await Promise.all([
-      orderIds.length
-        ? supabase
-            .from(ORDER_TABLE)
-            .update({ status: "已發薪", wallet_settled_at: settledAt })
-            .in("id", orderIds)
-        : Promise.resolve({ error: null }),
-      bonusIds.length
-        ? supabase
-            .from(BONUS_TABLE)
-            .update({ wallet_settled_at: settledAt })
-            .in("id", bonusIds)
-        : Promise.resolve({ error: null }),
-    ]);
-    setMarkingPaidId(null);
-
-    if (orderResult.error || bonusResult.error) {
-      console.error(
-        "mark staff paid failed:",
-        orderResult.error || bonusResult.error
-      );
-      alert("標記發薪失敗");
-      return;
-    }
-
-    alert(`已將 ${row.staffName} 的薪資項目標記為已發薪`);
-    await loadPayrollData({ silent: true });
-  }
-
   const bootEffect = useEffectEvent(boot);
 
   useEffect(() => {
@@ -922,7 +879,7 @@ export default function AdminPayrollPage() {
                 className="inline-flex items-center gap-2 text-sm font-bold text-sky-600 hover:text-sky-700"
               >
                 <ArrowLeft size={16} />
-                回 ERP 首頁
+                回 EIP 首頁
               </Link>
 
               <p className="mt-4 text-sm font-bold text-sky-600">
@@ -1171,7 +1128,7 @@ export default function AdminPayrollPage() {
             </h2>
 
             <p className="mt-1 text-sm text-slate-500">
-              預設顯示所有尚未發薪的員工；日期只在需要縮小查詢範圍時使用。2026/07/17
+              預設顯示所有尚未入帳的員工；日期只在需要縮小查詢範圍時使用。2026/07/17
               前被舊錢包標記過的資料仍會列入。
             </p>
           </div>
@@ -1241,14 +1198,6 @@ export default function AdminPayrollPage() {
                           >
                             <WalletCards size={14} />
                             發送
-                          </button>
-                          <button
-                            onClick={() => markStaffPaid(row)}
-                            disabled={markingPaidId === row.discordId}
-                            className="inline-flex items-center gap-2 rounded-full bg-emerald-500 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-600 disabled:opacity-60"
-                          >
-                            <CheckCircle2 size={14} />
-                            標記發薪
                           </button>
                         </div>
                       </td>

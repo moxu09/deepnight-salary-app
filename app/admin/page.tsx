@@ -13,6 +13,8 @@ import {
   FolderDown,
   Loader2,
   MoonStar,
+  Search,
+  ArrowUpRight,
   RefreshCw,
   Settings,
   Sparkles,
@@ -74,9 +76,16 @@ function monthLabel(value: string) {
   return year && month ? `${year} 年 ${Number(month)} 月` : "本月";
 }
 
+function adminSectionHref(organization: "deepnight" | "qiunai", section: (typeof SECTIONS)[number]["key"]) {
+  if (organization === "qiunai") return `/admin/department/qiunai/${section}`;
+  if (section === "ranking") return "/admin/salary-rank";
+  return `/admin/${section}`;
+}
+
 export default function AdminHomePage() {
   const { loading, access } = useErpAccess("deepnight");
   const owner = access?.discordId === ERP_OWNER_DISCORD_ID;
+  const [appQuery, setAppQuery] = useState("");
   const [overview, setOverview] = useState<OverviewData | null>(null);
   const [overviewLoading, setOverviewLoading] = useState(false);
   const [error, setError] = useState("");
@@ -121,32 +130,54 @@ export default function AdminHomePage() {
     return (
       <main className="flex min-h-screen items-center justify-center bg-slate-100">
         <p className="rounded-2xl bg-white px-6 py-4 text-sm font-bold text-slate-500 shadow-sm">
-          正在載入共同 ERP 後台…
+          正在載入共同 EIP 後台…
         </p>
       </main>
     );
   }
 
+  const roleSections = access.role === "customer_service"
+    ? SECTIONS.filter(({ key }) => key === "salary")
+    : access.role === "audit_reviewer"
+      ? SECTIONS.filter(({ key }) => key === "device-audit")
+      : SECTIONS;
+  const searchableApps = (owner
+    ? (["deepnight", "qiunai"] as const)
+    : (["deepnight"] as const)
+  ).flatMap((organization) => roleSections
+    .map((section) => ({
+      ...section,
+      organization,
+      href: adminSectionHref(organization, section.key),
+    })));
+  const filteredApps = searchableApps.filter((app) =>
+    !appQuery.trim() ||
+    `${app.organization === "qiunai" ? "秋奈電競" : "深夜不關燈"} ${app.label}`
+      .toLocaleLowerCase("zh-TW")
+      .includes(appQuery.trim().toLocaleLowerCase("zh-TW")),
+  );
+
   return (
     <main className="min-h-screen bg-gradient-to-br from-sky-50 via-white to-pink-50 p-5 sm:p-8">
       <div className="mx-auto max-w-6xl">
-        <section className="rounded-[32px] border border-white bg-white/90 p-7 shadow-xl shadow-slate-200/60 sm:p-10">
-          <p className="flex items-center gap-2 text-sm font-black tracking-[0.16em] text-slate-500">
+        <section className="relative overflow-hidden rounded-[30px] bg-gradient-to-r from-[#173a5c] via-[#28577b] to-[#587a98] p-7 text-white shadow-xl shadow-slate-200/60 sm:p-10">
+          <div className="pointer-events-none absolute -right-16 -top-28 h-80 w-80 rounded-full border border-white/15 shadow-[0_0_0_55px_rgba(255,255,255,0.045),0_0_0_110px_rgba(255,255,255,0.025)]" />
+          <p className="relative flex items-center gap-2 text-xs font-black tracking-[0.16em] text-sky-100/80">
             <Building2 size={18} />
-            WE ARE STILL HERE
+            WE ARE STILL HERE · MANAGER WORKSPACE
           </p>
-          <h1 className="mt-3 text-3xl font-black text-slate-900 sm:text-4xl">
-            共同 ERP 後台
+          <h1 className="relative mt-4 text-3xl font-black sm:text-4xl">
+            管理工作台
           </h1>
-          <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600">
-            不用切換部門，同一頁同時查看兩家合計與各部門資料。
+          <p className="relative mt-3 max-w-2xl text-sm leading-7 text-sky-50/80">
+            {owner ? "深夜與秋奈的營運概況、常用系統入口都集中在這裡。" : "快速進入你有權使用的管理功能。"}
           </p>
           {owner ? (
             <button
               type="button"
               onClick={() => void loadOverview()}
               disabled={overviewLoading}
-              className="mt-5 inline-flex items-center gap-2 rounded-full bg-slate-900 px-5 py-2.5 text-sm font-black text-white transition hover:bg-slate-700 disabled:opacity-50"
+              className="relative mt-5 inline-flex items-center gap-2 rounded-xl bg-white px-5 py-2.5 text-sm font-black text-[#173a5c] transition hover:bg-sky-50 disabled:opacity-50"
             >
               {overviewLoading ? (
                 <Loader2 size={16} className="animate-spin" />
@@ -156,6 +187,44 @@ export default function AdminHomePage() {
               重新整理
             </button>
           ) : null}
+        </section>
+
+        <section className="mt-6 rounded-[26px] border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/70">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <p className="text-[11px] font-black tracking-[0.16em] text-sky-600">APPLICATIONS</p>
+              <h2 className="mt-1 text-xl font-black text-slate-900">我的應用</h2>
+            </div>
+            <label className="flex min-w-[220px] items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-slate-400 focus-within:ring-2 focus-within:ring-sky-500">
+              <Search size={16} />
+              <span className="sr-only">搜尋管理功能</span>
+              <input
+                value={appQuery}
+                onChange={(event) => setAppQuery(event.target.value)}
+                placeholder="搜尋部門或功能"
+                className="w-full bg-transparent text-sm text-slate-800 outline-none"
+              />
+            </label>
+          </div>
+          <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {filteredApps.map(({ key, label, icon: Icon, organization, href }) => (
+              <Link
+                key={`${organization}-${key}`}
+                href={href}
+                className="group flex min-h-24 items-start gap-3 rounded-2xl border border-slate-200 bg-white p-4 transition hover:-translate-y-0.5 hover:border-sky-300 hover:shadow-md"
+              >
+                <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${organization === "qiunai" ? "bg-pink-50 text-pink-600" : "bg-sky-50 text-sky-600"}`}>
+                  <Icon size={20} />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <small className="text-[11px] font-bold text-slate-400">{organization === "qiunai" ? "秋奈電競" : "深夜不關燈"}</small>
+                  <strong className="mt-1 block text-sm font-black text-slate-800">{label}</strong>
+                </span>
+                <ArrowUpRight size={15} className="shrink-0 text-slate-300 transition group-hover:text-sky-600" />
+              </Link>
+            ))}
+          </div>
+          {!filteredApps.length ? <p className="mt-5 text-sm text-slate-500">找不到符合的功能。</p> : null}
         </section>
 
         {owner ? (
@@ -203,6 +272,7 @@ export default function AdminHomePage() {
             color="sky"
             loading={false}
             hideSummary
+            sections={roleSections}
           />
         )}
       </div>
@@ -256,6 +326,7 @@ function DepartmentSection({
   color,
   loading,
   hideSummary = false,
+  sections = SECTIONS,
 }: {
   organization: "deepnight" | "qiunai";
   title: string;
@@ -264,15 +335,9 @@ function DepartmentSection({
   color: "sky" | "pink";
   loading: boolean;
   hideSummary?: boolean;
+  sections?: ReadonlyArray<(typeof SECTIONS)[number]>;
 }) {
   const Icon = icon;
-  const sectionHref = (section: (typeof SECTIONS)[number]["key"]) => {
-    if (organization === "qiunai") {
-      return `/admin/department/qiunai/${section}`;
-    }
-    if (section === "ranking") return "/admin/salary-rank";
-    return `/admin/${section}`;
-  };
   const styles =
     color === "pink"
       ? "border-pink-200 bg-pink-50/70 text-pink-800"
@@ -292,10 +357,10 @@ function DepartmentSection({
       ) : null}
 
       <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-2 2xl:grid-cols-4">
-        {SECTIONS.map(({ key, label, icon: SectionIcon }) => (
+        {sections.map(({ key, label, icon: SectionIcon }) => (
           <Link
             key={key}
-            href={sectionHref(key)}
+            href={adminSectionHref(organization, key)}
             className="flex items-center gap-2 rounded-2xl border border-white/80 bg-white/90 px-3 py-3 text-xs font-black text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
           >
             <SectionIcon size={16} />

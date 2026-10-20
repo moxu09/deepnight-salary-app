@@ -8,6 +8,7 @@ import {
   signRequestAttachments,
   uploadRequestImages,
 } from "@/lib/requestAttachments";
+import { listEmployeeAnnouncements } from "@/lib/announcementSigning";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -155,7 +156,7 @@ export async function GET(request) {
     if (resignationOnly) query.eq("request_type", "離職申請書");
     const [{ data: requests, error }, { data: announcements }, salary] = await Promise.all([
       query,
-      supabaseAdmin.from("salary_announcements").select("*").in("organization_code", [ORG, "all"]).eq("is_active", true).order("created_at", { ascending: false }),
+      adminMode ? Promise.resolve({ data: [] }) : listEmployeeAnnouncements(ORG, discordId).then((data) => ({ data })),
       adminMode ? Promise.resolve(null) : priorMonthSalary(discordId, selectedMonth),
     ]);
     if (error) throw error;

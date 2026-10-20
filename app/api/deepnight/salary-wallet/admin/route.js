@@ -8,6 +8,9 @@ import {
 } from "@/lib/salaryWallet";
 import { authorizeErpRequest } from "@/lib/erpAccess";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 const DEEPNIGHT_GUILD_ID =
   process.env.NEXT_PUBLIC_DEEPNIGHT_GUILD_ID ||
   process.env.NEXT_PUBLIC_GUILD_ID ||
@@ -170,6 +173,36 @@ export async function POST(request) {
 
     if (action === "reject" && !payload.reject_reason) {
       throw new Error("駁回需要填寫理由");
+    }
+
+    if (action === "approve") {
+      await settleSalaryWallet(supabaseAdmin, walletConfig);
+      const { data: pendingRequest, error: requestError } = await supabaseAdmin
+        .from("salary_withdraw_requests")
+        .select("id, discord_id, amount")
+        .eq("id", id)
+        .eq("app_key", walletConfig.appKey)
+        .eq("status", "pending")
+        .maybeSingle();
+
+      if (requestError) throw requestError;
+      if (!pendingRequest) {
+        throw new Error("這筆提領申請已由其他管理員處理。");
+      }
+
+      const wallet = await getSalaryWalletSummary(
+        supabaseAdmin,
+        walletConfig.appKey,
+        pendingRequest.discord_id
+      );
+      const maximumForThisRequest = Math.floor(
+        Number(wallet.totals.available || 0) + Number(pendingRequest.amount || 0)
+      );
+      if (Number(pendingRequest.amount || 0) > maximumForThisRequest) {
+        throw new Error(
+          `此員工的薪資餘額已修正，目前這筆申請最多只能核准 ${maximumForThisRequest.toLocaleString("zh-TW")} 元；請先駁回，請員工重新申請。`
+        );
+      }
     }
 
     const { data: updatedRequest, error } = await supabaseAdmin

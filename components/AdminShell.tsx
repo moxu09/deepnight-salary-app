@@ -209,6 +209,9 @@ export default function AdminShell({
               <Building2 size={14} />
               兩家合併總覽
             </Link>
+            <Link href="/admin/finance-erp-installers" className={`mt-1 flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-black ${pathname === '/admin/finance-erp-installers' ? 'bg-violet-500 text-white' : 'text-slate-300 hover:bg-slate-700'}`}>
+              <FolderDown size={14} />財務 ERP 下載
+            </Link>
           </div>
         ) : null}
 

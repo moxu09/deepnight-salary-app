@@ -7,7 +7,6 @@ import {
   ArrowLeft,
   BadgeDollarSign,
   CalendarDays,
-  CheckCircle2,
   Edit3,
   Gift,
   Loader2,
@@ -20,6 +19,7 @@ import {
   WalletCards,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { fetchAllRows } from "@/lib/fetchAllRows";
 import { getDiscordIdFromSession } from "@/lib/discordSession";
 import { useErpAccess } from "@/lib/useErpAccess";
 import WorkReportReviewPanel, {
@@ -79,6 +79,7 @@ type SalaryOrder = {
   completed_at?: string | null;
   created_at?: string | null;
   is_deleted?: boolean | null;
+  wallet_settled_at?: string | null;
 };
 
 type Bonus = {
@@ -101,7 +102,6 @@ type OrderForm = {
   salary_rate: string;
   bonus_amount: string;
   order_finished_at: string;
-  status: string;
 };
 
 type BonusForm = {
@@ -117,12 +117,6 @@ type DeductionForm = {
   amount: string;
   description: string;
   created_at: string;
-};
-
-type PayForm = {
-  discord_id: string;
-  start_date: string;
-  end_date: string;
 };
 
 function getTodayInput() {
@@ -261,6 +255,19 @@ function getStaffRate(
   const openingEnd = new Date("2026-09-01T00:00:00+08:00");
   const manualRate = getManualCommissionRate(staff?.commission_tier);
 
+  if (manualRate && manualRate > 90) {
+    return manualRate;
+  }
+
+  const septemberActivityStart = new Date("2026-09-01T00:00:00+08:00");
+  const septemberActivityEnd = new Date("2026-10-01T00:00:00+08:00");
+  if (
+    finishedDate >= septemberActivityStart &&
+    finishedDate < septemberActivityEnd
+  ) {
+    return 90;
+  }
+
   if (manualRate) {
     return manualRate;
   }
@@ -332,7 +339,6 @@ export default function AdminSalaryPage() {
   const [savingBonus, setSavingBonus] = useState(false);
   const [savingDeduction, setSavingDeduction] = useState(false);
   const [deletingBonusId, setDeletingBonusId] = useState<string | null>(null);
-  const [paying, setPaying] = useState(false);
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
 
   const [orderForm, setOrderForm] = useState<OrderForm>({
@@ -344,7 +350,6 @@ export default function AdminSalaryPage() {
     salary_rate: "90",
     bonus_amount: "0",
     order_finished_at: getNowInput(),
-    status: "未發薪",
   });
 
   const [bonusForm, setBonusForm] = useState<BonusForm>({
@@ -360,12 +365,6 @@ export default function AdminSalaryPage() {
     amount: "",
     description: "",
     created_at: getNowInput(),
-  });
-
-  const [payForm, setPayForm] = useState<PayForm>({
-    discord_id: "all",
-    start_date: getMonthStartInput(),
-    end_date: getTodayInput(),
   });
 
   const filteredOrders = useMemo(() => {
@@ -440,7 +439,7 @@ export default function AdminSalaryPage() {
 
   const unpaidTotal = useMemo(() => {
     const orderUnpaid = orders
-      .filter((order) => order.status !== "已發薪")
+      .filter((order) => order.status !== "已入帳")
       .reduce(
         (sum, order) =>
           sum +
@@ -557,7 +556,7 @@ export default function AdminSalaryPage() {
       orderQuery = orderQuery.eq("discord_id", staffId);
     }
 
-    const { data: orderData, error: orderError } = await orderQuery;
+    const { data: orderData, error: orderError } = await fetchAllRows(orderQuery);
 
     if (orderError) {
       console.error("load salary orders error:", orderError);
@@ -583,7 +582,7 @@ export default function AdminSalaryPage() {
       bonusQuery = bonusQuery.eq("discord_id", staffId);
     }
 
-    const { data: bonusData, error: bonusError } = await bonusQuery;
+    const { data: bonusData, error: bonusError } = await fetchAllRows(bonusQuery);
 
     if (bonusError) {
       console.error("load bonus error:", bonusError);
@@ -648,11 +647,17 @@ export default function AdminSalaryPage() {
       salary_rate: "90",
       bonus_amount: "0",
       order_finished_at: getNowInput(),
-      status: "未發薪",
     });
   }
 
   function editOrder(order: SalaryOrder) {
+    if (order.status === "已入帳" || order.wallet_settled_at) {
+      alert(
+        "已入帳訂單不可在此修改，避免薪資來源與錢包明細不一致。請先由帳務人員建立不可變更的補差紀錄。"
+      );
+      return;
+    }
+
     setEditingOrderId(order.id);
     setOrderForm({
       discord_id: order.discord_id || "",
@@ -680,7 +685,6 @@ export default function AdminSalaryPage() {
             )
           )
         : getNowInput(),
-      status: order.status || "未發薪",
     });
 
     window.scrollTo({
@@ -745,7 +749,7 @@ export default function AdminSalaryPage() {
     setSavingOrder(true);
 
     if (editingOrderId) {
-      const { error } = await supabase
+      const { data: updatedOrder, error } = await supabase
         .from("play_orders")
         .update({
           discord_id: orderForm.discord_id,
@@ -769,11 +773,14 @@ export default function AdminSalaryPage() {
               : `${salaryRate}%`,
           platform_income: orderAmount,
           platform_expense: staffSalary + bonusAmount,
-          status: orderForm.status || "未發薪",
           order_finished_at: finishedAt,
         })
         .eq("id", editingOrderId)
-        .or(DEEPNIGHT_PLAY_ORDER_FILTER);
+        .or(DEEPNIGHT_PLAY_ORDER_FILTER)
+        .is("wallet_settled_at", null)
+        .or("status.neq.已入帳,status.is.null")
+        .select("id")
+        .maybeSingle();
 
       setSavingOrder(false);
 
@@ -784,6 +791,12 @@ export default function AdminSalaryPage() {
             (error.message || "未知錯誤") +
             "\n\n請把這段錯誤貼給我。"
         );
+        return;
+      }
+
+      if (!updatedOrder) {
+        alert("訂單已入帳或已被其他人變更，為避免帳務不一致，本次修改未套用。");
+        await loadSalaryData();
         return;
       }
 
@@ -818,7 +831,7 @@ export default function AdminSalaryPage() {
           : `${salaryRate}%`,
       platform_income: orderAmount,
       platform_expense: staffSalary + bonusAmount,
-      status: orderForm.status || "未發薪",
+      status: "未入帳",
       order_finished_at: finishedAt,
       completed_at: finishedAt,
       created_at: finishedAt,
@@ -943,32 +956,6 @@ export default function AdminSalaryPage() {
     await loadSalaryData();
   }
 
-  async function markOrderPaid(order: SalaryOrder) {
-    const ok = confirm(
-      `確定要將「${
-        order.staff_name || order.discord_id
-      }」這筆訂單標記為已發薪嗎？`
-    );
-
-    if (!ok) return;
-
-    const { error } = await supabase
-      .from("play_orders")
-      .update({
-        status: "已發薪",
-      })
-      .eq("id", order.id)
-      .or(DEEPNIGHT_PLAY_ORDER_FILTER);
-
-    if (error) {
-      console.error("mark paid error:", error);
-      alert("標記發薪失敗");
-      return;
-    }
-
-    await loadSalaryData();
-  }
-
   async function deleteOrder(order: SalaryOrder) {
     const ok = confirm("確定要刪除這筆訂單嗎？");
 
@@ -994,13 +981,14 @@ export default function AdminSalaryPage() {
   async function deleteSalaryAdjustment(bonus: Bonus) {
     const isDeduction = Number(bonus.amount || 0) < 0;
     const itemLabel = isDeduction ? "扣薪" : "獎金";
-    const settledWarning = bonus.wallet_settled_at
-      ? "\n\n這筆資料已匯入員工錢包，刪除時會同步撤銷對應的錢包明細並重新計算餘額。"
-      : "";
+    if (bonus.wallet_settled_at) {
+      alert(`這筆${itemLabel}已結算，來源與錢包明細必須保留。`);
+      return;
+    }
     const ok = confirm(
       `確定要刪除「${
         bonus.description || bonus.bonus_type || itemLabel
-      }」這筆${itemLabel}嗎？${settledWarning}`
+      }」這筆${itemLabel}嗎？`
     );
     if (!ok) return;
 
@@ -1032,56 +1020,6 @@ export default function AdminSalaryPage() {
     } finally {
       setDeletingBonusId(null);
     }
-  }
-
-  async function bulkMarkPaid() {
-    const startIso = dateToStartIso(payForm.start_date);
-    const endIso = dateToEndIso(payForm.end_date);
-
-    if (!startIso || !endIso) {
-      alert("請選擇發薪時間範圍");
-      return;
-    }
-
-    const label =
-      payForm.discord_id === "all"
-        ? "全部員工"
-        : getStaffNameByDiscordId(staffList, payForm.discord_id);
-
-    const ok = confirm(
-      `確定要將「${label}」在指定時間內的未發薪訂單全部標記為已發薪嗎？`
-    );
-
-    if (!ok) return;
-
-    setPaying(true);
-
-    let query = supabase
-      .from("play_orders")
-      .update({
-        status: "已發薪",
-      })
-      .or(DEEPNIGHT_PLAY_ORDER_FILTER)
-      .gte("order_finished_at", startIso)
-      .lte("order_finished_at", endIso)
-      .neq("status", "已發薪");
-
-    if (payForm.discord_id !== "all") {
-      query = query.eq("discord_id", payForm.discord_id);
-    }
-
-    const { error } = await query;
-
-    setPaying(false);
-
-    if (error) {
-      console.error("bulk pay error:", error);
-      alert("批次發薪失敗");
-      return;
-    }
-
-    alert("批次發薪完成");
-    await loadSalaryData();
   }
 
   async function approveWorkReport(report: WorkReport) {
@@ -1158,7 +1096,7 @@ export default function AdminSalaryPage() {
   }
 
   if (access?.role === "customer_service") {
-    return <main className="min-h-screen bg-[#eef7fd] px-5 py-6 text-slate-900"><div className="mx-auto max-w-7xl space-y-5"><header className="rounded-[30px] border border-sky-100 bg-white px-6 py-5 shadow-sm shadow-sky-100"><p className="text-sm font-bold text-sky-600">深夜不關燈 ERP｜客服</p><h1 className="mt-1 text-2xl font-black">訂單與打賞審核</h1><p className="mt-2 text-sm text-slate-500">客服帳號僅能核准或駁回待審核的訂單與打賞。</p></header><WorkReportReviewPanel appKey="deepnight" accent="sky" onApprove={approveWorkReport} reviewApiPath="/api/deepnight/work-reports/review"/></div></main>;
+    return <main className="min-h-screen bg-[#eef7fd] px-5 py-6 text-slate-900"><div className="mx-auto max-w-7xl space-y-5"><header className="rounded-[30px] border border-sky-100 bg-white px-6 py-5 shadow-sm shadow-sky-100"><p className="text-sm font-bold text-sky-600">深夜不關燈 EIP｜客服</p><h1 className="mt-1 text-2xl font-black">訂單與打賞審核</h1><p className="mt-2 text-sm text-slate-500">客服帳號僅能核准或駁回待審核的訂單與打賞。</p></header><WorkReportReviewPanel appKey="deepnight" accent="sky" onApprove={approveWorkReport} reviewApiPath="/api/deepnight/work-reports/review"/></div></main>;
   }
 
   return (
@@ -1172,11 +1110,11 @@ export default function AdminSalaryPage() {
                 className="inline-flex items-center gap-2 text-sm font-bold text-sky-600 hover:text-sky-700"
               >
                 <ArrowLeft size={16} />
-                回 ERP 首頁
+                回 EIP 首頁
               </Link>
 
               <p className="mt-4 text-sm font-bold text-sky-600">
-                DeepNight ERP
+                DeepNight EIP
               </p>
 
               <h1 className="mt-1 text-2xl font-black text-slate-900 md:text-3xl">
@@ -1210,7 +1148,7 @@ export default function AdminSalaryPage() {
           <StatCard title="總收入" value={money(totalIncome)} />
           <StatCard title="薪資支出" value={money(totalSalary)} />
           <StatCard title="獎金 / 扣除" value={money(totalBonus)} />
-          <StatCard title="未發薪" value={money(unpaidTotal)} />
+          <StatCard title="未入帳" value={money(unpaidTotal)} />
         </section>
 
         <section className="rounded-[28px] border border-sky-100 bg-white p-5 shadow-sm shadow-sky-100">
@@ -1437,20 +1375,6 @@ export default function AdminSalaryPage() {
                 />
               </Field>
 
-              <Field label="狀態">
-                <select
-                  value={orderForm.status}
-                  onChange={(event) =>
-                    updateOrderForm("status", event.target.value)
-                  }
-                >
-                  <option value="未發薪">未發薪</option>
-                  <option value="已發薪">已發薪</option>
-                  <option value="completed">completed</option>
-                  <option value="accepted">accepted</option>
-                </select>
-              </Field>
-
               <div className="flex items-end">
                 <button
                   onClick={saveOrder}
@@ -1624,65 +1548,19 @@ export default function AdminSalaryPage() {
 
             <div className="rounded-[28px] border border-sky-100 bg-white p-5 shadow-sm shadow-sky-100">
               <h2 className="flex items-center gap-2 text-lg font-black text-slate-900">
-                <CheckCircle2 size={20} className="text-sky-500" />
-                批次發薪
+                <WalletCards size={20} className="text-sky-500" />
+                發薪請至發薪模式
               </h2>
-
-              <div className="mt-5 grid gap-4 md:grid-cols-3">
-                <Field label="員工">
-                  <select
-                    value={payForm.discord_id}
-                    onChange={(event) =>
-                      setPayForm((prev) => ({
-                        ...prev,
-                        discord_id: event.target.value,
-                      }))
-                    }
-                  >
-                    <option value="all">全部員工</option>
-                    {staffList.map((staff) => (
-                      <option key={staff.id} value={staff.discord_id}>
-                        {getDisplayStaffName(staff)}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-
-                <Field label="開始">
-                  <input
-                    type="date"
-                    value={payForm.start_date}
-                    onChange={(event) =>
-                      setPayForm((prev) => ({
-                        ...prev,
-                        start_date: event.target.value,
-                      }))
-                    }
-                  />
-                </Field>
-
-                <Field label="結束">
-                  <input
-                    type="date"
-                    value={payForm.end_date}
-                    onChange={(event) =>
-                      setPayForm((prev) => ({
-                        ...prev,
-                        end_date: event.target.value,
-                      }))
-                    }
-                  />
-                </Field>
-              </div>
-
-              <button
-                onClick={bulkMarkPaid}
-                disabled={paying}
-                className="mt-5 flex w-full items-center justify-center gap-2 rounded-full bg-emerald-500 px-5 py-3 text-sm font-bold text-white hover:bg-emerald-600 disabled:opacity-60"
+              <p className="mt-3 text-sm font-semibold leading-6 text-slate-500">
+                入帳必須同時建立薪資錢包明細，不能只改訂單狀態。請使用發薪模式的單人發送或批次匯入。
+              </p>
+              <Link
+                href="/admin/payroll"
+                className="mt-5 inline-flex items-center justify-center gap-2 rounded-full bg-sky-500 px-5 py-3 text-sm font-bold text-white hover:bg-sky-600"
               >
-                <CheckCircle2 size={16} />
-                {paying ? "處理中..." : "將指定範圍標記為已發薪"}
-              </button>
+                <WalletCards size={16} />
+                前往發薪模式
+              </Link>
             </div>
           </div>
         </section>
@@ -1756,12 +1634,12 @@ export default function AdminSalaryPage() {
                       <td>
                         <span
                           className={`rounded-full px-3 py-1 text-xs font-bold ${
-                            order.status === "已發薪"
+                            order.status === "已入帳"
                               ? "bg-emerald-50 text-emerald-600"
                               : "bg-amber-50 text-amber-600"
                           }`}
                         >
-                          {order.status || "未發薪"}
+                          {order.status || "未入帳"}
                         </span>
                       </td>
                       <td>
@@ -1772,15 +1650,6 @@ export default function AdminSalaryPage() {
                           >
                             <Edit3 size={14} />
                           </button>
-
-                          {order.status !== "已發薪" ? (
-                            <button
-                              onClick={() => markOrderPaid(order)}
-                              className="rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-600 hover:bg-emerald-100"
-                            >
-                              <CheckCircle2 size={14} />
-                            </button>
-                          ) : null}
 
                           <button
                             onClick={() => deleteOrder(order)}

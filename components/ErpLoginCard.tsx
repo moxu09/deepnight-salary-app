@@ -10,6 +10,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { beginOAuth } from "@/lib/mobileOAuth";
 
 type Theme = "deepnight" | "qiunai";
 
@@ -28,17 +29,17 @@ type AuthLinkStatus = {
 
 const CONTENT = {
   deepnight: {
-    badge: "DeepNight ERP",
-    title: "深夜不關燈 ERP",
+    badge: "DeepNight EIP",
+    title: "深夜不關燈 EIP",
     description:
-      "登入後會依你的 ERP 權限顯示薪資、訂單、簽核與管理功能。",
+      "登入後會依你的 EIP 權限顯示薪資、訂單、簽核與管理功能。",
     copyright: "© 深夜不關燈 We Are Still Here",
   },
   qiunai: {
-    badge: "Qiunai Esports ERP",
-    title: "秋奈電競 ERP",
+    badge: "Qiunai Esports EIP",
+    title: "秋奈電競 EIP",
     description:
-      "登入後會依你的 ERP 權限顯示薪資、訂單、簽核與管理功能。",
+      "登入後會依你的 EIP 權限顯示薪資、訂單、簽核與管理功能。",
     copyright: "© 秋奈電競 Qiunai Esports",
   },
 } as const;
@@ -52,8 +53,8 @@ export default function ErpLoginCard({
   const content = CONTENT[organization];
   const displayContent = admin
     ? {
-        badge: "We Are Still Here ERP",
-        title: "共同 ERP 後台",
+        badge: "We Are Still Here EIP",
+        title: "共同 EIP 後台",
         description:
           "登入後會依你的權限顯示深夜不關燈與秋奈電競的部門資料。",
         copyright: "© We Are Still Here",
@@ -76,11 +77,7 @@ export default function ErpLoginCard({
       method: provider,
     });
     if (department) params.set("department", department);
-    const redirectTo = `${window.location.origin}/auth/callback?${params.toString()}`;
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider,
-      options: { redirectTo },
-    });
+    const { error } = await beginOAuth(provider, params);
 
     if (error) {
       setMessage(

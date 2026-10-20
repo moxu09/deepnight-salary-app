@@ -1,0 +1,12 @@
+node_modules
+.next
+.git
+.vercel
+.env*
+android/.gradle
+android/build
+android/app/build
+android/capacitor-*/build
+*.apk
+*.aab
+npm-debug.log*

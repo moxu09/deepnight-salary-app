@@ -127,6 +127,7 @@ export default function AccountingPage() {
   const [ledgerMissing, setLedgerMissing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [page, setPage] = useState(0);
 
   const loadReportEffect = useEffectEvent(loadReport);
 
@@ -134,7 +135,12 @@ export default function AccountingPage() {
     loadReportEffect();
   }, []);
 
-  const displayedRows = useMemo(() => rows.slice(0, 1000), [rows]);
+  const pageCount = Math.max(1, Math.ceil(rows.length / 100));
+  const currentPage = Math.min(page, pageCount - 1);
+  const displayedRows = useMemo(
+    () => rows.slice(currentPage * 100, (currentPage + 1) * 100),
+    [rows, currentPage],
+  );
 
   async function loadReport() {
     setLoading(true);
@@ -161,6 +167,7 @@ export default function AccountingPage() {
       }
 
       setRows(payload.rows || []);
+      setPage(0);
       setSummary(payload.summary || emptySummary);
       setLedgerMissing(Boolean(payload.ledgerMissing));
     } catch (err: unknown) {
@@ -350,6 +357,11 @@ export default function AccountingPage() {
               </tbody>
             </table>
           </div>
+          <nav aria-label="會計明細分頁" className="flex items-center justify-between gap-3 border-t px-6 py-4 text-sm">
+            <button type="button" disabled={loading || currentPage === 0} onClick={() => setPage(currentPage - 1)} className="rounded-xl border px-4 py-2 disabled:opacity-40">上一頁</button>
+            <span>第 {currentPage + 1} / {pageCount} 頁，共 {rows.length.toLocaleString("zh-TW")} 筆；統計與匯出包含全部資料</span>
+            <button type="button" disabled={loading || currentPage + 1 >= pageCount} onClick={() => setPage(currentPage + 1)} className="rounded-xl border px-4 py-2 disabled:opacity-40">下一頁</button>
+          </nav>
         </section>
       </div>
     </main>

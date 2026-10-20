@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { fetchAllRows } from "@/lib/fetchAllRows";
 import {
   authorizeErpRequest,
   erpErrorResponse,
@@ -15,20 +16,6 @@ const DEEPNIGHT_GUILD_ID =
   "1501098191813214312";
 const SALARY_WALLET_START_DATE =
   process.env.SALARY_WALLET_START_DATE || "2026-07-17";
-const PAGE_SIZE = 1000;
-
-async function loadAllPages(buildQuery) {
-  const rows = [];
-
-  for (let from = 0; ; from += PAGE_SIZE) {
-    const { data, error } = await buildQuery(from, from + PAGE_SIZE - 1);
-    if (error) return { data: rows, error };
-
-    const page = data || [];
-    rows.push(...page);
-    if (page.length < PAGE_SIZE) return { data: rows, error: null };
-  }
-}
 
 function taipeiMonthRange() {
   const monthKey = new Intl.DateTimeFormat("en-CA", {
@@ -164,7 +151,7 @@ export async function GET(request) {
         .from("qiunai_staff")
         .select("id", { count: "exact", head: true })
         .eq("is_active", true),
-      supabaseAdmin
+      fetchAllRows(supabaseAdmin
         .from("play_orders")
         .select(
           "order_amount, price, staff_salary, bonus_amount, status, order_finished_at, wallet_settled_at",
@@ -172,34 +159,34 @@ export async function GET(request) {
         .or(`guild_id.eq.${DEEPNIGHT_GUILD_ID},guild_id.is.null`)
         .or("is_deleted.eq.false,is_deleted.is.null")
         .gte("order_finished_at", range.start)
-        .lt("order_finished_at", range.end),
-      supabaseAdmin
+        .lt("order_finished_at", range.end)),
+      fetchAllRows(supabaseAdmin
         .from("qiunai_salary_orders")
         .select(
           "order_amount, staff_salary, bonus_amount, status, order_finished_at, wallet_settled_at",
         )
         .or("is_deleted.eq.false,is_deleted.is.null")
         .gte("order_finished_at", range.start)
-        .lt("order_finished_at", range.end),
-      supabaseAdmin
+        .lt("order_finished_at", range.end)),
+      fetchAllRows(supabaseAdmin
         .from("players_bonus")
         .select("amount, created_at, wallet_settled_at")
         .gte("created_at", range.start)
-        .lt("created_at", range.end),
-      supabaseAdmin
+        .lt("created_at", range.end)),
+      fetchAllRows(supabaseAdmin
         .from("qiunai_staff_bonus")
         .select("amount, created_at, wallet_settled_at")
         .gte("created_at", range.start)
-        .lt("created_at", range.end),
-      loadAllPages((from, to) =>
+        .lt("created_at", range.end)),
+      fetchAllRows(
         supabaseAdmin
           .from("salary_wallet_entries")
           .select("app_key, amount")
           .in("app_key", ["deepnight", "qiunai"])
           .gte("settlement_date", SALARY_WALLET_START_DATE)
-          .range(from, to),
+          .order("id", { ascending: true }),
       ),
-      loadAllPages((from, to) =>
+      fetchAllRows(
         supabaseAdmin
           .from("salary_withdraw_requests")
           .select("app_key, amount, status")
@@ -209,7 +196,7 @@ export async function GET(request) {
             "requested_at",
             `${SALARY_WALLET_START_DATE}T00:00:00+08:00`,
           )
-          .range(from, to),
+          .order("id", { ascending: true }),
       ),
     ]);
 
@@ -234,7 +221,7 @@ export async function GET(request) {
       deepnightStaff.count,
       deepnightOrders.data,
       deepnightBonuses.data,
-      "已發薪",
+      "已入帳",
       unwithdrawn.deepnight,
     );
     const qiunai = summarize(

@@ -28,8 +28,8 @@ function isRankedOrder(order) {
   return (
     status === "completed" ||
     status === "已完成" ||
-    status === "未發薪" ||
-    status === "已發薪" ||
+    status === "未入帳" ||
+    status === "已入帳" ||
     Number(order.staff_salary || 0) > 0
   );
 }

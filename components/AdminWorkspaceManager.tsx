@@ -48,6 +48,7 @@ export default function AdminWorkspaceManager({ organization }: { organization: 
   const [actorRole, setActorRole] = useState("");
   const [hrPending, setHrPending] = useState<number | null>(null);
   const [workspaceSummary, setWorkspaceSummary] = useState({ upcomingEvents: 0, publishedDocuments: 0, activeTemplates: 0 });
+  const [snapshotTime, setSnapshotTime] = useState(0);
   const [requestPagination, setRequestPagination] = useState({ page: 1, pageSize: 25, total: 0 });
   const [decisionTarget, setDecisionTarget] = useState<{ id: string; status: "approved" | "rejected" } | null>(null);
   const [decisionNote, setDecisionNote] = useState("");
@@ -80,6 +81,7 @@ export default function AdminWorkspaceManager({ organization }: { organization: 
       setWorkflowStagesEnabled(result.workflowStagesEnabled === true);
       setActorRole(String(result.actorRole || ""));
       setWorkspaceSummary(result.workspaceSummary || { upcomingEvents: 0, publishedDocuments: 0, activeTemplates: 0 });
+      setSnapshotTime(Date.now());
       setRequestPagination(result.requestPagination || { page: 1, pageSize: 25, total: 0 });
       const notificationResponse = await fetch(`/api/${organization}/admin-notifications`, {
         cache: "no-store", headers: { Authorization: `Bearer ${auth.session.access_token}` },
@@ -224,7 +226,7 @@ export default function AdminWorkspaceManager({ organization }: { organization: 
   }
   const fields = (form.fields || []) as Field[];
   const totalPages = Math.max(1, Math.ceil(requestPagination.total / requestPagination.pageSize));
-  const upcomingEvents = data.events.filter((item) => Boolean(item.is_published) && new Date(String(item.ends_at)).getTime() >= Date.now());
+  const upcomingEvents = data.events.filter((item) => Boolean(item.is_published) && new Date(String(item.ends_at)).getTime() >= snapshotTime);
   return <main className="eip-admin-workspace">
     <div className="eip-collab-hero"><div><p className="eip-collab-eyebrow">TEAM OPERATIONS</p><h1>協作工作台</h1><p>從待辦簽核到日程、文件和流程設定，前後台同步處理。</p></div><button className="eip-collab-refresh" onClick={() => void refresh()}>重新整理</button></div>
     {error ? <p className="eip-collab-alert" role="alert">{error}</p> : null}
@@ -315,7 +317,7 @@ export default function AdminWorkspaceManager({ organization }: { organization: 
         const canAct = !workflowStagesEnabled || (stepRole === "owner" ? actorRole === "super_admin" : steps.length === 2 ? actorRole === "store_manager" : actorRole === "store_manager" || actorRole === "super_admin");
         const values = item.form_data && typeof item.form_data === "object" ? Object.entries(item.form_data as Record<string, unknown>) : [];
         return <article className="eip-collab-admin-item" key={item.id}>
-          <span>{String(item.created_at || "").slice(0, 16).replace("T", " ")} · {String(item.status === "pending" ? (Date.now() - new Date(String(item.created_at)).getTime() >= workflowTargetHours * 3600000 ? `超過 ${workflowTargetHours} 小時未處理` : "待簽核") : item.status === "approved" ? "已核准" : "已退回")}</span>
+          <span>{String(item.created_at || "").slice(0, 16).replace("T", " ")} · {String(item.status === "pending" ? (snapshotTime - new Date(String(item.created_at)).getTime() >= workflowTargetHours * 3600000 ? `超過 ${workflowTargetHours} 小時未處理` : "待簽核") : item.status === "approved" ? "已核准" : "已退回")}</span>
           <strong>{String(template?.name || "流程申請")} · {String(item.applicant_name || "")}</strong>
           {workflowStagesEnabled && steps.length === 2 ? <p>第 {currentStep + 1}／2 關：{stepRole === "manager" ? "店經理初審" : "最高管理員複審"}{item.first_approved_by ? ` · 初審人 ${String(item.first_approved_by)}` : ""}</p> : null}
           <div className="eip-collab-answers">{values.map(([key, value]) => <p key={key}><b>{String((template?.fields as Field[] || []).find((field) => field.key === key)?.label || key)}：</b>{String(value)}</p>)}</div>

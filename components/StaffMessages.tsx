@@ -79,35 +79,33 @@ export default function StaffMessages({ organization, myDiscordId, open, onOpenC
   const loadContacts = useCallback(async (silent = false) => {
     try {
       const payload = await authorizedFetch(apiPath);
-      setContacts(Array.isArray(payload.contacts) ? payload.contacts : []);
+      const nextContacts: Contact[] = Array.isArray(payload.contacts) ? payload.contacts : [];
+      setContacts(nextContacts);
+      const url = new URL(window.location.href);
+      const peerId = url.searchParams.get("chat");
+      if (peerId && nextContacts.some((contact) => contact.discordId === peerId)) {
+        currentPeerRef.current = peerId;
+        initialScrollRef.current = true;
+        setSelectedPeerId(peerId);
+        setLoadingThread(true);
+        onOpenChange(true);
+        url.searchParams.delete("chat");
+        url.searchParams.delete("notice");
+        window.history.replaceState(window.history.state, "", url.toString());
+      }
       setError("");
     } catch (cause) {
       if (!silent) setError(cause instanceof Error ? cause.message : "讀取通訊錄失敗");
     } finally {
       setLoadingContacts(false);
     }
-  }, [apiPath, authorizedFetch]);
+  }, [apiPath, authorizedFetch, onOpenChange]);
 
   useEffect(() => {
     void Promise.resolve().then(() => loadContacts());
     const timer = window.setInterval(() => { void loadContacts(true); }, 15000);
     return () => window.clearInterval(timer);
   }, [loadContacts]);
-
-  useEffect(() => {
-    if (!contacts.length) return;
-    const url = new URL(window.location.href);
-    const peerId = url.searchParams.get("chat");
-    if (!peerId || !contacts.some((contact) => contact.discordId === peerId)) return;
-    currentPeerRef.current = peerId;
-    initialScrollRef.current = true;
-    setSelectedPeerId(peerId);
-    setLoadingThread(true);
-    onOpenChange(true);
-    url.searchParams.delete("chat");
-    url.searchParams.delete("notice");
-    window.history.replaceState(window.history.state, "", url.toString());
-  }, [contacts, onOpenChange]);
 
   useEffect(() => {
     if (!selectedPeerId || !open) return;

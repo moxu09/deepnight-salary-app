@@ -13,6 +13,7 @@ import {
   Trophy,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { fetchAllRows } from "@/lib/fetchAllRows";
 import { getDiscordIdFromSession } from "@/lib/discordSession";
 import StaffAvatar from "@/components/StaffAvatar";
 import {
@@ -127,8 +128,8 @@ function isSalaryOrder(order: SalaryOrder) {
   return (
     status === "completed" ||
     status === "已完成" ||
-    status === "未發薪" ||
-    status === "已發薪" ||
+    status === "未入帳" ||
+    status === "已入帳" ||
     Number(order.staff_salary || 0) > 0
   );
 }
@@ -166,7 +167,7 @@ export default function SalaryRankPage() {
   const [bonuses, setBonuses] = useState<Bonus[]>([]);
   const [servicePoints, setServicePoints] = useState<Record<string, number>>({});
   const [keyword, setKeyword] = useState("");
-  const [sortMode, setSortMode] = useState("salary_desc");
+  const [sortMode, setSortMode] = useState("order_salary_desc");
   const [startDate, setStartDate] = useState(getMonthStartInput());
   const [endDate, setEndDate] = useState(getTodayInput());
 
@@ -216,7 +217,7 @@ export default function SalaryRankPage() {
 
       const unpaidSalary =
         staffOrders
-          .filter((order) => order.status !== "已發薪")
+          .filter((order) => order.status !== "已入帳")
           .reduce(
             (sum, order) =>
               sum +
@@ -255,8 +256,33 @@ export default function SalaryRankPage() {
       });
     }
 
+    if (sortMode === "order_salary_desc") {
+      result.sort(
+        (a, b) =>
+          b.orderSalary - a.orderSalary ||
+          b.totalSalary - a.totalSalary ||
+          b.orderAmount - a.orderAmount ||
+          getDisplayName(a.staff).localeCompare(getDisplayName(b.staff))
+      );
+    }
+
+    if (sortMode === "order_salary_asc") {
+      result.sort(
+        (a, b) =>
+          a.orderSalary - b.orderSalary ||
+          a.totalSalary - b.totalSalary ||
+          a.orderAmount - b.orderAmount ||
+          getDisplayName(a.staff).localeCompare(getDisplayName(b.staff))
+      );
+    }
+
     if (sortMode === "salary_desc") {
-      result.sort((a, b) => b.totalSalary - a.totalSalary);
+      result.sort(
+        (a, b) =>
+          b.totalSalary - a.totalSalary ||
+          b.orderSalary - a.orderSalary ||
+          getDisplayName(a.staff).localeCompare(getDisplayName(b.staff))
+      );
     }
 
     if (sortMode === "salary_asc") {
@@ -390,19 +416,19 @@ export default function SalaryRankPage() {
         )
         .order("created_at", { ascending: false }),
 
-      supabase
+      fetchAllRows(supabase
         .from("play_orders")
         .select(
           "id, discord_id, staff_name, order_amount, price, staff_salary, bonus_amount, status, order_finished_at, completed_at, created_at, is_deleted"
         )
         .or(DEEPNIGHT_PLAY_ORDER_FILTER)
         .or("is_deleted.eq.false,is_deleted.is.null")
-        .order("order_finished_at", { ascending: false }),
+        .order("order_finished_at", { ascending: false })),
 
-      supabase
+      fetchAllRows(supabase
         .from("players_bonus")
         .select("id, discord_id, amount, created_at")
-        .order("created_at", { ascending: false }),
+        .order("created_at", { ascending: false })),
       fetch(`/api/deepnight/customer-service-points?${pointParams}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         cache: "no-store",
@@ -473,11 +499,11 @@ export default function SalaryRankPage() {
                 className="inline-flex items-center gap-2 text-sm font-bold text-sky-600 hover:text-sky-700"
               >
                 <ArrowLeft size={16} />
-                回 ERP 首頁
+                回 EIP 首頁
               </Link>
 
               <p className="mt-4 text-sm font-bold text-sky-600">
-                DeepNight ERP
+                DeepNight EIP
               </p>
 
               <h1 className="mt-1 text-2xl font-black text-slate-900 md:text-3xl">
@@ -485,7 +511,7 @@ export default function SalaryRankPage() {
               </h1>
 
               <p className="mt-2 text-sm text-slate-500">
-                查看每位員工指定時間內的薪水，並依薪資升冪或降冪排序。
+                查看每位員工指定時間內的薪水，預設依訂單薪資由高到低排序。
               </p>
             </div>
 
@@ -529,6 +555,8 @@ export default function SalaryRankPage() {
                 value={sortMode}
                 onChange={(event) => setSortMode(event.target.value)}
               >
+                <option value="order_salary_desc">訂單薪資降冪：高到低</option>
+                <option value="order_salary_asc">訂單薪資升冪：低到高</option>
                 <option value="salary_desc">薪水降冪：高到低</option>
                 <option value="salary_asc">薪水升冪：低到高</option>
                 <option value="order_amount_desc">接單金額降冪</option>
@@ -603,7 +631,7 @@ export default function SalaryRankPage() {
                     <th>訂單獎金</th>
                     <th>額外獎金</th>
                     <th>總薪水</th>
-                    <th>未發薪</th>
+                    <th>未入帳</th>
                   </tr>
                 </thead>
 
@@ -674,7 +702,7 @@ export default function SalaryRankPage() {
                       </td>
 
                       <td
-                        data-label="未發薪"
+                        data-label="未入帳"
                         className="font-bold text-amber-600"
                       >
                         {money(row.unpaidSalary)}

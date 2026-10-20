@@ -15,14 +15,14 @@ const localeOptions: Array<{ value: Locale; label: string; shortLabel: string }>
 ];
 
 const phrases: Record<string, Translation> = {
-  "深夜不關燈 ERP": { en: "We Are Still Here ERP", ja: "深夜不關燈 ERP", ko: "심야불관등 ERP" },
-  "秋奈電競陪玩 ERP": { en: "Qiunai Esports ERP", ja: "秋奈eスポーツ ERP", ko: "치우나이 e스포츠 ERP" },
+  "深夜不關燈 EIP": { en: "We Are Still Here EIP", ja: "深夜不關燈 EIP", ko: "심야불관등 EIP" },
+  "秋奈電競陪玩 EIP": { en: "Qiunai Esports EIP", ja: "秋奈eスポーツ EIP", ko: "치우나이 e스포츠 EIP" },
   "歡迎使用": { en: "Welcome to", ja: "ようこそ", ko: "환영합니다" },
   "員工入口": { en: "Employee Portal", ja: "従業員ポータル", ko: "직원 포털" },
-  "登入後會依你的 ERP 權限顯示薪資、訂單、簽核與管理功能。": {
-    en: "After signing in, payroll, orders, approvals and management tools are shown according to your ERP access.",
-    ja: "ログイン後、ERP権限に応じて給与、注文、承認、管理機能が表示されます。",
-    ko: "로그인 후 ERP 권한에 따라 급여, 주문, 결재 및 관리 기능이 표시됩니다.",
+  "登入後會依你的 EIP 權限顯示薪資、訂單、簽核與管理功能。": {
+    en: "After signing in, payroll, orders, approvals and management tools are shown according to your EIP access.",
+    ja: "ログイン後、EIP権限に応じて給与、注文、承認、管理機能が表示されます。",
+    ko: "로그인 후 EIP 권한에 따라 급여, 주문, 결재 및 관리 기능이 표시됩니다.",
   },
   "第一次登入一定要使用 Discord。完成第一次登入並主動連結後，才可使用 Google（Gmail）或電子郵件密碼登入。": {
     en: "Your first sign-in must use Discord. After linking an account, you may use Google (Gmail) or email and password.",
@@ -124,8 +124,8 @@ const phrases: Record<string, Translation> = {
   "使用的薪水": { en: "Paid Out", ja: "支給済み", ko: "지급 완료" },
   "總收入": { en: "Total Income", ja: "総収入", ko: "총수입" },
   "薪資支出": { en: "Payroll Expense", ja: "給与支出", ko: "급여 지출" },
-  "未發薪": { en: "Unpaid", ja: "未払い", ko: "미지급" },
-  "已發薪": { en: "Paid", ja: "支給済み", ko: "지급 완료" },
+  "未入帳": { en: "Unpaid", ja: "未払い", ko: "미지급" },
+  "已入帳": { en: "Paid", ja: "支給済み", ko: "지급 완료" },
   "新增訂單": { en: "Add Order", ja: "注文を追加", ko: "주문 추가" },
   "新增獎金": { en: "Add Bonus", ja: "賞与を追加", ko: "보너스 추가" },
   "新增薪水扣除": { en: "Add Deduction", ja: "給与控除を追加", ko: "급여 공제 추가" },

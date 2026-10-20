@@ -701,11 +701,11 @@ export default function AdminStaffPage() {
                 className="inline-flex items-center gap-2 text-sm font-bold text-sky-600 hover:text-sky-700"
               >
                 <ArrowLeft size={16} />
-                回 ERP 首頁
+                回 EIP 首頁
               </Link>
 
               <p className="mt-4 text-sm font-bold text-sky-600">
-                DeepNight ERP
+                DeepNight EIP
               </p>
 
               <h1 className="mt-1 text-2xl font-black text-slate-900 md:text-3xl">
@@ -933,7 +933,7 @@ export default function AdminStaffPage() {
                       onChange={(event) =>
                         updateForm("display_name", event.target.value)
                       }
-                      placeholder="顯示於 ERP"
+                      placeholder="顯示於 EIP"
                     />
                   </Field>
 

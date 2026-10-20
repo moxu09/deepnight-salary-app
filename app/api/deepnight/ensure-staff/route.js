@@ -4,6 +4,11 @@ import {
   getDiscordIdFromUser,
   getDiscordProfileFromUser,
 } from "@/lib/erpAuthLinks";
+import {
+  activateSignedProfile,
+  getLegacyStaffProfile,
+  getPendingSignedProfile,
+} from "@/lib/employmentSigning";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -73,6 +78,11 @@ async function handler(request) {
       process.env.DEEPNIGHT_STAFF_ROLE_ID ||
       process.env.STAFF_ROLE_IDS ||
       process.env.STAFF_ROLE_ID
+  );
+
+  const directAccessDiscordIds = splitIds(
+    process.env.DEEPNIGHT_EIP_ACCESS_DISCORD_IDS ||
+      process.env.EIP_ACCESS_DISCORD_IDS
   );
 
   if (!supabaseUrl || !serviceRoleKey) {
@@ -182,11 +192,13 @@ async function handler(request) {
     memberRoles.includes(roleId)
   );
 
-  if (!hasStaffRole) {
+  const hasDirectAccess = directAccessDiscordIds.includes(discordId);
+
+  if (!hasStaffRole && !hasDirectAccess) {
     return json(
       {
         ok: false,
-        message: "你沒有 DeepNight 員工身分組，無法登入員工端。",
+        message: "你沒有 DeepNight 員工身分組或 EIP 直接存取權限，無法登入員工端。",
         discord_id: discordId,
         your_roles: memberRoles,
         required_roles: staffRoleIds,
@@ -247,6 +259,8 @@ async function handler(request) {
   }
 
   let staff = null;
+  let signedProfile = null;
+  let legacyProfile = null;
 
   if (existingRows && existingRows.length > 0) {
     if (existingRows[0].is_active === false) {
@@ -279,12 +293,32 @@ async function handler(request) {
     }
 
     staff = data;
+    signedProfile = await getPendingSignedProfile("deepnight", discordId);
   } else {
+    signedProfile = await getPendingSignedProfile("deepnight", discordId);
+    if (!signedProfile) {
+      legacyProfile = await getLegacyStaffProfile(discordId);
+    }
+    if (!signedProfile && !legacyProfile) {
+      return json(
+        {
+          ok: false,
+          message: "尚未完成入職契約簽署，請先使用面試通過私訊中的連結完成簽署。",
+        },
+        403
+      );
+    }
+    const onboarding =
+      signedProfile?.form_data || legacyProfile?.form_data || {};
     const { data, error } = await supabaseAdmin
       .from("players")
       .insert({
         ...updatePayload,
-        real_name: null,
+        real_name: onboarding.real_name || null,
+        gender: onboarding.gender || null,
+        birthday: onboarding.birthday || null,
+        bank_name: onboarding.bank_name || null,
+        bank_account: onboarding.bank_account || null,
         is_online: false,
         commission_tier: "auto",
         commission_note: null,
@@ -308,10 +342,15 @@ async function handler(request) {
     staff = data;
   }
 
+  if (signedProfile?.id) {
+    await activateSignedProfile(signedProfile.id);
+  }
+
   return json({
     ok: true,
     message: "員工身分驗證成功。",
     discord_id: discordId,
+    direct_access: hasDirectAccess,
     fallback_mode: false,
     staff,
     player: staff,

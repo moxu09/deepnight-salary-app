@@ -4,6 +4,7 @@ import {
   authorizeErpRequest,
   erpErrorResponse,
 } from "@/lib/erpAccess";
+import { getAuthUserFromRequest } from "@/lib/salaryWallet";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -11,16 +12,75 @@ export const dynamic = "force-dynamic";
 const ORGANIZATION = "deepnight";
 const STAFF_TABLE = "players";
 
+function optionalText(value, maxLength) {
+  const text = String(value ?? "").trim();
+  return text ? text.slice(0, maxLength) : null;
+}
+
+function selfServicePatch(action, body) {
+  if (action === "update-profile") {
+    const profile = body.profile && typeof body.profile === "object"
+      ? body.profile
+      : {};
+    const birthday = optionalText(profile.birthday, 10);
+    if (birthday && !/^\d{4}-\d{2}-\d{2}$/.test(birthday)) {
+      throw new Error("生日格式錯誤");
+    }
+    return {
+      display_name: optionalText(profile.displayName, 100),
+      avatar_url: optionalText(profile.avatarUrl, 1000),
+      real_name: optionalText(profile.realName, 100),
+      gender: optionalText(profile.gender, 30),
+      birthday,
+      bank_name: optionalText(profile.bankName, 100),
+      bank_account: optionalText(profile.bankAccount, 100),
+    };
+  }
+  if (action === "set-online") {
+    if (typeof body.isOnline !== "boolean") {
+      throw new Error("上線狀態格式錯誤");
+    }
+    return { is_online: body.isOnline };
+  }
+  if (action === "set-services") {
+    if (!Array.isArray(body.allowedServices) || body.allowedServices.length > 50) {
+      throw new Error("可接服務格式錯誤");
+    }
+    return {
+      allowed_services: Array.from(new Set(
+        body.allowedServices
+          .map((value) => optionalText(value, 100))
+          .filter(Boolean),
+      )),
+    };
+  }
+  return null;
+}
+
 export async function PATCH(request) {
   try {
+    const body = await request.json().catch(() => ({}));
+    const action = String(body.action || "").trim();
+    const ownPatch = selfServicePatch(action, body);
+
+    if (ownPatch) {
+      const auth = await getAuthUserFromRequest(supabaseAdmin, request);
+      const { data: staff, error } = await supabaseAdmin
+        .from(STAFF_TABLE)
+        .update({ ...ownPatch, updated_at: new Date().toISOString() })
+        .eq("discord_id", auth.discordId)
+        .select("*")
+        .single();
+      if (error) throw error;
+      return NextResponse.json({ ok: true, staff });
+    }
+
     await authorizeErpRequest(
       supabaseAdmin,
       request,
       ORGANIZATION,
       "canViewAllAdmin",
     );
-    const body = await request.json().catch(() => ({}));
-    const action = String(body.action || "").trim();
     const staffId = String(body.staffId || "").trim();
     const discordId = String(body.discordId || "").trim();
     if (!["archive", "restore"].includes(action)) {
@@ -92,6 +152,6 @@ export async function PATCH(request) {
       },
     });
   } catch (error) {
-    return erpErrorResponse(error, "更新員工封存狀態失敗");
+    return erpErrorResponse(error, "更新員工資料失敗");
   }
 }

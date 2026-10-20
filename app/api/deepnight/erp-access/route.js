@@ -68,7 +68,7 @@ async function mutateAccount(request) {
   const discordId = String(body.discordId || "").trim();
   const displayName = String(body.displayName || "").trim().slice(0, 100);
   const requestedRole = String(body.role || "").trim();
-  if (!ERP_ROLES.includes(requestedRole)) throw new Error("ERP 權限層級不正確");
+  if (!ERP_ROLES.includes(requestedRole)) throw new Error("EIP 權限層級不正確");
   const role = normalizeErpRole(requestedRole);
   if (!/^\d{15,22}$/.test(discordId)) throw new Error("請輸入正確的 Discord 帳號 ID");
   if (discordId === actor.discordId) throw new Error("為避免鎖住後台，不能變更自己目前的權限");
@@ -81,7 +81,7 @@ async function mutateAccount(request) {
     .maybeSingle();
   if (existingError) throw existingError;
   if (existing && !canManageTargetRole(actor.role, existing.role)) throw new Error("你不能變更同階或更高階帳號");
-  if (!canManageTargetRole(actor.role, role)) throw new Error("你不能指派這個 ERP 權限層級");
+  if (!canManageTargetRole(actor.role, role)) throw new Error("你不能指派這個 EIP 權限層級");
 
   const now = new Date().toISOString();
   const { data, error } = await supabaseAdmin.from("erp_role_assignments").upsert({
@@ -121,7 +121,7 @@ export async function POST(request) {
     const { account } = await mutateAccount(request);
     return NextResponse.json({ ok: true, account });
   } catch (error) {
-    return erpErrorResponse(error, "新增 ERP 帳號失敗");
+    return erpErrorResponse(error, "新增 EIP 帳號失敗");
   }
 }
 
@@ -130,6 +130,6 @@ export async function PATCH(request) {
     const { account } = await mutateAccount(request);
     return NextResponse.json({ ok: true, account });
   } catch (error) {
-    return erpErrorResponse(error, "更新 ERP 權限失敗");
+    return erpErrorResponse(error, "更新 EIP 權限失敗");
   }
 }

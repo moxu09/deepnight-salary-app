@@ -8,16 +8,6 @@ export const dynamic = "force-dynamic";
 const ORGANIZATION = "deepnight";
 const ADJUSTMENT_TABLE = "players_bonus";
 
-async function restoreAdjustment(adjustment) {
-  const { error } = await supabaseAdmin
-    .from(ADJUSTMENT_TABLE)
-    .upsert(adjustment, { onConflict: "id" });
-
-  if (error) {
-    console.error("[deepnight salary adjustments] rollback failed", error);
-  }
-}
-
 export async function DELETE(request) {
   try {
     const actor = await authorizeErpRequest(
@@ -41,32 +31,44 @@ export async function DELETE(request) {
       error.status = 404;
       throw error;
     }
+    const { data: walletEntry, error: walletReadError } = await supabaseAdmin
+      .from("salary_wallet_entries")
+      .select("id")
+      .eq("app_key", ORGANIZATION)
+      .eq("source_table", ADJUSTMENT_TABLE)
+      .eq("source_id", id)
+      .eq("entry_type", "staff_bonus")
+      .limit(1)
+      .maybeSingle();
+    if (walletReadError) throw walletReadError;
 
-    const { error: deleteError } = await supabaseAdmin
+    if (adjustment.wallet_settled_at || walletEntry) {
+      const error = new Error(
+        "這筆獎金或扣薪已結算，來源與錢包明細必須保留"
+      );
+      error.status = 409;
+      throw error;
+    }
+
+    const { error: deleteError, count: deletedCount } = await supabaseAdmin
       .from(ADJUSTMENT_TABLE)
-      .delete()
-      .eq("id", id);
+      .delete({ count: "exact" })
+      .eq("id", id)
+      .is("wallet_settled_at", null);
     if (deleteError) throw deleteError;
-
-    const { error: walletError, count: walletEntriesRemoved } =
-      await supabaseAdmin
-        .from("salary_wallet_entries")
-        .delete({ count: "exact" })
-        .eq("app_key", ORGANIZATION)
-        .eq("source_table", ADJUSTMENT_TABLE)
-        .eq("source_id", id)
-        .eq("entry_type", "staff_bonus");
-
-    if (walletError) {
-      await restoreAdjustment(adjustment);
-      throw new Error("刪除失敗，原資料已保留，請稍後再試");
+    if (deletedCount !== 1) {
+      const error = new Error(
+        "刪除前資料已被結算或變更，已停止刪除"
+      );
+      error.status = 409;
+      throw error;
     }
 
     return NextResponse.json({
       ok: true,
       deletedId: id,
       deletedBy: actor.discordId,
-      walletEntriesRemoved: walletEntriesRemoved || 0,
+      walletEntriesRemoved: 0,
     });
   } catch (error) {
     console.error("[deepnight salary adjustments] delete failed", error);
