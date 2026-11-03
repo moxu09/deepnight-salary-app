@@ -63,7 +63,7 @@ export async function GET(request) {
 
     const { data, error } = await supabaseAdmin
       .from("salary_withdraw_requests")
-      .select("*")
+      .select("*,payout_bank:hr_bank_payout_details(bank_name,bank_account,bank_holder)")
       .eq("app_key", walletConfig.appKey)
       .gte("requested_at", SALARY_WALLET_START_ISO)
       .order("requested_at", { ascending: false });
