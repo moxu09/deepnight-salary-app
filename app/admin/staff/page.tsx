@@ -127,12 +127,18 @@ export default function AdminStaffPage() {
 
     if (key) {
       list = list.filter((staff) => {
+        const percentage = key.match(/^(80|85|90|95)%?$/)?.[1];
+        if (percentage) {
+          return (staff.commission_tier || "auto") ===
+            (percentage === "95" ? "manager_95" : `rate_${percentage}`);
+        }
         const text = [
           staff.discord_id,
           staff.discord_name,
           staff.display_name,
           staff.real_name,
           staff.salary_channel_id,
+          staff.commission_tier,
           getCommissionTierLabel(staff.commission_tier),
         ]
           .filter(Boolean)
@@ -330,11 +336,9 @@ export default function AdminStaffPage() {
     alert("本月金榜陪陪已更新");
   }
 
-  async function selectStaff(staff: Staff) {
+  function selectStaff(staff: Staff) {
     setSelectedStaff(staff);
     setForm(makeForm(staff));
-
-
   }
 
   function updateForm<K extends keyof StaffForm>(key: K, value: StaffForm[K]) {
@@ -474,7 +478,7 @@ export default function AdminStaffPage() {
         nextStaffList.find((staff) => staff.is_active !== false) || null;
       setSelectedStaff(nextStaff);
       setForm(makeForm(nextStaff));
-      if (nextStaff) await selectStaff(nextStaff);
+      if (nextStaff) selectStaff(nextStaff);
       alert(`已封存員工「${name}」`);
       return;
     }
@@ -561,7 +565,7 @@ export default function AdminStaffPage() {
                 本月金榜陪陪
               </h2>
               <p className="mt-1 text-sm text-slate-500">
-                可複選；已選 {featuredIds.length} 人。儲存後這些陪陪會優先顯示在官網。
+                可複選；儲存後這些陪陪會優先顯示在官網。
               </p>
             </div>
             <button onClick={saveFeatured} disabled={featuredSaving} className="rounded-full bg-violet-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-violet-700 disabled:opacity-60">
@@ -638,7 +642,7 @@ export default function AdminStaffPage() {
                     setShowArchived((current) => !current);
                     setSelectedStaff(null);
                     setForm(makeForm(null));
-                                }}
+                  }}
                   className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-sky-200 bg-white px-3 py-2 text-sm font-bold text-sky-600 transition hover:bg-sky-50"
                 >
                   {showArchived ? (
