@@ -6,8 +6,6 @@ import { supabase } from "@/lib/supabase";
 import { getDiscordIdFromSession } from "@/lib/discordSession";
 import {
   ArrowLeft,
-  CheckCircle2,
-  Gamepad2,
   Loader2,
   RefreshCw,
   Save,
@@ -38,7 +36,6 @@ type Staff = {
   is_active?: boolean | null;
   is_online?: boolean | null;
   can_take_order?: boolean | null;
-  allowed_services?: string[] | null;
   commission_tier?: string | null;
   commission_note?: string | null;
   created_at?: string | null;
@@ -59,72 +56,6 @@ type StaffForm = {
   is_online: boolean;
   can_take_order: boolean;
 };
-
-type ServiceItem = {
-  key: string;
-  name: string;
-  category: string;
-};
-
-const SERVICE_GROUPS: Record<string, ServiceItem[]> = {
-  特戰英豪: [
-    { key: "valorant_god", name: "大神陪玩", category: "特戰英豪" },
-    { key: "valorant_skill", name: "技術陪玩", category: "特戰英豪" },
-    { key: "valorant_entertain", name: "娛樂陪玩", category: "特戰英豪" },
-    { key: "valorant_topup", name: "儲值星雨幣", category: "特戰英豪" },
-  ],
-  三角洲行動: [
-    { key: "delta_pc", name: "電腦版", category: "三角洲行動" },
-    { key: "delta_mobile", name: "手機版", category: "三角洲行動" },
-    { key: "delta_topup", name: "儲值星雨幣", category: "三角洲行動" },
-  ],
-  Apex: [
-    { key: "apex_god", name: "大神陪玩", category: "Apex" },
-    { key: "apex_skill", name: "技術陪玩", category: "Apex" },
-    { key: "apex_entertain", name: "娛樂陪玩", category: "Apex" },
-    { key: "apex_topup", name: "儲值星雨幣", category: "Apex" },
-  ],
-  英雄聯盟: [
-    { key: "lol_main", name: "英雄聯盟", category: "英雄聯盟" },
-    { key: "lol_aram", name: "ARAM", category: "英雄聯盟" },
-    { key: "lol_tft", name: "聯盟戰棋", category: "英雄聯盟" },
-    { key: "lol_topup", name: "儲值星雨幣", category: "英雄聯盟" },
-  ],
-  Steam: [
-    { key: "steam_roguelike", name: "肉鴿遊戲", category: "Steam" },
-    { key: "steam_survival", name: "生存遊戲", category: "Steam" },
-    { key: "steam_horror", name: "恐怖遊戲", category: "Steam" },
-    { key: "steam_party", name: "派對遊戲", category: "Steam" },
-  ],
-  王者榮耀: [
-    { key: "hok_entertain", name: "娛樂", category: "王者榮耀" },
-    { key: "hok_skill", name: "技術", category: "王者榮耀" },
-  ],
-  第五人格: [
-    { key: "identity_v_entertain", name: "娛樂", category: "第五人格" },
-    { key: "identity_v_rank_4", name: "四階", category: "第五人格" },
-    { key: "identity_v_rank_5", name: "五階", category: "第五人格" },
-    { key: "identity_v_rank_6", name: "六階", category: "第五人格" },
-    { key: "identity_v_rank_7", name: "七階", category: "第五人格" },
-  ],
-  其他項目: [
-    { key: "pubgm", name: "PUBG M", category: "其他項目" },
-    { key: "naraka", name: "NARAKA", category: "其他項目" },
-    { key: "minecraft", name: "Minecraft", category: "其他項目" },
-    { key: "voice_chat", name: "語音聊天", category: "其他項目" },
-    { key: "song", name: "點歌服務", category: "其他項目" },
-  ],
-};
-
-const ALL_SERVICES = Object.values(SERVICE_GROUPS).flat();
-
-function getServiceName(key: string) {
-  return ALL_SERVICES.find((item) => item.key === key)?.name || key;
-}
-
-function getServiceCategory(key: string) {
-  return ALL_SERVICES.find((item) => item.key === key)?.category || "其他";
-}
 
 function getDisplayName(staff: Staff | null) {
   if (!staff) return "未選擇員工";
@@ -178,11 +109,10 @@ export default function AdminStaffPage() {
   const [staffList, setStaffList] = useState<Staff[]>([]);
   const [selectedStaff, setSelectedStaff] = useState<Staff | null>(null);
   const [form, setForm] = useState<StaffForm>(makeForm(null));
-  const [allowedServices, setAllowedServices] = useState<string[]>([]);
   const [keyword, setKeyword] = useState("");
+  const [featuredKeyword, setFeaturedKeyword] = useState("");
   const [salarySort, setSalarySort] = useState("created_desc");
   const [saving, setSaving] = useState(false);
-  const [serviceSaving, setServiceSaving] = useState(false);
   const [archiving, setArchiving] = useState(false);
   const [featuredIds, setFeaturedIds] = useState<string[]>([]);
   const [featuredSaving, setFeaturedSaving] = useState(false);
@@ -404,29 +334,7 @@ export default function AdminStaffPage() {
     setSelectedStaff(staff);
     setForm(makeForm(staff));
 
-    const services = Array.isArray(staff.allowed_services)
-      ? staff.allowed_services
-      : [];
 
-    const { data, error } = await supabase
-      .from("players_services")
-      .select("*")
-      .eq("discord_id", staff.discord_id)
-      .eq("enabled", true);
-
-    if (error) {
-      console.error("load staff services error:", error);
-      setAllowedServices(services);
-      return;
-    }
-
-    const serviceKeys = (data || [])
-      .map((item: { service_key?: string | null }) =>
-        String(item.service_key || "").trim()
-      )
-      .filter(Boolean);
-
-    setAllowedServices(serviceKeys.length > 0 ? serviceKeys : services);
   }
 
   function updateForm<K extends keyof StaffForm>(key: K, value: StaffForm[K]) {
@@ -434,16 +342,6 @@ export default function AdminStaffPage() {
       ...prev,
       [key]: value,
     }));
-  }
-
-  function toggleService(serviceKey: string) {
-    setAllowedServices((prev) => {
-      if (prev.includes(serviceKey)) {
-        return prev.filter((key) => key !== serviceKey);
-      }
-
-      return [...prev, serviceKey];
-    });
   }
 
   async function saveStaff() {
@@ -516,84 +414,6 @@ export default function AdminStaffPage() {
     alert("員工資料已儲存");
   }
 
-  async function saveServices() {
-    if (!selectedStaff) return;
-
-    setServiceSaving(true);
-
-    const { error: updateStaffError } = await supabase
-      .from("players")
-      .update({
-        allowed_services: allowedServices,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", selectedStaff.id);
-
-    if (updateStaffError) {
-      setServiceSaving(false);
-      console.error("update staff services error:", updateStaffError);
-      alert("儲存可接服務失敗");
-      return;
-    }
-
-    const { error: deleteError } = await supabase
-      .from("players_services")
-      .delete()
-      .eq("discord_id", selectedStaff.discord_id);
-
-    if (deleteError) {
-      setServiceSaving(false);
-      console.error("delete services error:", deleteError);
-      alert("儲存可接服務失敗");
-      return;
-    }
-
-    if (allowedServices.length > 0) {
-      const rows = allowedServices.map((serviceKey) => ({
-        discord_id: selectedStaff.discord_id,
-        service_key: serviceKey,
-        service_name: getServiceName(serviceKey),
-        category: getServiceCategory(serviceKey),
-        enabled: true,
-        updated_at: new Date().toISOString(),
-      }));
-
-      const { error: insertError } = await supabase
-        .from("players_services")
-        .insert(rows);
-
-      if (insertError) {
-        setServiceSaving(false);
-        console.error("insert services error:", insertError);
-        alert("儲存可接服務失敗");
-        return;
-      }
-    }
-
-    setStaffList((prev) =>
-      prev.map((staff) =>
-        staff.id === selectedStaff.id
-          ? {
-              ...staff,
-              allowed_services: allowedServices,
-            }
-          : staff
-      )
-    );
-
-    setSelectedStaff((prev) =>
-      prev
-        ? {
-            ...prev,
-            allowed_services: allowedServices,
-          }
-        : prev
-    );
-
-    setServiceSaving(false);
-    alert("可接服務已儲存");
-  }
-
   async function setStaffArchived(archived: boolean) {
     if (!selectedStaff) return;
 
@@ -654,7 +474,6 @@ export default function AdminStaffPage() {
         nextStaffList.find((staff) => staff.is_active !== false) || null;
       setSelectedStaff(nextStaff);
       setForm(makeForm(nextStaff));
-      setAllowedServices([]);
       if (nextStaff) await selectStaff(nextStaff);
       alert(`已封存員工「${name}」`);
       return;
@@ -713,7 +532,7 @@ export default function AdminStaffPage() {
               </h1>
 
               <p className="mt-2 text-sm text-slate-500">
-                管理員工資料、上下線狀態、抽成檔位、薪資頻道與可接服務。
+                管理員工資料、上下線狀態、抽成檔位與薪資頻道。
               </p>
             </div>
 
@@ -742,15 +561,30 @@ export default function AdminStaffPage() {
                 本月金榜陪陪
               </h2>
               <p className="mt-1 text-sm text-slate-500">
-                可複選；儲存後這些陪陪會優先顯示在官網。
+                可複選；已選 {featuredIds.length} 人。儲存後這些陪陪會優先顯示在官網。
               </p>
             </div>
             <button onClick={saveFeatured} disabled={featuredSaving} className="rounded-full bg-violet-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-violet-700 disabled:opacity-60">
               {featuredSaving ? "儲存中..." : "儲存金榜名單"}
             </button>
           </div>
+          <div className="mt-4 flex items-center gap-2 rounded-2xl border border-violet-100 bg-violet-50/60 px-3 py-2">
+            <Search size={17} className="shrink-0 text-violet-600" />
+            <input
+              value={featuredKeyword}
+              onChange={(event) => setFeaturedKeyword(event.target.value)}
+              placeholder="搜尋金榜陪陪名稱或 Discord ID"
+              aria-label="搜尋金榜陪陪"
+              className="min-w-0 flex-1 border-none bg-transparent p-0 text-sm outline-none focus:shadow-none"
+            />
+          </div>
           <div className="mt-4 flex flex-wrap gap-2">
-            {staffList.filter((staff) => staff.is_active !== false).map((staff) => (
+            {staffList.filter((staff) => {
+              if (staff.is_active === false) return false;
+              const query = featuredKeyword.trim().toLowerCase();
+              return !query || [staff.display_name, staff.real_name, staff.discord_name, staff.discord_id]
+                .filter(Boolean).join(" ").toLowerCase().includes(query);
+            }).map((staff) => (
               <label key={staff.discord_id} className={`flex cursor-pointer items-center gap-2 rounded-full border px-3 py-2 text-sm font-semibold transition ${
                 featuredIds.includes(staff.discord_id)
                   ? "border-amber-300 bg-amber-50 text-amber-800"
@@ -804,8 +638,7 @@ export default function AdminStaffPage() {
                     setShowArchived((current) => !current);
                     setSelectedStaff(null);
                     setForm(makeForm(null));
-                    setAllowedServices([]);
-                  }}
+                                }}
                   className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-sky-200 bg-white px-3 py-2 text-sm font-bold text-sky-600 transition hover:bg-sky-50"
                 >
                   {showArchived ? (
@@ -1052,71 +885,6 @@ export default function AdminStaffPage() {
                       }
                     />
                   </div>
-                </div>
-              )}
-            </div>
-
-            <div className="rounded-[28px] border border-sky-100 bg-white p-5 shadow-sm shadow-sky-100">
-              <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                <div>
-                  <h2 className="flex items-center gap-2 text-lg font-black text-slate-900">
-                    <Gamepad2 size={20} className="text-sky-500" />
-                    可接服務
-                  </h2>
-
-                  <p className="mt-1 text-sm text-slate-500">
-                    這會同步寫入 players.allowed_services 與 players_services。
-                  </p>
-                </div>
-
-                <button
-                  onClick={saveServices}
-                  disabled={!selectedStaff || serviceSaving}
-                  className="inline-flex items-center justify-center gap-2 rounded-full bg-sky-500 px-5 py-2.5 text-sm font-bold text-white shadow-sm shadow-sky-200 hover:bg-sky-600 disabled:opacity-60"
-                >
-                  <CheckCircle2 size={16} />
-                  {serviceSaving ? "儲存中..." : "儲存可接服務"}
-                </button>
-              </div>
-
-              {!selectedStaff ? (
-                <div className="mt-8 rounded-2xl bg-sky-50 px-5 py-8 text-center text-sm font-semibold text-slate-400">
-                  請先選擇一位員工
-                </div>
-              ) : (
-                <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-2">
-                  {Object.entries(SERVICE_GROUPS).map(([groupName, items]) => (
-                    <div
-                      key={groupName}
-                      className="rounded-[22px] border border-sky-100 bg-sky-50/40 p-4"
-                    >
-                      <h3 className="font-black text-sky-700">{groupName}</h3>
-
-                      <div className="mt-3 space-y-2">
-                        {items.map((item) => {
-                          const checked = allowedServices.includes(item.key);
-
-                          return (
-                            <label
-                              key={item.key}
-                              className="grid w-full cursor-pointer grid-cols-[20px_1fr] items-center gap-3 rounded-[16px] border border-sky-100 bg-white px-3 py-2.5 text-sm transition hover:bg-sky-50"
-                            >
-                              <input
-                                type="checkbox"
-                                checked={checked}
-                                onChange={() => toggleService(item.key)}
-                                className="h-[18px] w-[18px] shrink-0 accent-sky-500"
-                              />
-
-                              <span className="min-w-0 break-words font-semibold text-slate-700">
-                                {item.name}
-                              </span>
-                            </label>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ))}
                 </div>
               )}
             </div>
