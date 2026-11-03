@@ -5,9 +5,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useErpAccess } from "@/lib/useErpAccess";
 
-const QIUNAI_ERP_ORIGIN =
-  process.env.NEXT_PUBLIC_QIUNAI_ERP_ORIGIN ||
-  "https://qiunai.wearestilllhere.com";
+const QIUNAI_ERP_ORIGIN = "https://qiunai-salary-app-production.up.railway.app";
 const ERP_OWNER_DISCORD_ID = "847840193859682304";
 
 const QIUNAI_SECTIONS: Record<string, string> = {
@@ -19,6 +17,7 @@ const QIUNAI_SECTIONS: Record<string, string> = {
   activities: "/admin/activities",
   files: "/admin/files",
   accounting: "/admin/accounting",
+  "activity-logs": "/admin/activity-logs",
   settings: "/admin/settings",
 };
 
